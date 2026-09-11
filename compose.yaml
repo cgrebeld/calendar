@@ -1,0 +1,9 @@
+services:
+  calendar-web:
+    build:
+      context: .
+      args:
+        VITE_APP_TITLE: ${VITE_APP_TITLE:-Family Calendar}
+    ports:
+      - "8080:80"
+    restart: unless-stopped
