@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
-    "sbom": "npm sbom --sbom-format cyclonedx"
+    "test": "node --test dates.test.ts ../api/server.test.mjs",
+    "sbom": "npm sbom --sbom-format cyclonedx",
+    "art": "node skins/woodland-art.mjs"
   },
   "dependencies": {
     "react": "19.3.0",

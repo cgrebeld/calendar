@@ -1,0 +1,137 @@
+:root[data-skin="woodland"] {
+  --bg: #d9c7a3;
+  --surface: #f6ecd6;
+  --surface-muted: #ecdfc0;
+  --surface-today: #f3e6c2;
+  --surface-context: #efe4c9;
+  --notes-bg: #f0e2c4;
+  --border: #b89b6a;
+  --grid-line: #e0cfa8;
+  --border-strong: #c9ad7c;
+  --text: #3b2e1e;
+  --text-muted: #6f5a3e;
+  --text-subtle: #5e4a30;
+  --text-faint: #8a7455;
+  --note-checked: #9c8a6b;
+  --month-outside: #a89372;
+  --accent: #5f8a4f;
+  --accent-text: #e8f0dc;
+  --accent-strong: #3f6332;
+  --nav-dark-bg: #5b4327;
+  --now-line: #c0503a;
+  --tone-text: #2f2415;
+  --tone-alex: #c8674a;
+  --tone-alex-bg: #f4d9cf;
+  --tone-sam: #4f8fc4;
+  --tone-sam-bg: #d9e9f5;
+  --tone-maya: #8b78b8;
+  --tone-maya-bg: #e6dff2;
+  --tone-family: #6e9a6a;
+  --tone-family-bg: #dfe9d8;
+  --bg-tint: rgb(217 199 163 / .12);
+  --glass-bg: rgb(243 230 203 / .92);
+  --glass-border: #b89b6a;
+  --glass-blur: 0px;
+  --calendar-surface: rgb(246 236 214 / .96);
+  --notes-surface: rgb(240 226 196 / .94);
+  --bevel-hi: rgb(255 255 255 / .45);
+  --bevel-lo: rgb(0 0 0 / .15);
+  --scene: url("/skins/woodland/day.png");
+  --scene-clouds: url("/skins/woodland/day-clouds.png");
+  --scene-reflections: url("/skins/woodland/day-reflections.png");
+  --scene-reflections1: url("/skins/woodland/day-reflections1.png");
+  --scene-reflections2: url("/skins/woodland/day-reflections2.png");
+  --frame-image: url("/skins/woodland/frame.png");
+}
+
+:root[data-skin="woodland"][data-theme="dark"] {
+  --bg: #1e1a14;
+  --surface: #3a3022;
+  --surface-muted: #322a1e;
+  --surface-today: #3f3a25;
+  --surface-context: #2e271b;
+  --notes-bg: #362d1f;
+  --border: #5a4a30;
+  --grid-line: #463a28;
+  --border-strong: #6a5838;
+  --text: #efe3c8;
+  --text-muted: #c2b08c;
+  --text-subtle: #b3a17d;
+  --text-faint: #8a7a5c;
+  --note-checked: #7a6a4e;
+  --month-outside: #7a6a4e;
+  --accent: #7aa564;
+  --accent-text: #e3efd6;
+  --accent-strong: #b8d6a3;
+  --nav-dark-bg: #2b2015;
+  --now-line: #e0705a;
+  --tone-text: #17120c;
+  --tone-alex: #f0b9a8;
+  --tone-alex-bg: #c46a4e;
+  --tone-sam: #b7d4ec;
+  --tone-sam-bg: #4f88b8;
+  --tone-maya: #d6cbe9;
+  --tone-maya-bg: #8a75b3;
+  --tone-family: #c6dcbc;
+  --tone-family-bg: #6b9668;
+  --bg-tint: rgb(20 16 10 / .25);
+  --glass-bg: rgb(50 41 28 / .92);
+  --glass-border: #6a5838;
+  --calendar-surface: rgb(58 48 34 / .96);
+  --notes-surface: rgb(54 45 31 / .94);
+  --bevel-hi: rgb(255 255 255 / .1);
+  --bevel-lo: rgb(0 0 0 / .35);
+  --scene: url("/skins/woodland/night.png");
+  --scene-clouds: url("/skins/woodland/night-clouds.png");
+  --scene-reflections: url("/skins/woodland/night-reflections.png");
+  --scene-reflections1: url("/skins/woodland/night-reflections1.png");
+  --scene-reflections2: url("/skins/woodland/night-reflections2.png");
+  --frame-image: url("/skins/woodland/frame-night.png");
+}
+
+@font-face { font-family: "Pixelify Sans"; src: url("/skins/woodland/pixelify-sans.woff2") format("woff2"); font-weight: 400 700; font-display: swap; }
+
+[data-skin="woodland"] h1, [data-skin="woodland"] h2, [data-skin="woodland"] .eyebrow, [data-skin="woodland"] .day-heading span, [data-skin="woodland"] .day-heading strong, [data-skin="woodland"] .mini-day > header span, [data-skin="woodland"] .mini-day > header strong, [data-skin="woodland"] .month-heading, [data-skin="woodland"] .mode-picker button, [data-skin="woodland"] nav .word-button, [data-skin="woodland"] .sync-status, [data-skin="woodland"] .weather strong, [data-skin="woodland"] .weather small, [data-skin="woodland"] .corner { font-family: "Pixelify Sans", Inter, system-ui, sans-serif; }
+
+[data-skin="woodland"] nav button, [data-skin="woodland"] .close, [data-skin="woodland"] .sync-status, [data-skin="woodland"] .notes-actions button, [data-skin="woodland"] .mode-picker { border: 2px solid var(--border); border-radius: .35rem; box-shadow: inset 0 2px 0 var(--bevel-hi), inset 0 -3px 0 var(--bevel-lo); backdrop-filter: none; -webkit-backdrop-filter: none; }
+[data-skin="woodland"] nav .dark { border-color: #3a2a17; }
+[data-skin="woodland"] .mode-picker { padding: .25rem; background: var(--surface-muted); }
+[data-skin="woodland"] .mode-picker button { border-radius: .25rem; }
+[data-skin="woodland"] .mode-picker .active { color: var(--on-accent); background: var(--accent); box-shadow: inset 0 2px 0 rgb(255 255 255 / .25), inset 0 -3px 0 rgb(0 0 0 / .25); }
+[data-skin="woodland"] nav button:active, [data-skin="woodland"] .close:active, [data-skin="woodland"] .notes-actions button:active, [data-skin="woodland"] .mode-picker button:active { box-shadow: inset 0 3px 0 var(--bevel-lo); transform: translateY(1px); }
+[data-skin="woodland"] .notes-actions button { border-radius: .35rem; }
+
+[data-skin="woodland"] body::before { background: linear-gradient(var(--bg-tint), var(--bg-tint)), var(--bg-image, var(--scene)) center / cover no-repeat, var(--bg); image-rendering: pixelated; }
+.woodland-animation { display: none; }
+[data-skin="woodland"] .woodland-animation,
+[data-skin="woodland"] .woodland-animation i,
+[data-skin="woodland"] .woodland-animation i::before,
+[data-skin="woodland"] .woodland-animation i::after { position: fixed; inset: 0; z-index: -1; display: block; pointer-events: none; image-rendering: pixelated; background-position: center; background-size: cover; background-repeat: no-repeat; }
+[data-skin="woodland"] .woodland-animation i::before,
+[data-skin="woodland"] .woodland-animation i::after { content: ""; }
+[data-skin="woodland"][data-theme="dark"] .woodland-animation i:nth-child(1) { background-image: url("/skins/woodland/night-stars.png"); animation: woodland-stars 4s steps(4) infinite alternate; }
+[data-skin="woodland"][data-theme="dark"] .woodland-animation i:nth-child(1)::before { background-image: url("/skins/woodland/night-stars1.png"); animation: woodland-stars 4s -1s steps(4) infinite alternate; }
+[data-skin="woodland"][data-theme="dark"] .woodland-animation i:nth-child(1)::after { background-image: url("/skins/woodland/night-stars2.png"); animation: woodland-stars 4s -3s steps(4) infinite alternate; }
+[data-skin="woodland"] .woodland-animation i:nth-child(2) { background-image: var(--scene-clouds); background-size: max(100vw, 177.78vh) auto; background-repeat: repeat-x; animation: woodland-clouds 1600s steps(1600) infinite; }
+[data-skin="woodland"] .woodland-animation i:nth-child(3) { background-image: var(--scene-reflections); animation: woodland-reflections 12s steps(12) infinite; }
+[data-skin="woodland"] .woodland-animation i:nth-child(3)::before { background-image: var(--scene-reflections1); animation: woodland-reflections 12s -1s steps(12) infinite; }
+[data-skin="woodland"] .woodland-animation i:nth-child(3)::after { background-image: var(--scene-reflections2); animation: woodland-reflections 12s -3s steps(12) infinite; }
+@keyframes woodland-stars { to { opacity: .45; } }
+@keyframes woodland-clouds { to { background-position-x: calc(50% + max(100vw, 177.78vh)); } }
+@keyframes woodland-reflections { 50% { transform: translateX(4px); } }
+@media (prefers-reduced-motion: reduce) { :root[data-skin="woodland"] .woodland-animation i, :root[data-skin="woodland"] .woodland-animation i::before, :root[data-skin="woodland"] .woodland-animation i::after { animation: none; } }
+
+[data-skin="woodland"] .timeline, [data-skin="woodland"] .two-week-grid, [data-skin="woodland"] .month-grid, [data-skin="woodland"] .notes, [data-skin="woodland"] .weather, [data-skin="woodland"] .day-modal, [data-skin="woodland"] .event-detail { border: 12px solid transparent; border-image: var(--frame-image) 6 / 12px round; border-radius: 0; box-shadow: var(--shadow-md); image-rendering: pixelated; }
+
+[data-skin="woodland"] .glyph, [data-skin="woodland"] .weather-icon { display: inline-block; width: 1em; height: 1em; overflow: hidden; color: transparent; text-indent: 100%; white-space: nowrap; background: var(--icon) center / contain no-repeat; image-rendering: pixelated; }
+[data-skin="woodland"] [data-icon="sun"] { --icon: url("/skins/woodland/icons/sun.svg"); }
+[data-skin="woodland"] [data-icon="partly"] { --icon: url("/skins/woodland/icons/partly.svg"); }
+[data-skin="woodland"] [data-icon="cloud"] { --icon: url("/skins/woodland/icons/cloud.svg"); }
+[data-skin="woodland"] [data-icon="fog"] { --icon: url("/skins/woodland/icons/fog.svg"); }
+[data-skin="woodland"] [data-icon="rain"] { --icon: url("/skins/woodland/icons/rain.svg"); }
+[data-skin="woodland"] [data-icon="snow"] { --icon: url("/skins/woodland/icons/snow.svg"); }
+[data-skin="woodland"] [data-icon="storm"] { --icon: url("/skins/woodland/icons/storm.svg"); }
+[data-skin="woodland"] [data-icon="cold"] { --icon: url("/skins/woodland/icons/cold.svg"); }
+
+[data-skin="woodland"] main { position: relative; padding-bottom: 7.5rem; }
+[data-skin="woodland"] .notes { min-height: 0; }

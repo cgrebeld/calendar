@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1190" viewBox="0 0 1200 1190">
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#eef3fa"/><stop offset="1" stop-color="#dfe8f2"/></linearGradient>
+    <linearGradient id="temp" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#f4ac69"/><stop offset=".48" stop-color="#acb8dc"/><stop offset="1" stop-color="#6b9fce"/></linearGradient>
+    <g id="cloud"><path d="M-23 8 C-35 8 -35 -10 -23 -11 C-24 -29 4 -33 10 -15 C29 -21 38 8 18 8 Z" fill="#a5b6cb"/><path d="M-22 8 H18" stroke="#8199b5" stroke-width="2"/></g>
+    <g id="sun"><circle r="12" fill="#edb757"/><path d="M0 -22 V-17 M0 17 V22 M-22 0 H-17 M17 0 H22 M-16 -16 L-12 -12 M12 12 L16 16 M-16 16 L-12 12 M12 -12 L16 -16" stroke="#edb757" stroke-width="3" stroke-linecap="round"/></g>
+    <g id="partly"><use href="#sun" x="-12" y="-15"/><use href="#cloud" transform="translate(5 7) scale(.75)"/></g>
+    <g id="fog"><use href="#cloud" transform="translate(0 -6) scale(.8)"/><path d="M-25 9 H22 M-17 17 H29 M-27 25 H14" stroke="#8ea4b9" stroke-width="3" stroke-linecap="round"/></g>
+    <g id="rain"><use href="#cloud" transform="translate(0 -6) scale(.8)"/><path d="M-15 12 L-19 21 M0 12 L-4 21 M15 12 L11 21" stroke="#689cc9" stroke-width="3" stroke-linecap="round"/></g>
+  </defs>
+  <rect width="1200" height="1190" fill="url(#bg)"/>
+  <rect x="40" y="32" width="1120" height="1126" rx="28" fill="#ffffff"/>
+  <g font-family="DejaVu Sans, sans-serif" fill="#243348">
+    <text x="82" y="79" font-size="12" font-weight="bold" letter-spacing="2" fill="#75849a">CONDITIONS &amp; FORECAST</text>
+    <text x="82" y="124" font-size="32" font-weight="bold">Weather details</text>
+    <text x="83" y="154" font-size="14" fill="#728197">September 17 · Updated 10:30 AM · Illustrative data</text>
+    <circle cx="1105" cy="83" r="20" fill="#f0f4f8"/><path d="M1099 77 L1111 89 M1111 77 L1099 89" stroke="#728197" stroke-width="2"/>
+    <rect x="82" y="182" width="260" height="266" rx="18" fill="#f2f6fd"/>
+    <text x="108" y="215" font-size="12" font-weight="bold" letter-spacing="2" fill="#75849a">RIGHT NOW</text>
+    <use href="#sun" transform="translate(135 273) scale(1.5)"/>
+    <text x="108" y="358" font-size="58">18.4°<tspan font-size="24">C</tspan></text>
+    <text x="108" y="404" font-size="14" fill="#728197">Clear sky</text>
+    <g fill="#f6f8fb" stroke="#e8edf3">
+      <rect x="358" y="182" width="177" height="82" rx="12"/><rect x="551" y="182" width="177" height="82" rx="12"/><rect x="744" y="182" width="177" height="82" rx="12"/><rect x="937" y="182" width="177" height="82" rx="12"/>
+      <rect x="358" y="274" width="177" height="82" rx="12"/><rect x="551" y="274" width="177" height="82" rx="12"/><rect x="744" y="274" width="177" height="82" rx="12"/><rect x="937" y="274" width="177" height="82" rx="12"/>
+      <rect x="358" y="366" width="177" height="82" rx="12"/><rect x="551" y="366" width="177" height="82" rx="12"/><rect x="744" y="366" width="177" height="82" rx="12"/><rect x="937" y="366" width="177" height="82" rx="12"/>
+    </g>
+    <g font-size="12" fill="#728197">
+      <text x="374" y="208">Feels like</text><text x="567" y="208">Humidity</text><text x="760" y="208">Wind speed</text><text x="953" y="208">Wind gusts</text>
+      <text x="374" y="300">Precipitation</text><text x="567" y="300">Rain</text><text x="760" y="300">Showers</text><text x="953" y="300">Snowfall</text>
+      <text x="374" y="392">Cloud cover</text><text x="567" y="392">Sea level pressure</text><text x="760" y="392">Surface pressure</text><text x="953" y="392">Wind direction</text>
+    </g>
+    <g font-size="21" font-weight="bold">
+      <text x="374" y="243">18.1 °C</text><text x="567" y="243">64 %</text><text x="760" y="243">6 kt</text><text x="953" y="243">8 kt</text>
+      <text x="374" y="335">0 mm</text><text x="567" y="335">0 mm</text><text x="760" y="335">0 mm</text><text x="953" y="335">0 cm</text>
+      <text x="374" y="427">8 %</text><text x="567" y="427">1018 hPa</text><text x="760" y="427">1012 hPa</text><text x="953" y="427">245°</text>
+    </g>
+    <text x="82" y="501" font-size="24" font-weight="bold">Daily outlook</text>
+    <text x="1113" y="501" text-anchor="end" font-size="13" fill="#728197">September 17–23</text>
+    <g transform="translate(0 350)">
+    <rect x="143" y="187" width="118" height="439" rx="16" fill="#f2f6fd"/>
+    <text x="82" y="205" font-size="12" fill="#728197">°C</text>
+    <g stroke="#e8edf3" stroke-width="1" stroke-dasharray="4 6">
+      <path d="M136 234 H1113 M136 294 H1113 M136 354 H1113 M136 414 H1113 M136 474 H1113"/>
+    </g>
+    <g fill="#8a97a9" font-size="12" text-anchor="end"><text x="112" y="239">25°</text><text x="112" y="299">20°</text><text x="112" y="359">15°</text><text x="112" y="419">10°</text><text x="112" y="479">5°</text></g>
+    <g fill="url(#temp)">
+      <rect x="182" y="270" width="40" height="144" rx="20"/>
+      <rect x="322" y="294" width="40" height="108" rx="20"/>
+      <rect x="462" y="330" width="40" height="96" rx="20"/>
+      <rect x="602" y="354" width="40" height="84" rx="20"/>
+      <rect x="742" y="318" width="40" height="96" rx="20"/>
+      <rect x="882" y="282" width="40" height="120" rx="20"/>
+      <rect x="1022" y="258" width="40" height="144" rx="20"/>
+    </g>
+    <g text-anchor="middle" font-size="17" font-weight="bold">
+      <text x="202" y="256">22°</text><text x="342" y="280">20°</text><text x="482" y="316">17°</text><text x="622" y="340">15°</text><text x="762" y="304">18°</text><text x="902" y="268">21°</text><text x="1042" y="244">23°</text>
+    </g>
+    <g text-anchor="middle" font-size="14" fill="#6984a4">
+      <text x="202" y="437">10°</text><text x="342" y="425">11°</text><text x="482" y="449">9°</text><text x="622" y="461">8°</text><text x="762" y="437">10°</text><text x="902" y="425">11°</text><text x="1042" y="425">11°</text>
+    </g>
+    <path d="M136 498 H1113" stroke="#dce4ee"/>
+    <g text-anchor="middle" font-size="14" font-weight="bold">
+      <text x="202" y="528" fill="#4d6da4">Today · 17</text><text x="342" y="528">Fri · 18</text><text x="482" y="528">Sat · 19</text><text x="622" y="528">Sun · 20</text><text x="762" y="528">Mon · 21</text><text x="902" y="528">Tue · 22</text><text x="1042" y="528">Wed · 23</text>
+    </g>
+    <use href="#sun" x="202" y="568"/><use href="#partly" x="342" y="568"/><use href="#cloud" x="482" y="568"/><use href="#rain" x="622" y="563"/><use href="#fog" x="762" y="558"/><use href="#partly" x="902" y="568"/><use href="#sun" x="1042" y="568"/>
+    <text x="83" y="660" font-size="12" font-weight="bold" letter-spacing="1" fill="#728197">WIND</text>
+    <text x="83" y="679" font-size="11" fill="#8a97a9">Max · kt</text>
+    <g>
+      <rect x="143" y="648" width="118" height="42" rx="7" fill="#d8eade"/>
+      <rect x="283" y="648" width="118" height="42" rx="7" fill="#bedcd6"/>
+      <rect x="423" y="648" width="118" height="42" rx="7" fill="#90c0c9"/>
+      <rect x="563" y="648" width="118" height="42" rx="7" fill="#5589aa"/>
+      <rect x="703" y="648" width="118" height="42" rx="7" fill="#b5d6d3"/>
+      <rect x="843" y="648" width="118" height="42" rx="7" fill="#d3e6dc"/>
+      <rect x="983" y="648" width="118" height="42" rx="7" fill="#e6efe1"/>
+    </g>
+    <g text-anchor="middle" font-size="14" font-weight="bold"><text x="202" y="675">8</text><text x="342" y="675">12</text><text x="482" y="675">18</text><text x="622" y="675" fill="#fff">26</text><text x="762" y="675">14</text><text x="902" y="675">9</text><text x="1042" y="675">5</text></g>
+    <text x="143" y="733" font-size="12" fill="#8a97a9">Select a day to explore precipitation, UV, sunrise and more.</text>
+    <text x="83" y="781" font-size="10" letter-spacing="1.4" fill="#a0adbd">DESIGN CONCEPT · NOT LIVE WEATHER</text>
+    </g>
+  </g>
+</svg>

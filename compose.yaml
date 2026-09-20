@@ -2,8 +2,41 @@ services:
   calendar-web:
     build:
       context: .
+      target: web
       args:
-        VITE_APP_TITLE: ${VITE_APP_TITLE:-Family Calendar}
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
+        VITE_SCHEDULE_START: ${VITE_SCHEDULE_START:-}
+        VITE_SCHEDULE_END: ${VITE_SCHEDULE_END:-}
+        VITE_WEATHER_COLD_THRESHOLD: ${VITE_WEATHER_COLD_THRESHOLD:-}
+        VITE_THEME_MODE: ${VITE_THEME_MODE:-}
+        VITE_THEME_LIGHT_START: ${VITE_THEME_LIGHT_START:-}
+        VITE_THEME_DARK_START: ${VITE_THEME_DARK_START:-}
+        VITE_SKIN: ${VITE_SKIN:-}
+        VITE_BACKGROUND: ${VITE_BACKGROUND:-}
+        VITE_BACKGROUND_LIGHT: ${VITE_BACKGROUND_LIGHT:-}
+        VITE_BACKGROUND_DARK: ${VITE_BACKGROUND_DARK:-}
     ports:
-      - "8080:80"
+      - "${WEB_PORT:-8080}:80"
     restart: unless-stopped
+  calendar-api:
+    build:
+      context: .
+      target: api
+    environment:
+      APP_ORIGIN: ${APP_ORIGIN:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_TOKEN_PATH: /data/google-oauth.json
+      TASK_LISTS: ${TASK_LISTS:-}
+      WEATHER_LATITUDE: ${WEATHER_LATITUDE}
+      WEATHER_LONGITUDE: ${WEATHER_LONGITUDE}
+      WEATHER_UNITS: ${WEATHER_UNITS:-}
+      WEATHER_WIND_UNIT: ${WEATHER_WIND_UNIT:-}
+    ports:
+      - "3000:3000"
+    volumes:
+      - calendar-data:/data
+    restart: unless-stopped
+
+volumes:
+  calendar-data:

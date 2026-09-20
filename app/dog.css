@@ -1,0 +1,13 @@
+.dog-companion { position: fixed; right: 0; bottom: 0; max-width: min(30rem, 100%); display: flex; align-items: flex-start; justify-content: flex-end; gap: .75rem; pointer-events: none; }
+.dog-companion > * { pointer-events: auto; }
+.companion-dog { width: 9rem; margin-top: -3rem; padding: 0; border: 0; background: none; flex: none; cursor: pointer; }
+.companion-dog img { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+.companion-dog:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.dog-bubble { position: relative; min-width: 0; max-width: 20rem; margin-top: .5rem; padding: .65rem .85rem; border: 2px solid var(--border); border-radius: .8rem; color: var(--text); background: var(--surface); box-shadow: var(--shadow-sm); font-size: .85rem; }
+.dog-bubble::after { content: ""; position: absolute; right: -8px; top: .75rem; width: 12px; height: 12px; border-right: 2px solid var(--border); border-top: 2px solid var(--border); background: var(--surface); transform: rotate(45deg); }
+.dog-bubble blockquote { max-height: 5rem; overflow-y: auto; overscroll-behavior: contain; margin: 0; line-height: 1.4; overflow-wrap: anywhere; }
+.dog-bubble :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+@media (max-width: 600px) {
+  .companion-dog { width: 6rem; margin-top: -2rem; }
+  .dog-bubble { padding: .75rem; }
+}

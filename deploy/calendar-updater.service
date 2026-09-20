@@ -1,0 +1,21 @@
+[Unit]
+Description=Calendar release updater
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/calendar/updater.py
+Restart=on-failure
+RestartSec=10
+RuntimeDirectory=calendar-updater
+RuntimeDirectoryMode=0755
+RuntimeDirectoryPreserve=yes
+StateDirectory=calendar-updater
+StateDirectoryMode=0700
+UMask=0077
+TimeoutStopSec=180
+
+[Install]
+WantedBy=multi-user.target

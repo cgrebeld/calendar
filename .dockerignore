@@ -1,3 +1,6 @@
 .git
+.env
+**/calendar.env
+.data
 app/node_modules
 app/dist

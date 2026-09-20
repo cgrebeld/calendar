@@ -1,4 +1,7 @@
 .env
+calendar.env
+.data
 app/node_modules
 app/dist
 *.tsbuildinfo
+deploy/__pycache__/

@@ -1,0 +1,28 @@
+name: calendar-wall
+services:
+  calendar-web:
+    image: ${WEB_IMAGE:?Set WEB_IMAGE in release.env}
+    platform: linux/amd64
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    restart: unless-stopped
+    depends_on:
+      calendar-api:
+        condition: service_healthy
+    logging:
+      options: { max-size: "10m", max-file: "3" }
+  calendar-api:
+    image: ${API_IMAGE:?Set API_IMAGE in release.env}
+    platform: linux/amd64
+    env_file: /etc/calendar/calendar.env
+    environment:
+      GOOGLE_TOKEN_PATH: /data/google-oauth.json
+      UPDATER_SOCKET: /run/calendar-updater/control.sock
+    volumes:
+      - calendar-data:/data
+      - /run/calendar-updater:/run/calendar-updater:ro
+    restart: unless-stopped
+    logging:
+      options: { max-size: "10m", max-file: "3" }
+volumes:
+  calendar-data:
