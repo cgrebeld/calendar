@@ -11,7 +11,7 @@ import { WoodlandBackground } from "./skins/woodland";
 import { DogCompanion } from "./dog";
 import { Countdowns } from "./countdown-list";
 import { ApplicationUpdates } from "./updates";
-import { PhotoMode, PhotoSettings } from "./photos";
+import { PhotoIcon, PhotoMode, PhotoSettings } from "./photos";
 
 const themeMode = parseThemeMode(new URLSearchParams(location.search).get("theme") ?? import.meta.env.VITE_THEME_MODE);
 const skin = parseSkin(new URLSearchParams(location.search).get("skin") ?? import.meta.env.VITE_SKIN);
@@ -671,7 +671,7 @@ function App() {
           <button onClick={() => setAnchor((date) => moveAnchor(date, mode, -1))} aria-label="Previous" data-sound="boop">‹</button>
           <button className="word-button" onClick={() => setAnchor(new Date())}>Today</button>
           <button onClick={() => setAnchor((date) => moveAnchor(date, mode, 1))} aria-label="Next">›</button>
-          <button className="word-button dark" onClick={() => setIdle(true)}>Photos</button>
+          <button className="icon-button dark" aria-label="Photos" title="Photos" onClick={() => setIdle(true)}><PhotoIcon /></button>
           <button
             className="google-status"
             data-connected={connected}
@@ -682,7 +682,12 @@ function App() {
           >
             <GoogleConnectionIcon connected={connected} />
           </button>
-          {!notesOpen && <button className="word-button" onClick={() => setNotesOpen(true)}>Notes</button>}
+          {!notesOpen && <button className="icon-button" aria-label="Notes" title="Notes" onClick={() => setNotesOpen(true)}>
+            <svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
+              <rect x="5" y="3" width="22" height="26" rx="2" />
+              <path d="m9 10 1.5 1.5 3-3M17 10h6m-14 8 1.5 1.5 3-3M17 18h6M9 25h4m4 0h6" />
+            </svg>
+          </button>}
           <PhotoSettings apiUrl={apiUrl} />
           <ApplicationUpdates apiUrl={apiUrl} />
         </nav>
