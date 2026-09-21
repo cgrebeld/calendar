@@ -189,10 +189,10 @@ function Timeline({ dates, today, now, events, range, focus, forecast, onSelect,
   );
 }
 
-function useRowCapacity(ref: React.RefObject<HTMLDivElement | null>): number {
+function useRowCapacity() {
+  const [element, setElement] = useState<HTMLDivElement | null>(null);
   const [capacity, setCapacity] = useState(3);
   useEffect(() => {
-    const element = ref.current;
     if (!element) return;
     const measure = () => {
       const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
@@ -205,13 +205,12 @@ function useRowCapacity(ref: React.RefObject<HTMLDivElement | null>): number {
     const observer = new ResizeObserver(measure);
     observer.observe(element);
     return () => observer.disconnect();
-  }, [ref]);
-  return capacity;
+  }, [element]);
+  return [setElement, capacity] as const;
 }
 
 function Month({ dates, anchor, today, now, events, range, forecast, onSelect, onOpenDay }: { dates: Date[]; anchor: Date; today: Date; now: Date; events: CalendarEvent[]; range: ScheduleRange; forecast: Map<string, DayWeather>; onSelect: (event: CalendarEvent) => void; onOpenDay: (date: Date) => void }) {
-  const capacityRef = React.useRef<HTMLDivElement>(null);
-  const capacity = useRowCapacity(capacityRef);
+  const [capacityRef, capacity] = useRowCapacity();
   const hours = scheduleHours(range);
   return (
     <section className="month-grid">

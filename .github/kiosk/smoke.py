@@ -35,12 +35,44 @@ with subprocess.Popen(["labwc", "-s", "true"]) as compositor:
         with webdriver.Chrome(service=Service("/usr/bin/chromedriver", log_output=sys.stdout), options=options) as browser:
             browser.set_page_load_timeout(30)
             wait = WebDriverWait(browser, 30)
+            browser.execute_cdp_cmd("Emulation.setDeviceMetricsOverride", {
+                "width": 1920, "height": 1080, "deviceScaleFactor": 1, "mobile": False,
+            })
+            # Populate each date so navigation exercises both event rows and overflow.
+            browser.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {"source": """
+                const originalFetch = window.fetch;
+                window.fetch = (input, options) => {
+                    const url = new URL(typeof input === 'string' ? input : input.url, location.href);
+                    if (url.pathname === '/api/auth/status') return Promise.resolve(new Response(JSON.stringify({ connected: true })));
+                    if (url.pathname !== '/api/calendar/events') return originalFetch(input, options);
+                    const events = [];
+                    const end = new Date(url.searchParams.get('timeMax'));
+                    for (const day = new Date(url.searchParams.get('timeMin')); day < end; day.setDate(day.getDate() + 1)) {
+                        const date = [day.getFullYear(), String(day.getMonth() + 1).padStart(2, '0'), String(day.getDate()).padStart(2, '0')].join('-');
+                        for (let i = 0; i < 8; i++) events.push({
+                            event: { id: `${date}-${i}`, summary: `Month regression ${i}`, start: { date }, end: { date } },
+                            calendar: { id: 'test', summary: 'Test' }, tone: 0,
+                        });
+                    }
+                    return Promise.resolve(new Response(JSON.stringify(events), { headers: { 'content-type': 'application/json' } }));
+                };
+            """})
             browser.get("http://calendar-web/")
             wait.until(lambda driver: driver.find_element(By.TAG_NAME, "h1").text)
             for label, layout in (("Month", ".month-grid"), ("2 weeks", ".two-week-grid"), ("Week", ".timeline"), ("Day", ".timeline")):
                 browser.find_element(By.XPATH, f'//div[@aria-label="Calendar view"]/button[text()="{label}"]').click()
                 wait.until(lambda driver: driver.find_element(By.CSS_SELECTOR, ".mode-picker .active").text == label)
                 wait.until(lambda driver: driver.find_element(By.CSS_SELECTOR, layout).is_displayed())
+            browser.find_element(By.XPATH, '//div[@aria-label="Calendar view"]/button[text()="Month"]').click()
+            for direction in (None, "Next", "Next", "Previous"):
+                if direction:
+                    first = browser.find_element(By.CSS_SELECTOR, ".month-day").get_attribute("aria-label")
+                    browser.find_element(By.CSS_SELECTOR, f'button[aria-label="{direction}"]').click()
+                    wait.until(lambda driver: driver.find_element(By.CSS_SELECTOR, ".month-day").get_attribute("aria-label") != first)
+                browser.execute_async_script("const done = arguments[0]; requestAnimationFrame(() => requestAnimationFrame(done));")
+                wait.until(lambda driver: len(driver.find_elements(By.CSS_SELECTOR, ".month-day:first-of-type .month-events button:not(.more)")) > 0)
+                assert browser.find_elements(By.CSS_SELECTOR, ".month-events .more"), "Expected overflow alongside visible events"
+            browser.find_element(By.XPATH, '//div[@aria-label="Calendar view"]/button[text()="Day"]').click()
             date = browser.find_element(By.CSS_SELECTOR, ".day-heading").get_attribute("aria-label")
             browser.find_element(By.CSS_SELECTOR, 'button[aria-label="Next"]').click()
             wait.until(lambda driver: driver.find_element(By.CSS_SELECTOR, ".day-heading").get_attribute("aria-label") != date)
