@@ -460,3 +460,25 @@ test("photo shuffle keeps every photo once, leaves the source alone, and avoids 
   assert.deepEqual(shufflePhotos([]), []);
   assert.deepEqual(shufflePhotos([photos[0]], "a"), [photos[0]]);
 });
+
+
+test("month grids align weekdays independently of the selected day, including leap years and year boundaries", () => {
+  const september = viewDates(new Date(2026, 8, 20), "month");
+  assert.equal(dateKey(september[0]), "2026-08-30");
+  assert.equal(dateKey(september[2]), "2026-09-01");
+  assert.equal(september[2].getDay(), 2);
+  for (const year of [2024, 2026]) {
+    for (let month = 0; month < 12; month++) {
+      const days = new Date(year, month + 1, 0).getDate();
+      const expected = viewDates(new Date(year, month, 1), "month").map(dateKey);
+      for (let day = 1; day <= days; day++) {
+        const anchor = new Date(year, month, day, 17, 30);
+        const dates = viewDates(anchor, "month");
+        assert.deepEqual(dates.map(dateKey), expected);
+        assert.equal(dates.length, 42);
+        dates.forEach((date, index) => assert.equal(date.getDay(), index % 7));
+        assert.equal(anchor.getDate(), day);
+      }
+    }
+  }
+});

@@ -16,8 +16,8 @@ export function viewDates(anchor: Date, mode: ViewMode) {
   const start = new Date(anchor);
   start.setHours(0, 0, 0, 0);
   if (mode === "day") return [addDays(start, -1), start, addDays(start, 1)];
-  if (mode === "month") start.setDate(1 - start.getDay());
-  else start.setDate(start.getDate() - start.getDay());
+  if (mode === "month") start.setDate(1);
+  start.setDate(start.getDate() - start.getDay());
   const count = mode === "week" ? 7 : mode === "twoWeek" ? 14 : 42;
   return Array.from({ length: count }, (_, index) => addDays(start, index));
 }
