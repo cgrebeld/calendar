@@ -445,3 +445,18 @@ test("backgroundFor rotates one image per day per theme", () => {
   assert.equal(backgroundFor("light", new Date(2026, 0, 4)), "/backgrounds/light-1.webp");
   assert.equal(backgroundFor("dark", new Date(2026, 0, 2)), "/backgrounds/dark-2.webp");
 });
+
+
+import { shufflePhotos } from "./photo-order.ts";
+
+test("photo shuffle keeps every photo once, leaves the source alone, and avoids repeating across cycles", () => {
+  const photos = [{ id: "a" }, { id: "b" }, { id: "c" }, { id: "d" }];
+  const shuffled = shufflePhotos(photos, undefined, () => 0);
+  assert.deepEqual(shuffled.map(({ id }) => id), ["b", "c", "d", "a"]);
+  assert.deepEqual(photos.map(({ id }) => id), ["a", "b", "c", "d"]);
+  const next = shufflePhotos(photos, "b", () => 0);
+  assert.notEqual(next[0].id, "b");
+  assert.deepEqual(next.map(({ id }) => id).sort(), ["a", "b", "c", "d"]);
+  assert.deepEqual(shufflePhotos([]), []);
+  assert.deepEqual(shufflePhotos([photos[0]], "a"), [photos[0]]);
+});

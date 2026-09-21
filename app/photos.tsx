@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import "./photos.css";
+import { shufflePhotos } from "./photo-order";
 
 type PhotoStatus = {
   enabled: boolean; connected?: boolean; count?: number; error?: string; warning?: string; setupUrl?: string;
@@ -114,19 +115,28 @@ export function PhotoMode({ apiUrl, now, onExit }: { apiUrl: string; now: Date; 
     const controller = new AbortController();
     const signal = controller.signal;
     let timer: ReturnType<typeof setTimeout>, current: string | undefined, pending: string | undefined;
+    let previousId: string | undefined;
     let items: NonNullable<PhotoStatus["items"]> = [], index = 0, refreshAt = 0;
     async function advance() {
       try {
         if (Date.now() >= refreshAt) {
           const result = await photosJson(apiUrl, "items", "GET", signal);
           if (signal.aborted) return;
-          items = result.items || []; refreshAt = Date.now() + 5 * 60000;
+          const incoming = result.items || [];
+          const ids = new Set(items.map(({ id }) => id));
+          if (incoming.length !== items.length || incoming.some(({ id }) => !ids.has(id))) {
+            items = shufflePhotos(incoming, previousId); index = 0;
+          }
+          refreshAt = Date.now() + 5 * 60000;
         }
         if (!items.length) {
           if (current) URL.revokeObjectURL(current); current = undefined; setPhoto(undefined);
           setMessage("Choose photos in Photo settings");
         } else {
-          const response = await fetch(`${apiUrl}${items[index % items.length].url}`, { signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]), cache: "no-store" });
+          if (index >= items.length) { items = shufflePhotos(items, previousId); index = 0; }
+          const item = items[index];
+          previousId = item.id;
+          const response = await fetch(`${apiUrl}${item.url}`, { signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]), cache: "no-store" });
           if (!response.ok) { refreshAt = 0; throw new Error("Photo unavailable; retrying shortly"); }
           const blob = await response.blob();
           if (signal.aborted) return;

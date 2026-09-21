@@ -15,7 +15,9 @@ Set `VITE_SCHEDULE_START` and `VITE_SCHEDULE_END` to change the visible schedule
 ## Photo mode (Google Photos Picker)
 
 Photo mode displays a local collection of still photos, changes photos once a minute,
-and starts after five minutes of inactivity or when **Photos** is pressed. It uses
+and starts after five minutes of inactivity or when **Photos** is pressed. Each cycle
+shows every photo once in shuffled order, avoiding an immediate repeat between cycles.
+Routine collection checks preserve the current order. It uses
 Google Photos **Picker**, which does not require the Ambient partner program.
 It imports an explicit selection; it does not automatically sync albums.
 
