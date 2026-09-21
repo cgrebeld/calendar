@@ -672,23 +672,12 @@ function App() {
           <button className="word-button" onClick={() => setAnchor(new Date())}>Today</button>
           <button onClick={() => setAnchor((date) => moveAnchor(date, mode, 1))} aria-label="Next">›</button>
           <button className="icon-button dark" aria-label="Photos" title="Photos" onClick={() => setIdle(true)}><PhotoIcon /></button>
-          <button
-            className="google-status"
-            data-connected={connected}
-            data-syncing={connected && syncStatus.state === "syncing"}
-            onClick={connected ? syncGoogle : connectGoogle}
-            aria-label={googleStatus}
-            title={googleStatus}
-          >
-            <GoogleConnectionIcon connected={connected} />
-          </button>
           {!notesOpen && <button className="icon-button" aria-label="Notes" title="Notes" onClick={() => setNotesOpen(true)}>
             <svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
               <rect x="5" y="3" width="22" height="26" rx="2" />
               <path d="m9 10 1.5 1.5 3-3M17 10h6m-14 8 1.5 1.5 3-3M17 18h6M9 25h4m4 0h6" />
             </svg>
           </button>}
-          <PhotoSettings apiUrl={apiUrl} />
           <ApplicationUpdates apiUrl={apiUrl} />
         </nav>
       </header>
@@ -702,6 +691,20 @@ function App() {
         </div>
         {notesOpen && <Notes onClose={() => setNotesOpen(false)} lists={taskLists} error={tasksError} reconnect={connectGoogle} apiUrl={apiUrl} connected={connected} refresh={countdownRefresh} />}
       </div>
+
+      <nav className="corner-controls" aria-label="Calendar settings">
+        <PhotoSettings apiUrl={apiUrl} />
+        <button
+          className="google-status"
+          data-connected={connected}
+          data-syncing={connected && syncStatus.state === "syncing"}
+          onClick={connected ? syncGoogle : connectGoogle}
+          aria-label={googleStatus}
+          title={googleStatus}
+        >
+          <GoogleConnectionIcon connected={connected} />
+        </button>
+      </nav>
 
       {skin === "woodland" && <DogCompanion apiUrl={apiUrl} />}
       {skin === "woodland" && <WoodlandBackground />}
