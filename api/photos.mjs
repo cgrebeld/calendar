@@ -9,7 +9,7 @@ const duration = (value, fallback) => /^\d+(\.\d+)?s$/.test(value || "") ? Numbe
 export function createPhotos({ getAccessToken, getConnection,
   statePath = process.env.GOOGLE_PHOTOS_STATE_PATH || ".data/google-photos.json", fetcher = fetch, now = Date.now } = {}) {
   const mediaPath = `${statePath}.media`;
-  let saved, connection, job, importing, problem, warning, retryAt = 0;
+  let saved, connection, job, importing, problem, warning, setupUrl, retryAt = 0;
   let queue = Promise.resolve();
   async function save(value) {
     await mkdir(dirname(statePath), { recursive: true });
@@ -35,7 +35,7 @@ export function createPhotos({ getAccessToken, getConnection,
   function status() {
     const session = saved?.session;
     return { enabled: connection.enabled, connected: connection.connected, count: saved?.gallery?.items.length || 0,
-      error: problem, warning, importing: importing && { completed: importing.completed, total: importing.total },
+      error: problem, warning, setupUrl, importing: importing && { completed: importing.completed, total: importing.total },
       session: session && !session.imported ? { url: session.pickerUri, ready: session.mediaItemsSet, expiresAt: session.expiresAt,
         pollUntil: session.pollUntil, pollAfterMs: Math.max(1000, session.nextPoll - now()) } : undefined };
   }
@@ -43,6 +43,14 @@ export function createPhotos({ getAccessToken, getConnection,
     const response = await fetcher(url, { ...options, signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000) });
     const data = await response.json();
     if (!response.ok) {
+      const disabled = data.error?.details?.find((detail) => detail.reason === "SERVICE_DISABLED" && detail.metadata?.service === "photospicker.googleapis.com");
+      if (disabled) {
+        const project = disabled.metadata.consumer?.match(/^projects\/(\d+)$/)?.[1];
+        throw Object.assign(failure("Google Photos Picker API is disabled in your Google Cloud project. Enable it, wait a few minutes, then choose photos again. Reconnecting Google is not required.", 403), {
+          serviceDisabled: true,
+          setupUrl: `https://console.developers.google.com/apis/api/photospicker.googleapis.com/overview${project ? `?project=${project}` : ""}`,
+        });
+      }
       const message = response.status === 403 ? "Google Photos access was denied. Enable the Google Photos Picker API and reconnect Google to grant photo access." : `Google Photos request failed (${response.status}).`;
       throw Object.assign(failure(message, response.status), { code: data.error?.status || data.error });
     }
@@ -125,7 +133,7 @@ export function createPhotos({ getAccessToken, getConnection,
     await load();
     const previousConnection = connection;
     connection = await getConnection();
-    if (previousConnection && previousConnection.key !== connection.key) { retryAt = 0; problem = undefined; }
+    if (previousConnection && previousConnection.key !== connection.key) { retryAt = 0; problem = setupUrl = undefined; }
     if (action === "status") return { status: 200, body: status() };
     if (action === "items") return { status: 200, body: { ...status(), items: (saved.gallery?.items || []).map(({ id }) => ({ id, url: `/api/photos/image/${id}` })) } };
     if (action.startsWith("image/")) {
@@ -137,7 +145,7 @@ export function createPhotos({ getAccessToken, getConnection,
       importing?.controller.abort(); await job;
       warning = undefined;
       try { if (connection.connected) await deleteSession(); } catch { warning = "Local photos removed. The Google selection session could not be cleaned up; it will expire automatically."; }
-      await save({}); problem = undefined; retryAt = 0;
+      await save({}); problem = setupUrl = undefined; retryAt = 0;
       await rm(mediaPath, { recursive: true, force: true });
       return { status: 200, body: status() };
     }
@@ -173,15 +181,15 @@ export function createPhotos({ getAccessToken, getConnection,
         job = importPhotos(controller).catch((error) => { problem = `Import cleanup failed: ${error.message}`; importing = undefined; });
       }
     }
-    problem = warning = undefined;
+    problem = warning = setupUrl = undefined;
     return { status: 200, body: status() };
   }
   return function photosRequest(request, url, origins) {
     // ponytail: one household collection; split mutation locks if multiple users are added.
     const result = queue.then(() => handle(request, url, origins)).catch((error) => {
-      if (error.status !== 404) problem = error.message;
-      if (!error.coolingDown && [403, 429, 500, 502, 503, 504].includes(error.status || 503)) retryAt = Math.max(retryAt, now() + 15 * 60000);
-      return { status: error.status >= 400 && error.status <= 599 ? error.status : 503, body: { error: error.message, retryAfterMs: Math.max(10000, retryAt - now()) } };
+      if (error.status !== 404) { problem = error.message; setupUrl = error.setupUrl; }
+      if (!error.serviceDisabled && !error.coolingDown && [403, 429, 500, 502, 503, 504].includes(error.status || 503)) retryAt = Math.max(retryAt, now() + 15 * 60000);
+      return { status: error.status >= 400 && error.status <= 599 ? error.status : 503, body: { error: error.message, setupUrl: error.setupUrl, retryAfterMs: Math.max(10000, retryAt - now()) } };
     });
     queue = result.then(() => {});
     return result;

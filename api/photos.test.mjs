@@ -12,12 +12,13 @@ async function fixture(t) {
   t.after(() => rm(directory, { recursive: true, force: true }));
   let time = 1000000, sequence = 0;
   const calls = [];
-  const flags = { connected: false, key: "calendar-account", ready: false, deny: false, failDelete: false, revoke: false, badImage: false, failImage: false, paginate: false, slowImage: false, oversized: false };
+  const flags = { connected: false, key: "calendar-account", ready: false, deny: false, serviceDisabled: false, failDelete: false, revoke: false, badImage: false, failImage: false, paginate: false, slowImage: false, oversized: false };
   const session = () => ({ id: `session-${sequence}`, pickerUri: "https://photos.google.com/picker/session", expireTime: new Date(time + 3600000).toISOString(), mediaItemsSet: flags.ready, pollingConfig: { pollInterval: "30s", timeoutIn: "600s" } });
   const fetcher = async (url, options) => {
     url = String(url); calls.push({ url, options });
     if (url.includes("/sessions")) {
       if (options.method === "DELETE") return flags.failDelete ? ok({ error: "unavailable" }, 503) : ok({});
+      if (flags.serviceDisabled) return ok({ error: { status: "PERMISSION_DENIED", details: [{ reason: "SERVICE_DISABLED", metadata: { service: "photospicker.googleapis.com", consumer: "projects/12345", activationUrl: "https://untrusted.example" } }] } }, 403);
       if (flags.deny) return ok({ error: { status: "PERMISSION_DENIED" } }, 403);
       if (options.method === "POST") sequence++;
       return ok(session());
@@ -194,4 +195,19 @@ test("Changing the shared Google connection cannot import a previous account's s
   await f.request("pick", "POST");
   assert.equal(f.calls.length, count + 1);
   assert.equal(f.calls.at(-1).options.method, "POST");
+});
+
+
+test("Disabled Picker API gives an activation link and permits retry immediately after enabling", async (t) => {
+  const f = await fixture(t); await connect(f); f.flags.serviceDisabled = true;
+  const denied = await f.request("pick", "POST");
+  assert.equal(denied.status, 403);
+  assert.match(denied.body.error, /Reconnecting Google is not required/);
+  assert.equal(denied.body.setupUrl, "https://console.developers.google.com/apis/api/photospicker.googleapis.com/overview?project=12345");
+  assert.equal((await f.request("status")).body.setupUrl, denied.body.setupUrl);
+  f.flags.serviceDisabled = false;
+  const retry = await f.request("pick", "POST");
+  assert.equal(retry.status, 200);
+  assert.ok(retry.body.session);
+  assert.equal(retry.body.setupUrl, undefined);
 });

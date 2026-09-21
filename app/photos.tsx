@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import "./photos.css";
 
 type PhotoStatus = {
-  enabled: boolean; connected?: boolean; count?: number; error?: string; warning?: string;
+  enabled: boolean; connected?: boolean; count?: number; error?: string; warning?: string; setupUrl?: string;
   importing?: { completed: number; total: number };
   session?: { url: string; ready: boolean; expiresAt: number; pollUntil: number; pollAfterMs: number };
   items?: { id: string; url: string }[];
@@ -10,7 +10,7 @@ type PhotoStatus = {
 async function photosJson(apiUrl: string, action: string, method = "GET", signal?: AbortSignal): Promise<PhotoStatus> {
   const response = await fetch(`${apiUrl}/api/photos/${action}`, { method, signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000), cache: "no-store" });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "Photos unavailable");
+  if (!response.ok) throw Object.assign(new Error(data.error || "Photos unavailable"), { setupUrl: data.setupUrl });
   return data;
 }
 function useVisible() {
@@ -28,6 +28,7 @@ export function PhotoSettings({ apiUrl }: { apiUrl: string }) {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<PhotoStatus>();
   const [error, setError] = useState("");
+  const [setupUrl, setSetupUrl] = useState<string>();
   const [busy, setBusy] = useState(false);
   const visible = useVisible();
   useEffect(() => {
@@ -59,10 +60,10 @@ export function PhotoSettings({ apiUrl }: { apiUrl: string }) {
       location.assign(`${apiUrl}/api/auth/start?${new URLSearchParams({ returnTo: location.origin, photos: "true" })}`);
       return;
     }
-    setBusy(true); setError("");
+    setBusy(true); setError(""); setSetupUrl(undefined);
     try {
       setStatus(await photosJson(apiUrl, action, "POST"));
-    } catch (e) { setError((e as Error).message); }
+    } catch (e) { setError((e as Error).message); setSetupUrl((e as Error & { setupUrl?: string }).setupUrl); }
     finally { setBusy(false); }
   }
   const importing = Boolean(status?.importing);
@@ -80,6 +81,7 @@ export function PhotoSettings({ apiUrl }: { apiUrl: string }) {
       {status?.session?.ready && !importing && <p>Your selection is ready. Import it to replace this calendar’s photo collection.</p>}
       {status?.importing && <p role="status">Importing {status.importing.completed} of {status.importing.total || "…"} photos. You can close this panel; the import will continue.</p>}
       {(error || status?.error) && <p role="alert">{error || status?.error}</p>}
+      {(setupUrl || status?.setupUrl) && <p><a href={setupUrl || status?.setupUrl} target="_blank" rel="noreferrer">Enable Google Photos Picker API</a></p>}
       {status?.warning && <p role="status">{status.warning}</p>}
       <div className="photo-settings-actions">
         {status?.enabled && <button disabled={busy || importing} onClick={() => void act("connect")}>{status.connected ? "Reconnect Google" : "Connect Google"}</button>}

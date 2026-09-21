@@ -40,7 +40,8 @@ Conservative defaults: at most 100 selected items, still photos only, display co
 bounded to 1920×1080, 16 MiB per file and 256 MiB per collection. Downloads are sequential.
 Google selection polling is at least 10 seconds apart, respects Google's longer
 interval and timeout, and stops when settings close or the browser is hidden. Failed
-Google control requests back off for 15 minutes; imports retry only on user action.
+Google control requests back off for 15 minutes, except a disabled Picker API: the app
+links to its activation page and allows retry after enabling it. Imports retry only on user action.
 After importing, the Google session is deleted. Playback makes **zero Google API calls**;
 the browser checks the local collection every five minutes while photo mode is visible.
 
