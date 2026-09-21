@@ -68,7 +68,16 @@ export function PhotoSettings({ apiUrl }: { apiUrl: string }) {
   }
   const importing = Boolean(status?.importing);
   return <>
-    <button className="word-button" onClick={() => { setOpen(true); setError(""); dialog.current?.showModal(); }}>Photo settings</button>
+    <button className="photo-settings-trigger" aria-label="Photo settings" title="Photo settings" aria-haspopup="dialog" onClick={() => { setOpen(true); setError(""); dialog.current?.showModal(); }}>
+      <svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
+        <rect x="4" y="3" width="21" height="26" rx="1.5" />
+        <path d="M7 6h15v15H7z" />
+        <circle cx="17.5" cy="10.5" r="1.5" />
+        <path d="m7 18 5-5 5 5 2-2 3 3M10 25h6" />
+        <path fill="var(--surface)" d="m23 17 3 .1.6 2 1.6 1.1 2-.3 1 2.8-1.6 1.3-.3 2 1 1.8-2.3 1.9-1.7-1-2 .2-1.4 1.5-2.7-1 .3-2-1.1-1.7-2-.6.1-3 2-.5 1.2-1.6z" />
+        <circle cx="24.5" cy="24" r="2.3" />
+      </svg>
+    </button>
     <dialog ref={dialog} className="photo-settings" aria-labelledby="photo-settings-title" onClose={() => setOpen(false)}>
       <h2 id="photo-settings-title">Google Photos</h2>
       <p>Choose up to 100 photos to copy onto this calendar for offline playback. Imports add to the current collection. Existing photos stay here until you explicitly remove them or reset Photos; changes in Google Photos do not sync here.</p>

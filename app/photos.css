@@ -1,3 +1,6 @@
+.photo-settings-trigger { width: 3.5rem; padding: 0; display: grid; place-items: center; }
+.photo-settings-trigger svg { width: 2.25rem; height: 2.25rem; }
+.photo-settings-trigger:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 .photo-settings { max-width: min(36rem, calc(100vw - 2rem)); border: 1px solid var(--border); border-radius: 1rem; background: var(--surface); color: var(--text); padding: 1.5rem; }
 .photo-settings::backdrop { background: #0009; }
 .photo-settings p { line-height: 1.5; overflow-wrap: anywhere; }
