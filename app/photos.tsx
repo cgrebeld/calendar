@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import "./photos.css";
 
 type PhotoStatus = {
-  enabled: boolean; connected?: boolean; count?: number; error?: string; warning?: string; authUrl?: string;
+  enabled: boolean; connected?: boolean; count?: number; error?: string; warning?: string;
   importing?: { completed: number; total: number };
   session?: { url: string; ready: boolean; expiresAt: number; pollUntil: number; pollAfterMs: number };
   items?: { id: string; url: string }[];
@@ -55,11 +55,13 @@ export function PhotoSettings({ apiUrl }: { apiUrl: string }) {
     return () => { clearTimeout(timer); controller.abort(); };
   }, [apiUrl, open, visible, busy, error, status]);
   async function act(action: string) {
+    if (action === "connect") {
+      location.assign(`${apiUrl}/api/auth/start?${new URLSearchParams({ returnTo: location.origin, photos: "true" })}`);
+      return;
+    }
     setBusy(true); setError("");
     try {
-      const next = await photosJson(apiUrl, action === "connect" ? `connect?${new URLSearchParams({ returnTo: location.href })}` : action, "POST");
-      if (next.authUrl) location.assign(next.authUrl);
-      else setStatus(next);
+      setStatus(await photosJson(apiUrl, action, "POST"));
     } catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
   }
@@ -68,10 +70,11 @@ export function PhotoSettings({ apiUrl }: { apiUrl: string }) {
     <button className="word-button" onClick={() => { setOpen(true); setError(""); dialog.current?.showModal(); }}>Photo settings</button>
     <dialog ref={dialog} className="photo-settings" aria-labelledby="photo-settings-title" onClose={() => setOpen(false)}>
       <h2 id="photo-settings-title">Google Photos</h2>
-      <p>Choose up to 100 photos to copy onto this calendar for offline playback. Imports replace the current collection. Photos stay here until you replace them, remove them, or disconnect; changes in Google Photos do not sync here.</p>
+      <p>Choose up to 100 photos to copy onto this calendar for offline playback. Imports replace the current collection. Photos stay here until you replace them, remove them, or reset Photos; changes in Google Photos do not sync here.</p>
       <p>Only your selected photos are downloaded. They are stored on the calendar server and are visible to anyone who can open this calendar.</p>
       {!status && !error && <p role="status">Loading…</p>}
-      {status && !status.enabled && <p>To import, configure a Google Photos web OAuth client on the server. See the README’s Photo mode setup.</p>}
+      {status && !status.enabled && <p>To import, configure the Calendar Google connection on the server. See the README’s Photo mode setup.</p>}
+      <p>Photos uses the same Google account as Calendar. Reconnect Google once to allow photo selection.</p>
       <p>{status?.count ?? 0} photos stored locally. Playback makes no Google API calls.</p>
       {status?.session && !status.session.ready && <p><a href={status.session.url} target="_blank" rel="noreferrer">Choose photos in Google Photos</a>, press Done, then return here. Selection checking stops when this panel is closed.</p>}
       {status?.session?.ready && !importing && <p>Your selection is ready. Import it to replace this calendar’s photo collection.</p>}
@@ -79,12 +82,12 @@ export function PhotoSettings({ apiUrl }: { apiUrl: string }) {
       {(error || status?.error) && <p role="alert">{error || status?.error}</p>}
       {status?.warning && <p role="status">{status.warning}</p>}
       <div className="photo-settings-actions">
-        {status?.enabled && <button disabled={busy || importing} onClick={() => void act("connect")}>{status.connected ? "Reconnect Photos" : "Connect Google Photos"}</button>}
+        {status?.enabled && <button disabled={busy || importing} onClick={() => void act("connect")}>{status.connected ? "Reconnect Google" : "Connect Google"}</button>}
         {status?.enabled && status.connected && <button disabled={busy || importing} onClick={() => void act("pick")}>{status.session ? "Start new selection" : "Choose photos"}</button>}
         {status?.session && !status.session.ready && <button disabled={busy || importing} onClick={() => void act("poll")}>Check selection</button>}
         {status?.session?.ready && <button disabled={busy || importing} onClick={() => void act("import")}>Import selected photos</button>}
         {!!status?.count && <button disabled={busy || importing} onClick={() => void act("clear")}>Remove local photos</button>}
-        {(status?.connected || importing) && <button disabled={busy} onClick={() => void act("disconnect")}>Disconnect and remove photos</button>}
+        {(status?.connected || importing) && <button disabled={busy} onClick={() => void act("disconnect")}>Reset Photos and remove copies</button>}
         <button onClick={() => dialog.current?.close()}>Close</button>
       </div>
     </dialog>

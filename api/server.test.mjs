@@ -266,3 +266,13 @@ test("allowedOrigin echoes listed origins and falls back to the first", () => {
   assert.equal(allowedOrigin("https://evil.example", list), "http://localhost:8080");
   assert.equal(allowedOrigin(undefined, list), "http://localhost:8080");
 });
+
+
+test("shared Google authorization includes Calendar, Tasks and Photos Picker", async () => {
+  const { googleScopes } = await import("./server.mjs");
+  assert.deepEqual(new Set(googleScopes.split(" ")), new Set([
+    "https://www.googleapis.com/auth/calendar.readonly",
+    "https://www.googleapis.com/auth/tasks.readonly",
+    "https://www.googleapis.com/auth/photospicker.mediaitems.readonly",
+  ]));
+});

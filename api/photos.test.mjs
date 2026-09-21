@@ -3,7 +3,6 @@ import test from "node:test";
 import { mkdtemp, readFile, rm, stat, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createHash } from "node:crypto";
 import { createPhotos } from "./photos.mjs";
 
 const origin = "http://calendar.test";
@@ -13,11 +12,10 @@ async function fixture(t) {
   t.after(() => rm(directory, { recursive: true, force: true }));
   let time = 1000000, sequence = 0;
   const calls = [];
-  const flags = { ready: false, deny: false, failDelete: false, revoke: false, badImage: false, failImage: false, paginate: false, slowImage: false, oversized: false };
+  const flags = { connected: false, key: "calendar-account", ready: false, deny: false, failDelete: false, revoke: false, badImage: false, failImage: false, paginate: false, slowImage: false, oversized: false };
   const session = () => ({ id: `session-${sequence}`, pickerUri: "https://photos.google.com/picker/session", expireTime: new Date(time + 3600000).toISOString(), mediaItemsSet: flags.ready, pollingConfig: { pollInterval: "30s", timeoutIn: "600s" } });
   const fetcher = async (url, options) => {
     url = String(url); calls.push({ url, options });
-    if (url.endsWith("/token")) return flags.revoke ? ok({ error: "invalid_grant" }, 400) : ok({ access_token: "private-access", refresh_token: "private-refresh", expires_in: 3600 });
     if (url.includes("/sessions")) {
       if (options.method === "DELETE") return flags.failDelete ? ok({ error: "unavailable" }, 503) : ok({});
       if (flags.deny) return ok({ error: { status: "PERMISSION_DENIED" } }, 403);
@@ -34,19 +32,17 @@ async function fixture(t) {
     }
     throw new Error(`Unexpected URL: ${url}`);
   };
-  const options = { clientId: "photos-client", clientSecret: "secret", statePath: join(directory, "photos.json"), fetcher, now: () => time };
+  const options = {
+    getConnection: async () => ({ enabled: true, connected: flags.connected, key: flags.key }),
+    getAccessToken: async () => {
+      if (flags.revoke) throw Object.assign(new Error("Reconnect Google to choose photos"), { status: 401 });
+      return "shared-calendar-access";
+    }, statePath: join(directory, "photos.json"), fetcher, now: () => time };
   let handler = createPhotos(options);
   const request = (action, method = "GET", requestOrigin = origin) => handler({ method, headers: { origin: requestOrigin } }, new URL(`/api/photos/${action}`, origin), [origin]);
   return { request, calls, flags, options, advance: (ms) => { time += ms; }, restart: () => { handler = createPhotos(options); } };
 }
-async function connect(f) {
-  const start = await f.request(`connect?returnTo=${encodeURIComponent(origin + "/?theme=dark")}`, "POST");
-  const auth = new URL(start.body.authUrl);
-  const response = await f.request(`callback?${new URLSearchParams({ state: auth.searchParams.get("state"), code: "code" })}`);
-  assert.equal(response.status, 302);
-  assert.equal(new URL(response.location).searchParams.get("theme"), "dark");
-  return auth;
-}
+async function connect(f) { f.flags.connected = true; }
 async function select(f) {
   f.flags.ready = false;
   await f.request("pick", "POST"); f.advance(30000); f.flags.ready = true;
@@ -62,21 +58,22 @@ async function finish(f) {
 }
 async function importSelection(f) { await select(f); assert.equal((await f.request("import", "POST")).status, 200); return finish(f); }
 
-test("Picker OAuth validates state and return origin, uses PKCE and stores a private independent token", async (t) => {
+test("Photos uses the Calendar connection and rejects separate login and untrusted mutations", async (t) => {
   const f = await fixture(t);
-  assert.equal((await f.request("connect", "GET")).status, 405);
-  assert.equal((await f.request("connect", "POST", "https://evil.test")).status, 403);
-  assert.equal((await f.request("connect?returnTo=https://evil.test", "POST")).status, 400);
-  assert.equal((await f.request("callback?state=wrong&code=code")).status, 400);
+  assert.equal((await f.request("status")).body.connected, false);
+  assert.equal((await f.request("connect", "POST")).status, 405);
+  assert.equal((await f.request("callback?state=anything")).status, 405);
+  assert.equal((await f.request("pick", "POST", "https://evil.test")).status, 403);
+  assert.equal((await f.request("pick", "POST")).status, 401);
   assert.equal(f.calls.length, 0);
-  const auth = await connect(f);
-  assert.equal(auth.searchParams.get("scope"), "https://www.googleapis.com/auth/photospicker.mediaitems.readonly");
-  const exchange = f.calls.find(({ url }) => url.endsWith("/token"));
-  assert.equal(createHash("sha256").update(exchange.options.body.get("code_verifier")).digest("base64url"), auth.searchParams.get("code_challenge"));
+  await connect(f);
+  assert.equal((await f.request("status")).body.connected, true);
+  await select(f);
   assert.equal((await stat(f.options.statePath)).mode & 0o777, 0o600);
-  assert.equal(JSON.parse(await readFile(f.options.statePath)).refreshToken, "private-refresh");
-  assert.ok(!JSON.stringify(await f.request("status")).includes("private-"));
-  assert.equal((await f.request(`callback?state=${auth.searchParams.get("state")}&code=replay`)).status, 400);
+  const saved = JSON.parse(await readFile(f.options.statePath));
+  assert.equal(saved.refreshToken, undefined);
+  assert.equal(saved.session.connectionKey, f.flags.key);
+  assert.equal(f.calls[0].options.headers.authorization, "Bearer shared-calendar-access");
 });
 
 test("Picker imports pagination once and local playback makes no Google calls, even after restart and token expiry", async (t) => {
@@ -87,7 +84,7 @@ test("Picker imports pagination once and local playback makes no Google calls, e
   assert.equal(JSON.parse(create.options.body).pickingConfig.maxItemCount, "100");
   const downloads = f.calls.filter(({ url }) => url.startsWith("https://lh3.googleusercontent.com/"));
   assert.equal(downloads.length, 2);
-  assert.equal(downloads[0].options.headers.authorization, "Bearer private-access");
+  assert.equal(downloads[0].options.headers.authorization, "Bearer shared-calendar-access");
   assert.ok(downloads[0].url.endsWith("=w1920-h1080"));
   assert.ok(f.calls.some(({ options }) => options.method === "DELETE"));
   const count = f.calls.length;
@@ -139,7 +136,7 @@ test("Disconnect cancels a running import and removes local data despite remote 
   await f.request("import", "POST");
   for (let i = 0; i < 100 && !(await f.request("status")).body.importing?.total; i++) await new Promise((resolve) => setTimeout(resolve, 2));
   const result = await f.request("disconnect", "POST");
-  assert.equal(result.body.connected, false); assert.equal(result.body.count, 0); assert.ok(result.body.warning);
+  assert.equal(result.body.connected, true); assert.equal(result.body.count, 0); assert.ok(result.body.warning);
   assert.deepEqual(JSON.parse(await readFile(f.options.statePath)), {});
   await assert.rejects(stat(`${f.options.statePath}.media`), { code: "ENOENT" });
 });
@@ -173,4 +170,28 @@ test("Expired selection and oversized images are rejected; expired OAuth does no
   const expired = await f.request("pick", "POST");
   assert.equal(expired.status, 401); assert.match(expired.body.error, /Reconnect/);
   assert.deepEqual((await f.request("items")).body.items, previous);
+});
+
+
+test("Migrating the separate Photos login preserves images but removes old credentials and selection", async (t) => {
+  const f = await fixture(t); await connect(f); await importSelection(f);
+  const stored = JSON.parse(await readFile(f.options.statePath));
+  await writeFile(f.options.statePath, JSON.stringify({ ...stored, refreshToken: "old-secret", clientId: "old-client", session: { id: "old-session" } }));
+  f.restart(); const result = await f.request("status");
+  assert.equal(result.body.count, 1); assert.equal(result.body.connected, true); assert.equal(result.body.session, undefined);
+  const migrated = JSON.parse(await readFile(f.options.statePath));
+  assert.equal(migrated.refreshToken, undefined); assert.equal(migrated.clientId, undefined);
+});
+
+test("Changing the shared Google connection cannot import a previous account's selection", async (t) => {
+  const f = await fixture(t); await connect(f); await select(f);
+  f.flags.key = "another-calendar-account";
+  const count = f.calls.length;
+  await f.request("import", "POST");
+  const failed = await finish(f);
+  assert.match(failed.error, /Google connection changed/);
+  assert.equal(f.calls.length, count);
+  await f.request("pick", "POST");
+  assert.equal(f.calls.length, count + 1);
+  assert.equal(f.calls.at(-1).options.method, "POST");
 });

@@ -1,18 +1,15 @@
-import { randomBytes, randomUUID, createHash } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 const root = "https://photospicker.googleapis.com/v1";
-const scope = "https://www.googleapis.com/auth/photospicker.mediaitems.readonly";
 const failure = (message, status = 503) => Object.assign(new Error(message), { status });
 const duration = (value, fallback) => /^\d+(\.\d+)?s$/.test(value || "") ? Number.parseFloat(value) * 1000 : fallback;
 
-export function createPhotos({ clientId = process.env.GOOGLE_PHOTOS_CLIENT_ID, clientSecret = process.env.GOOGLE_PHOTOS_CLIENT_SECRET,
-  redirectUri = process.env.GOOGLE_PHOTOS_REDIRECT_URI || `http://localhost:${process.env.PORT || 3000}/api/photos/callback`,
+export function createPhotos({ getAccessToken, getConnection,
   statePath = process.env.GOOGLE_PHOTOS_STATE_PATH || ".data/google-photos.json", fetcher = fetch, now = Date.now } = {}) {
   const mediaPath = `${statePath}.media`;
-  const enabled = Boolean(clientId && clientSecret);
-  let saved, token, auth, job, importing, problem, warning, retryAt = 0;
+  let saved, connection, job, importing, problem, warning, retryAt = 0;
   let queue = Promise.resolve();
   async function save(value) {
     await mkdir(dirname(statePath), { recursive: true });
@@ -24,6 +21,11 @@ export function createPhotos({ clientId = process.env.GOOGLE_PHOTOS_CLIENT_ID, c
     if (saved) return;
     try { saved = JSON.parse(await readFile(statePath, "utf8")); }
     catch (error) { if (error.code !== "ENOENT") throw error; saved = {}; }
+    // Retire the former separate Photos login without removing imported pictures.
+    if (saved.refreshToken || saved.clientId) {
+      const { refreshToken, clientId, session, ...local } = saved;
+      await save(local);
+    }
     if (saved.staging) {
       await rm(join(mediaPath, saved.staging), { recursive: true, force: true });
       await save({ ...saved, staging: undefined });
@@ -32,7 +34,7 @@ export function createPhotos({ clientId = process.env.GOOGLE_PHOTOS_CLIENT_ID, c
   }
   function status() {
     const session = saved?.session;
-    return { enabled, connected: Boolean(saved?.refreshToken), count: saved?.gallery?.items.length || 0,
+    return { enabled: connection.enabled, connected: connection.connected, count: saved?.gallery?.items.length || 0,
       error: problem, warning, importing: importing && { completed: importing.completed, total: importing.total },
       session: session && !session.imported ? { url: session.pickerUri, ready: session.mediaItemsSet, expiresAt: session.expiresAt,
         pollUntil: session.pollUntil, pollAfterMs: Math.max(1000, session.nextPoll - now()) } : undefined };
@@ -41,23 +43,16 @@ export function createPhotos({ clientId = process.env.GOOGLE_PHOTOS_CLIENT_ID, c
     const response = await fetcher(url, { ...options, signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000) });
     const data = await response.json();
     if (!response.ok) {
-      const message = response.status === 403 ? "Google Photos access was denied. Enable the Google Photos Picker API and add your account as an OAuth test user." : `Google Photos request failed (${response.status}).`;
+      const message = response.status === 403 ? "Google Photos access was denied. Enable the Google Photos Picker API and reconnect Google to grant photo access." : `Google Photos request failed (${response.status}).`;
       throw Object.assign(failure(message, response.status), { code: data.error?.status || data.error });
     }
     return data;
   }
-  const oauth = (parameters) => json("https://oauth2.googleapis.com/token", {
-    method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, ...parameters }),
-  });
-  function setToken(data) { token = { value: data.access_token, expires: now() + data.expires_in * 1000 }; }
   async function accessToken() {
-    if (saved.clientId !== clientId) throw failure("Photos credentials changed. Disconnect Photos before connecting the new client.", 401);
-    if (token?.expires > now() + 60000) return token.value;
-    if (!saved.refreshToken) throw failure("Connect Google Photos to choose photos.", 401);
-    try { setToken(await oauth({ grant_type: "refresh_token", refresh_token: saved.refreshToken })); }
-    catch (error) { if (error.code === "invalid_grant") throw failure("Google Photos authorization expired. Reconnect to choose photos; imported photos still work.", 401); throw error; }
-    return token.value;
+    const current = await getConnection();
+    if (!current.connected) throw failure("Connect Google Calendar to choose photos.", 401);
+    if (saved.session && saved.session.connectionKey !== current.key) throw failure("Google connection changed. Start a new photo selection.", 401);
+    return getAccessToken();
   }
   const google = async (path, options = {}) => json(`${root}${path}`, {
     ...options, headers: { "content-type": "application/json", authorization: `Bearer ${await accessToken()}` },
@@ -124,10 +119,13 @@ export function createPhotos({ clientId = process.env.GOOGLE_PHOTOS_CLIENT_ID, c
   }
   async function handle(request, url, origins) {
     const action = url.pathname.slice("/api/photos/".length);
-    const mutation = request.method === "POST" && ["connect", "pick", "poll", "import", "clear", "disconnect"].includes(action);
-    if (!mutation && !(request.method === "GET" && (["status", "items", "callback"].includes(action) || action.startsWith("image/")))) return { status: 405, body: { error: "Unsupported Photos operation" } };
+    const mutation = request.method === "POST" && ["pick", "poll", "import", "clear", "disconnect"].includes(action);
+    if (!mutation && !(request.method === "GET" && (["status", "items"].includes(action) || action.startsWith("image/")))) return { status: 405, body: { error: "Unsupported Photos operation" } };
     if (mutation && !origins.includes(request.headers.origin)) return { status: 403, body: { error: "Photos controls require the configured app origin" } };
     await load();
+    const previousConnection = connection;
+    connection = await getConnection();
+    if (previousConnection && previousConnection.key !== connection.key) { retryAt = 0; problem = undefined; }
     if (action === "status") return { status: 200, body: status() };
     if (action === "items") return { status: 200, body: { ...status(), items: (saved.gallery?.items || []).map(({ id }) => ({ id, url: `/api/photos/image/${id}` })) } };
     if (action.startsWith("image/")) {
@@ -138,8 +136,8 @@ export function createPhotos({ clientId = process.env.GOOGLE_PHOTOS_CLIENT_ID, c
     if (action === "disconnect") {
       importing?.controller.abort(); await job;
       warning = undefined;
-      try { if (enabled) await deleteSession(); } catch { warning = "Local photos and credentials removed. You can also remove this app from your Google Account connections."; }
-      await save({}); token = auth = problem = undefined; retryAt = 0;
+      try { if (connection.connected) await deleteSession(); } catch { warning = "Local photos removed. The Google selection session could not be cleaned up; it will expire automatically."; }
+      await save({}); problem = undefined; retryAt = 0;
       await rm(mediaPath, { recursive: true, force: true });
       return { status: 200, body: status() };
     }
@@ -150,36 +148,15 @@ export function createPhotos({ clientId = process.env.GOOGLE_PHOTOS_CLIENT_ID, c
       problem = undefined;
       return { status: 200, body: status() };
     }
-    if (!enabled) throw failure("Configure Google Photos OAuth credentials on the server.", 400);
-    if (action === "connect") {
-      const returnTo = new URL(url.searchParams.get("returnTo") || origins[0]);
-      if (!origins.includes(returnTo.origin)) throw failure("Invalid return address.", 400);
-      const verifier = randomBytes(32).toString("base64url");
-      auth = { state: randomBytes(24).toString("hex"), verifier, returnTo, expires: now() + 600000 };
-      const query = new URLSearchParams({ client_id: clientId, redirect_uri: redirectUri, response_type: "code", access_type: "offline", prompt: "consent", scope,
-        state: auth.state, code_challenge: createHash("sha256").update(verifier).digest("base64url"), code_challenge_method: "S256" });
-      return { status: 200, body: { authUrl: `https://accounts.google.com/o/oauth2/v2/auth?${query}` } };
-    }
-    if (action === "callback") {
-      if (!auth || auth.state !== url.searchParams.get("state") || auth.expires <= now()) throw failure("Invalid or expired Photos sign-in. Open Photo settings and reconnect.", 400);
-      const pending = auth; auth = undefined;
-      try {
-        if (url.searchParams.has("error")) throw failure("Google Photos sign-in was cancelled.", 400);
-        const data = await oauth({ code: url.searchParams.get("code") || "", redirect_uri: redirectUri, code_verifier: pending.verifier, grant_type: "authorization_code" });
-        if (!data.refresh_token) throw failure("Google did not provide offline access. Reconnect Photos.", 400);
-        await save({ ...saved, clientId, refreshToken: data.refresh_token, session: undefined });
-        setToken(data); problem = warning = undefined; retryAt = 0;
-      } catch (error) { problem = error.message; }
-      pending.returnTo.searchParams.set("photos", "settings");
-      return { status: 302, location: pending.returnTo.href, body: {} };
-    }
+    if (!connection.enabled) throw failure("Configure the Calendar Google credentials on the server.", 400);
     if (now() < retryAt) throw Object.assign(failure(problem || "Wait before trying Google Photos again.", 429), { coolingDown: true });
     if (action === "pick") {
+      if (saved.session && saved.session.connectionKey !== connection.key) await save({ ...saved, session: undefined });
       await deleteSession();
       const session = await google("/sessions", { method: "POST", body: JSON.stringify({ pickingConfig: { maxItemCount: "100" } }) });
       const expiresAt = Date.parse(session.expireTime);
       if (!session.id || !session.pickerUri || !Number.isFinite(expiresAt)) throw failure("Invalid Google Photos session response.");
-      await save({ ...saved, session: { ...session, expiresAt, nextPoll: now() + Math.max(10000, duration(session.pollingConfig?.pollInterval, 10000)), pollUntil: Math.min(expiresAt, now() + duration(session.pollingConfig?.timeoutIn, 600000)) } });
+      await save({ ...saved, session: { ...session, connectionKey: connection.key, expiresAt, nextPoll: now() + Math.max(10000, duration(session.pollingConfig?.pollInterval, 10000)), pollUntil: Math.min(expiresAt, now() + duration(session.pollingConfig?.timeoutIn, 600000)) } });
     } else if (action === "poll" || action === "import") {
       const session = saved.session;
       if (!session || session.imported || session.expiresAt <= now()) throw failure("Selection expired. Choose photos again.", 400);
@@ -210,4 +187,3 @@ export function createPhotos({ clientId = process.env.GOOGLE_PHOTOS_CLIENT_ID, c
     return result;
   };
 }
-export const photosRequest = createPhotos();

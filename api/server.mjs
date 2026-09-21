@@ -1,8 +1,8 @@
-import { randomBytes } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { updateRequest } from "./updates.mjs";
-import { photosRequest } from "./photos.mjs";
+import { createPhotos } from "./photos.mjs";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -17,6 +17,15 @@ const tokenPath = process.env.GOOGLE_TOKEN_PATH || ".data/google-oauth.json";
 const cache = new Map();
 let accessToken;
 let oauthState;
+export const googleScopes = "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/tasks.readonly https://www.googleapis.com/auth/photospicker.mediaitems.readonly";
+const photosRequest = createPhotos({
+  getAccessToken: googleToken,
+  getConnection: async () => {
+    const { refresh_token, authorizationId } = await savedToken();
+    return { enabled: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET), connected: Boolean(refresh_token),
+      key: refresh_token ? createHash("sha256").update(`${refresh_token}:${authorizationId || ""}`).digest("hex") : undefined };
+  },
+});
 
 export async function cached(key, load, ttl = 300000, now = Date.now(), force = false) {
   const hit = cache.get(key);
@@ -172,7 +181,7 @@ async function savedToken() {
 async function saveRefreshToken(refreshToken) {
   await mkdir(dirname(tokenPath), { recursive: true });
   const temporary = `${tokenPath}.tmp`;
-  await writeFile(temporary, JSON.stringify({ refresh_token: refreshToken }), { mode: 0o600 });
+  await writeFile(temporary, JSON.stringify({ refresh_token: refreshToken, authorizationId: randomBytes(16).toString("hex") }), { mode: 0o600 });
   await rename(temporary, tokenPath);
 }
 
@@ -277,18 +286,20 @@ export const server = createServer(async (request, response) => {
     if (url.pathname === "/api/auth/status") return json(request, response, 200, { connected: Boolean((await savedToken()).refresh_token) });
     if (url.pathname === "/api/auth/start") {
       if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) throw new Error("Google OAuth credentials are not configured");
-      oauthState = { value: randomBytes(24).toString("hex"), expires: Date.now() + 600000, returnTo: allowedOrigin(url.searchParams.get("returnTo"), appOrigins) };
-      const query = new URLSearchParams({ client_id: process.env.GOOGLE_CLIENT_ID, redirect_uri: redirectUri, response_type: "code", access_type: "offline", prompt: "consent", include_granted_scopes: "true", scope: "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/tasks.readonly", state: oauthState.value });
+      oauthState = { value: randomBytes(24).toString("hex"), expires: Date.now() + 600000, returnTo: allowedOrigin(url.searchParams.get("returnTo"), appOrigins), photos: url.searchParams.get("photos") === "true" };
+      const query = new URLSearchParams({ client_id: process.env.GOOGLE_CLIENT_ID, redirect_uri: redirectUri, response_type: "code", access_type: "offline", prompt: "consent", include_granted_scopes: "true", scope: googleScopes, state: oauthState.value });
       response.writeHead(302, { location: `https://accounts.google.com/o/oauth2/v2/auth?${query}` });
       return response.end();
     }
     if (url.pathname === "/api/auth/callback") {
       if (!oauthState || oauthState.value !== url.searchParams.get("state") || oauthState.expires < Date.now()) return json(request, response, 400, { error: "Invalid or expired OAuth state" });
-      const returnTo = oauthState.returnTo;
+      const returnTo = oauthState.photos ? `${oauthState.returnTo}/?photos=settings` : oauthState.returnTo;
       oauthState = undefined;
       const token = await exchangeToken({ code: url.searchParams.get("code") || "", redirect_uri: redirectUri, grant_type: "authorization_code" });
-      if (token.refresh_token) await saveRefreshToken(token.refresh_token);
+      if (!token.refresh_token) throw new Error("Google did not provide offline access. Reconnect Google to finish signing in.");
+      await saveRefreshToken(token.refresh_token);
       accessToken = { value: token.access_token, expires: Date.now() + token.expires_in * 1000 };
+      cache.clear();
       response.writeHead(302, { location: returnTo });
       return response.end();
     }

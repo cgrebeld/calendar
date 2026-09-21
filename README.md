@@ -2,7 +2,7 @@
 
 ## Google Calendar and Tasks setup
 
-Create a Google OAuth web client, enable the Calendar API and Tasks API, and add this authorized redirect URI:
+Create a Google OAuth web client, enable the Calendar API, Tasks API, and Google Photos Picker API, and add this authorized redirect URI:
 
 ```text
 http://localhost:3000/api/auth/callback
@@ -19,20 +19,19 @@ and starts after five minutes of inactivity or when **Photos** is pressed. It us
 Google Photos **Picker**, which does not require the Ambient partner program.
 It imports an explicit selection; it does not automatically sync albums.
 
-1. Enable **Google Photos Picker API** (not Google Picker API) in your Google Cloud project.
-2. Configure the OAuth consent screen for personal testing and add your Google account
-   under test users. Create a separate **Web application** OAuth client for Photos.
-3. Register `http://localhost:3000/api/photos/callback` as an authorized redirect URI
-   for local development. For the wall box, register its externally reachable callback
-   and set `GOOGLE_PHOTOS_REDIRECT_URI` to that exact URI (HTTPS/domain rules apply).
-4. Set `GOOGLE_PHOTOS_CLIENT_ID`, `GOOGLE_PHOTOS_CLIENT_SECRET`, and
-   `GOOGLE_PHOTOS_REDIRECT_URI` in `.env` or the wall box's `calendar.env`, then restart.
-5. Open **Photo settings → Connect Google Photos**. After sign-in, press **Choose photos**,
-   follow the Google Photos link, select photos and press Done. Return to the calendar
-   and press **Import selected photos**. Each import replaces the existing collection.
+1. Enable **Google Photos Picker API** (not Google Picker API) in the same Google Cloud
+   project used for Calendar and Tasks.
+2. Use the existing `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and Calendar OAuth
+   callback (`/api/auth/callback`). There is no separate Photos client or callback.
+   For personal testing, add your Google account as an OAuth test user.
+3. Open **Photo settings → Reconnect Google** once to grant Picker access alongside
+   Calendar and Tasks. Both features use the same saved Google token and account.
+4. Press **Choose photos**, follow the Google Photos link, select photos and press Done.
+   Return to the calendar and press **Import selected photos**. Each import replaces
+   the existing collection.
 
 The unverified-app warning is expected during personal testing. Test-mode grants may
-expire; use **Reconnect Photos** when a later import needs authorization. Already
+expire; use **Reconnect Google** when a later import needs authorization. Already
 imported photos continue to play without Google authorization or internet access.
 See [Google's setup guide](https://developers.google.com/photos/overview/configure-your-app)
 and [Picker session lifecycle](https://developers.google.com/photos/picker/guides/sessions).
@@ -45,8 +44,8 @@ Google control requests back off for 15 minutes; imports retry only on user acti
 After importing, the Google session is deleted. Playback makes **zero Google API calls**;
 the browser checks the local collection every five minutes while photo mode is visible.
 
-The API stores Photos credentials separately from Calendar credentials in
-`GOOGLE_PHOTOS_STATE_PATH` (default `.data/google-photos.json`, `/data/google-photos.json`
+The API reuses Calendar’s Google credentials. Photo selection and collection metadata
+are stored in `GOOGLE_PHOTOS_STATE_PATH` (default `.data/google-photos.json`, `/data/google-photos.json`
 in Docker). Local images live in the adjacent `google-photos.json.media` directory in
 the same persistent volume. A failed or interrupted import preserves the previous
 collection. An in-progress download is not resumed automatically after a server restart;
@@ -54,12 +53,15 @@ choose photos again. The frontend and API modules are `app/photos.tsx` and `api/
 
 Selected photos are copied onto this server and are accessible to anyone who can open
 this calendar. Google edits/deletions do not update these copies. **Remove local photos**
-deletes the local collection while keeping the Photos connection. **Disconnect and
-remove photos** cancels imports, deletes local photos and Photos credentials, and tries
-to clean up the Google session. It does not disconnect Calendar or delete originals in
-Google Photos. To revoke the Google grant itself, remove the Photos app in your Google
-Account's connections. Keep this household app on a trusted network as described in
+deletes the local collection. **Reset Photos and remove copies** cancels imports,
+deletes local photos and selection state, and tries to clean up the Picker session.
+It does not disconnect the shared Google account or delete originals in Google Photos.
+To revoke the shared Google grant itself, remove the calendar app in your Google
+Account's connections (this also removes Calendar/Tasks access). Keep this household app on a trusted network as described in
 the deployment guide.
+
+Older separate Photos credentials are discarded on first access; imported images are
+preserved. A changed shared Google connection requires a new Picker selection.
 
 ## Run with Docker
 
