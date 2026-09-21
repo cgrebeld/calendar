@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { updateRequest } from "./updates.mjs";
+import { photosRequest } from "./photos.mjs";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -262,6 +263,11 @@ function json(request, response, status, body) {
 export const server = createServer(async (request, response) => {
   try {
     const url = new URL(request.url, `http://${request.headers.host}`);
+    if (url.pathname.startsWith("/api/photos/")) {
+      const result = await photosRequest(request, url, appOrigins);
+      response.writeHead(result.status, { ...(result.location ? { location: result.location } : {}), "content-type": result.type || "application/json", "cache-control": "no-store", "x-content-type-options": "nosniff", "access-control-allow-origin": allowedOrigin(request.headers.origin, appOrigins), vary: "origin" });
+      return response.end(result.type ? result.body : JSON.stringify(result.body));
+    }
     if (url.pathname === "/api/health") return json(request, response, 200, { ok: true, version: process.env.APP_VERSION || "dev" });
     if (url.pathname.startsWith("/api/updates/")) {
       const result = await updateRequest(request, url.pathname, appOrigins);

@@ -17,6 +17,7 @@ services:
     env_file: /etc/calendar/calendar.env
     environment:
       GOOGLE_TOKEN_PATH: /data/google-oauth.json
+      GOOGLE_PHOTOS_STATE_PATH: /data/google-photos.json
       UPDATER_SOCKET: /run/calendar-updater/control.sock
     volumes:
       - calendar-data:/data

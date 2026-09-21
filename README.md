@@ -12,6 +12,55 @@ Copy `.env.example` to `.env`, then set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SE
 
 Set `VITE_SCHEDULE_START` and `VITE_SCHEDULE_END` to change the visible schedule range; they default to `07:00`–`22:00`. `VITE_THEME_MODE` (`auto`/`light`/`dark`, or `?theme=dark` in the URL) and `VITE_THEME_LIGHT_START`/`VITE_THEME_DARK_START` (default `07:00`/`20:00`) control the dark theme schedule. Set `WEATHER_LATITUDE`/`WEATHER_LONGITUDE` for real Open-Meteo forecasts (`/api/weather`, 1 h cache); `WEATHER_UNITS` and `WEATHER_WIND_UNIT` are optional. The background image rotates daily from `app/public/backgrounds/` (see SOURCES.md); set `VITE_BACKGROUND=none` for a flat color or `VITE_BACKGROUND_LIGHT`/`VITE_BACKGROUND_DARK` to override per theme. `APP_ORIGIN` accepts a comma-separated list of allowed CORS and OAuth return origins.
 
+## Photo mode (Google Photos Picker)
+
+Photo mode displays a local collection of still photos, changes photos once a minute,
+and starts after five minutes of inactivity or when **Photos** is pressed. It uses
+Google Photos **Picker**, which does not require the Ambient partner program.
+It imports an explicit selection; it does not automatically sync albums.
+
+1. Enable **Google Photos Picker API** (not Google Picker API) in your Google Cloud project.
+2. Configure the OAuth consent screen for personal testing and add your Google account
+   under test users. Create a separate **Web application** OAuth client for Photos.
+3. Register `http://localhost:3000/api/photos/callback` as an authorized redirect URI
+   for local development. For the wall box, register its externally reachable callback
+   and set `GOOGLE_PHOTOS_REDIRECT_URI` to that exact URI (HTTPS/domain rules apply).
+4. Set `GOOGLE_PHOTOS_CLIENT_ID`, `GOOGLE_PHOTOS_CLIENT_SECRET`, and
+   `GOOGLE_PHOTOS_REDIRECT_URI` in `.env` or the wall box's `calendar.env`, then restart.
+5. Open **Photo settings → Connect Google Photos**. After sign-in, press **Choose photos**,
+   follow the Google Photos link, select photos and press Done. Return to the calendar
+   and press **Import selected photos**. Each import replaces the existing collection.
+
+The unverified-app warning is expected during personal testing. Test-mode grants may
+expire; use **Reconnect Photos** when a later import needs authorization. Already
+imported photos continue to play without Google authorization or internet access.
+See [Google's setup guide](https://developers.google.com/photos/overview/configure-your-app)
+and [Picker session lifecycle](https://developers.google.com/photos/picker/guides/sessions).
+
+Conservative defaults: at most 100 selected items, still photos only, display copies
+bounded to 1920×1080, 16 MiB per file and 256 MiB per collection. Downloads are sequential.
+Google selection polling is at least 10 seconds apart, respects Google's longer
+interval and timeout, and stops when settings close or the browser is hidden. Failed
+Google control requests back off for 15 minutes; imports retry only on user action.
+After importing, the Google session is deleted. Playback makes **zero Google API calls**;
+the browser checks the local collection every five minutes while photo mode is visible.
+
+The API stores Photos credentials separately from Calendar credentials in
+`GOOGLE_PHOTOS_STATE_PATH` (default `.data/google-photos.json`, `/data/google-photos.json`
+in Docker). Local images live in the adjacent `google-photos.json.media` directory in
+the same persistent volume. A failed or interrupted import preserves the previous
+collection. An in-progress download is not resumed automatically after a server restart;
+choose photos again. The frontend and API modules are `app/photos.tsx` and `api/photos.mjs`.
+
+Selected photos are copied onto this server and are accessible to anyone who can open
+this calendar. Google edits/deletions do not update these copies. **Remove local photos**
+deletes the local collection while keeping the Photos connection. **Disconnect and
+remove photos** cancels imports, deletes local photos and Photos credentials, and tries
+to clean up the Google session. It does not disconnect Calendar or delete originals in
+Google Photos. To revoke the Google grant itself, remove the Photos app in your Google
+Account's connections. Keep this household app on a trusted network as described in
+the deployment guide.
+
 ## Run with Docker
 
 ```sh

@@ -11,6 +11,7 @@ import { WoodlandBackground } from "./skins/woodland";
 import { DogCompanion } from "./dog";
 import { Countdowns } from "./countdown-list";
 import { ApplicationUpdates } from "./updates";
+import { PhotoMode, PhotoSettings } from "./photos";
 
 const themeMode = parseThemeMode(new URLSearchParams(location.search).get("theme") ?? import.meta.env.VITE_THEME_MODE);
 const skin = parseSkin(new URLSearchParams(location.search).get("skin") ?? import.meta.env.VITE_SKIN);
@@ -551,11 +552,12 @@ function App() {
   const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
   useEffect(() => {
-    let timer = window.setTimeout(() => setIdle(true), 5 * 60 * 1000);
+    const enterPhotos = () => { if (!document.querySelector("dialog[open]")) setIdle(true); };
+    let timer = window.setTimeout(enterPhotos, 5 * 60 * 1000);
     const wake = () => {
       setIdle(false);
       window.clearTimeout(timer);
-      timer = window.setTimeout(() => setIdle(true), 5 * 60 * 1000);
+      timer = window.setTimeout(enterPhotos, 5 * 60 * 1000);
     };
     window.addEventListener("pointerdown", wake);
     window.addEventListener("keydown", wake);
@@ -647,7 +649,7 @@ function App() {
     setAnchor((date) => moveAnchor(date, mode, direction));
   };
 
-  if (idle) return <button className="photo-mode" onClick={() => setIdle(false)}><span>{today.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span><small>Touch anywhere to view the calendar</small></button>;
+  if (idle) return <PhotoMode apiUrl={apiUrl} now={today} onExit={() => setIdle(false)} />;
 
   const title = viewTitle(dates, mode, anchor);
   const todayWeather = forecast.get(dateKey(today));
@@ -681,6 +683,7 @@ function App() {
             <GoogleConnectionIcon connected={connected} />
           </button>
           {!notesOpen && <button className="word-button" onClick={() => setNotesOpen(true)}>Notes</button>}
+          <PhotoSettings apiUrl={apiUrl} />
           <ApplicationUpdates apiUrl={apiUrl} />
         </nav>
       </header>
