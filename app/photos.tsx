@@ -71,14 +71,14 @@ export function PhotoSettings({ apiUrl }: { apiUrl: string }) {
     <button className="word-button" onClick={() => { setOpen(true); setError(""); dialog.current?.showModal(); }}>Photo settings</button>
     <dialog ref={dialog} className="photo-settings" aria-labelledby="photo-settings-title" onClose={() => setOpen(false)}>
       <h2 id="photo-settings-title">Google Photos</h2>
-      <p>Choose up to 100 photos to copy onto this calendar for offline playback. Imports replace the current collection. Photos stay here until you replace them, remove them, or reset Photos; changes in Google Photos do not sync here.</p>
+      <p>Choose up to 100 photos to copy onto this calendar for offline playback. Imports add to the current collection. Existing photos stay here until you explicitly remove them or reset Photos; changes in Google Photos do not sync here.</p>
       <p>Only your selected photos are downloaded. They are stored on the calendar server and are visible to anyone who can open this calendar.</p>
       {!status && !error && <p role="status">Loading…</p>}
       {status && !status.enabled && <p>To import, configure the Calendar Google connection on the server. See the README’s Photo mode setup.</p>}
       <p>Photos uses the same Google account as Calendar. Reconnect Google once to allow photo selection.</p>
       <p>{status?.count ?? 0} photos stored locally. Playback makes no Google API calls.</p>
       {status?.session && !status.session.ready && <p><a href={status.session.url} target="_blank" rel="noreferrer">Choose photos in Google Photos</a>, press Done, then return here. Selection checking stops when this panel is closed.</p>}
-      {status?.session?.ready && !importing && <p>Your selection is ready. Import it to replace this calendar’s photo collection.</p>}
+      {status?.session?.ready && !importing && <p>Your selection is ready. Import it to add to this calendar’s photo collection.</p>}
       {status?.importing && <p role="status">Importing {status.importing.completed} of {status.importing.total || "…"} photos. You can close this panel; the import will continue.</p>}
       {(error || status?.error) && <p role="alert">{error || status?.error}</p>}
       {(setupUrl || status?.setupUrl) && <p><a href={setupUrl || status?.setupUrl} target="_blank" rel="noreferrer">Enable Google Photos Picker API</a></p>}

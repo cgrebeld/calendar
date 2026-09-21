@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 const root = "https://photospicker.googleapis.com/v1";
@@ -91,7 +91,9 @@ export function createPhotos({ getAccessToken, getConnection,
       const photos = selected.filter((item) => item.type === "PHOTO" && item.mediaFile?.baseUrl);
       if (!photos.length) throw failure("No still photos selected. Choose photos instead of videos.", 400);
       importing.total = photos.length;
-      const items = []; let totalBytes = 0;
+      const existing = (saved.gallery?.items || []).map((item) => ({ ...item, generation: item.generation || saved.gallery.generation }));
+      const items = [];
+      let totalBytes = (await Promise.all(existing.map(async (item) => item.size ?? (await stat(join(mediaPath, item.generation, item.id))).size))).reduce((sum, size) => sum + size, 0);
       for (const photo of photos) {
         if (controller.signal.aborted) throw failure("Import cancelled.", 400);
         const source = new URL(photo.mediaFile.baseUrl);
@@ -103,18 +105,16 @@ export function createPhotos({ getAccessToken, getConnection,
         const chunks = []; let size = 0;
         for await (const chunk of response.body) {
           size += chunk.length; totalBytes += chunk.length;
-          if (size > 16 * 1024 * 1024 || totalBytes > 256 * 1024 * 1024) throw failure("Selection exceeds the local photo storage limit (256 MB). Choose fewer photos.", 400);
+          if (size > 16 * 1024 * 1024 || totalBytes > 256 * 1024 * 1024) throw failure("The local photo storage limit is 256 MB. Choose fewer photos or explicitly remove existing photos first.", 400);
           chunks.push(chunk);
         }
         const id = `${generation}-${items.length}`;
         await writeFile(join(destination, id), Buffer.concat(chunks), { mode: 0o600 });
-        items.push({ id, type }); importing.completed = items.length;
+        items.push({ id, type, generation, size }); importing.completed = items.length;
       }
       if (controller.signal.aborted) throw failure("Import cancelled.", 400);
-      const previous = saved.gallery;
-      await save({ ...saved, staging: undefined, gallery: { generation, items }, session: { ...saved.session, imported: true } });
+      await save({ ...saved, staging: undefined, gallery: { items: [...existing, ...items] }, session: { ...saved.session, imported: true } });
       committed = true;
-      if (previous) await rm(join(mediaPath, previous.generation), { recursive: true, force: true });
       try { await deleteSession(); }
       catch { warning = "Photos imported. Google session cleanup will be retried the next time you choose photos."; }
     } catch (error) {
@@ -139,7 +139,7 @@ export function createPhotos({ getAccessToken, getConnection,
     if (action.startsWith("image/")) {
       const item = saved.gallery?.items.find(({ id }) => id === action.slice(6));
       if (!item) throw failure("Photo not found.", 404);
-      return { status: 200, type: item.type, body: await readFile(join(mediaPath, saved.gallery.generation, item.id)) };
+      return { status: 200, type: item.type, body: await readFile(join(mediaPath, item.generation || saved.gallery.generation, item.id)) };
     }
     if (action === "disconnect") {
       importing?.controller.abort(); await job;

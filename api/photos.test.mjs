@@ -112,7 +112,7 @@ test("Picker polling respects server intervals and denied API access backs off w
   f.advance(60000); await f.request("pick", "POST"); assert.ok(f.calls.length > blocked);
 });
 
-test("Failed imports preserve the previous collection; successful replacements remove old files", async (t) => {
+test("Imports append photos and preserve old files and URLs across restart until explicit removal", async (t) => {
   const f = await fixture(t); await connect(f); await importSelection(f);
   const before = (await f.request("items")).body.items;
   const stored = JSON.parse(await readFile(f.options.statePath));
@@ -121,8 +121,15 @@ test("Failed imports preserve the previous collection; successful replacements r
   assert.deepEqual((await f.request("items")).body.items, before);
   f.flags.failImage = false;
   await importSelection(f);
-  assert.notDeepEqual((await f.request("items")).body.items, before);
-  await assert.rejects(stat(join(`${f.options.statePath}.media`, stored.gallery.generation)), { code: "ENOENT" });
+  f.restart();
+  const after = (await f.request("items")).body.items;
+  assert.equal(after.length, 2);
+  assert.deepEqual(after.slice(0, before.length), before);
+  for (const item of after) assert.equal((await f.request(item.url.slice("/api/photos/".length))).status, 200);
+  assert.ok((await stat(join(`${f.options.statePath}.media`, stored.gallery.items[0].generation))).isDirectory());
+  await f.request("clear", "POST");
+  assert.equal((await f.request("items")).body.items.length, 0);
+  await assert.rejects(stat(`${f.options.statePath}.media`), { code: "ENOENT" });
 });
 
 test("Import rejects untrusted image hosts and leaves the saved collection alone", async (t) => {
@@ -210,4 +217,24 @@ test("Disabled Picker API gives an activation link and permits retry immediately
   assert.equal(retry.status, 200);
   assert.ok(retry.body.session);
   assert.equal(retry.body.setupUrl, undefined);
+});
+
+
+test("Appending to a legacy collection preserves existing files and enforces the cumulative size limit", async (t) => {
+  const f = await fixture(t); await connect(f); await importSelection(f);
+  const stored = JSON.parse(await readFile(f.options.statePath));
+  const original = stored.gallery.items[0];
+  const { generation, size, ...legacyItem } = original;
+  await writeFile(f.options.statePath, JSON.stringify({ ...stored, gallery: { generation, items: [legacyItem] } }));
+  f.restart();
+  assert.equal((await importSelection(f)).count, 2);
+  assert.equal((await f.request(`image/${original.id}`)).status, 200);
+  const appended = JSON.parse(await readFile(f.options.statePath));
+  appended.gallery.items[0].size = 256 * 1024 * 1024;
+  await writeFile(f.options.statePath, JSON.stringify(appended));
+  f.restart();
+  const failed = await importSelection(f);
+  assert.match(failed.error, /storage limit/);
+  assert.equal(failed.count, 2);
+  assert.equal((await f.request(`image/${original.id}`)).status, 200);
 });

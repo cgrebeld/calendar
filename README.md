@@ -27,8 +27,8 @@ It imports an explicit selection; it does not automatically sync albums.
 3. Open **Photo settings → Reconnect Google** once to grant Picker access alongside
    Calendar and Tasks. Both features use the same saved Google token and account.
 4. Press **Choose photos**, follow the Google Photos link, select photos and press Done.
-   Return to the calendar and press **Import selected photos**. Each import replaces
-   the existing collection.
+   Return to the calendar and press **Import selected photos**. Each import adds to
+   the existing collection; existing downloads are never removed by an import.
 
 The unverified-app warning is expected during personal testing. Test-mode grants may
 expire; use **Reconnect Google** when a later import needs authorization. Already
@@ -37,7 +37,7 @@ See [Google's setup guide](https://developers.google.com/photos/overview/configu
 and [Picker session lifecycle](https://developers.google.com/photos/picker/guides/sessions).
 
 Conservative defaults: at most 100 selected items, still photos only, display copies
-bounded to 1920×1080, 16 MiB per file and 256 MiB per collection. Downloads are sequential.
+bounded to 1920×1080, 16 MiB per file and 256 MiB total across all imports; exceeding the limit rejects the import without deleting photos. Downloads are sequential.
 Google selection polling is at least 10 seconds apart, respects Google's longer
 interval and timeout, and stops when settings close or the browser is hidden. Failed
 Google control requests back off for 15 minutes, except a disabled Picker API: the app
@@ -48,8 +48,8 @@ the browser checks the local collection every five minutes while photo mode is v
 The API reuses Calendar’s Google credentials. Photo selection and collection metadata
 are stored in `GOOGLE_PHOTOS_STATE_PATH` (default `.data/google-photos.json`, `/data/google-photos.json`
 in Docker). Local images live in the adjacent `google-photos.json.media` directory in
-the same persistent volume. A failed or interrupted import preserves the previous
-collection. An in-progress download is not resumed automatically after a server restart;
+the same persistent volume. Imports append files without moving or deleting existing downloads. A failed or
+interrupted import preserves the existing collection. An in-progress download is not resumed automatically after a server restart;
 choose photos again. The frontend and API modules are `app/photos.tsx` and `api/photos.mjs`.
 
 Selected photos are copied onto this server and are accessible to anyone who can open
