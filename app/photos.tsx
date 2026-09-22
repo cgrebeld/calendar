@@ -169,6 +169,6 @@ export function PhotoMode({ apiUrl, now, onExit }: { apiUrl: string; now: Date; 
   return <button className="photo-mode photo-slideshow" onClick={onExit} aria-label="Return to calendar">
     {photo && <img key={photo} src={photo} alt="" />}
     <span className={photo ? "photo-clock" : undefined}>{now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
-    <small className="photo-caption">{message || "Touch anywhere to view the calendar"}</small>
+    {message && <small className="photo-caption">{message}</small>}
   </button>;
 }
