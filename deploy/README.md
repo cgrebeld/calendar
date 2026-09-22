@@ -68,8 +68,11 @@ and publish another version; runtime Google/weather settings remain on the box.
    Google API calls then fail with `getaddrinfo EAI_AGAIN` until Docker restarts.
 2. Copy this `deploy/` directory from the release's source checkout to the box.
 3. Copy `calendar.env.example` to a private `calendar.env` and fill in Google
-   credentials, the exact browser origin and OAuth callback URL. Use a domain
-   and HTTPS reverse proxy where required by your Google OAuth configuration.
+   credentials. `APP_ORIGIN` must list every URL used to open the app, separated
+   by commas; add its LAN IP URL if needed. Keep the local kiosk/SSH-tunnel OAuth
+   callback at `http://localhost:8080/api/auth/callback`, since Google does not
+   allow plain-HTTP redirects to LAN hostnames or addresses. Use a domain and
+   HTTPS reverse proxy for a non-loopback OAuth callback.
    Do not expose the app to the public internet; update controls assume a trusted
    household/LAN. Protect it with authentication if using an untrusted network.
 4. Download `release.json` from that version's GitHub release. Inspect its version
