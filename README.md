@@ -32,7 +32,7 @@ until tapped (it does not power off the monitor); the idle slideshow stays pause
 fresh [Unsplash](https://unsplash.com/developers) results. The server requests 30
 landscape-oriented photos at most once every 30 minutes while online playback is
 in use, alternating nature and travel searches. It keeps up to 120 recent unique
-photos in memory, shared across displays. Restarting the server clears this cache.
+photos in a server cache, shared across displays and preserved across restarts.
 Images stream directly from Unsplash on demand, with photographer and Unsplash
 links. City names appear when provided; upload dates are not shown as capture dates.
 Failed refreshes retain the previous batch and back off for 30 minutes. Local
@@ -51,7 +51,13 @@ To enable the source:
    enable **Mix in online nature and travel photos** in Photo settings.
 
 The initial Unsplash demo quota is 50 requests/hour; normal operation here uses
-at most two per hour, regardless of the number of displays. The integration uses
+at most two per hour, regardless of the number of displays. Each batch of 30 photos
+is **one API request**, so 60 photos/hour is only **two requests/hour**, well below
+our 40-request ceiling. Failed attempts count too. The server saves its next allowed
+request time before contacting Unsplash, so restarts cannot reset the limit; if
+that state cannot be read or saved, online requests pause. This assumes the single
+API service in the supplied Compose configuration and its persistent data volume;
+separate installations sharing the same key have separate budgets. The integration uses
 hotlinked provider URLs and attribution as required by the
 [API guidelines](https://help.unsplash.com/en/articles/2511245-unsplash-api-guidelines).
 

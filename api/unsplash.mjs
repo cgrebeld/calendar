@@ -1,3 +1,6 @@
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+
 const interval = 30 * 60000;
 const attribution = (value) => {
   const url = new URL(value);
@@ -7,8 +10,15 @@ const attribution = (value) => {
   return url.href;
 };
 
-export function createUnsplash({ accessKey = process.env.UNSPLASH_ACCESS_KEY, fetcher = fetch, now = Date.now } = {}) {
-  let items = [], refreshAt = 0, pending, error;
+export function createUnsplash({ accessKey = process.env.UNSPLASH_ACCESS_KEY, fetcher = fetch, now = Date.now,
+  statePath = join(dirname(process.env.GOOGLE_PHOTOS_STATE_PATH || ".data/google-photos.json"), "unsplash-cache.json") } = {}) {
+  let items = [], refreshAt = 0, pending, error, loaded = false;
+  async function save() {
+    if (!statePath) return;
+    await mkdir(dirname(statePath), { recursive: true });
+    await writeFile(`${statePath}.tmp`, JSON.stringify({ items, refreshAt }), { mode: 0o600 });
+    await rename(`${statePath}.tmp`, statePath);
+  }
   const status = () => ({ enabled: Boolean(accessKey), count: items.length, error });
   async function refresh() {
     try {
@@ -49,7 +59,29 @@ export function createUnsplash({ accessKey = process.env.UNSPLASH_ACCESS_KEY, fe
     if (!accessKey) return { ...status(), items: [], error: "Online photos need an Unsplash access key on the server. See Photo settings." };
     if (pending) return pending;
     if (now() < refreshAt) return { ...status(), items };
-    pending = refresh();
+    pending = (async () => {
+      try {
+        if (!loaded && statePath) {
+          try {
+            const saved = JSON.parse(await readFile(statePath, "utf8"));
+            if (!Array.isArray(saved.items) || !Number.isFinite(saved.refreshAt)) throw new Error("Invalid cache");
+            items = saved.items; refreshAt = saved.refreshAt;
+          } catch (cause) { if (cause.code !== "ENOENT") throw cause; }
+        }
+        loaded = true;
+        if (now() < refreshAt) return { ...status(), items };
+        // Reserve the next slot durably before contacting Unsplash. A restart or
+        // failed request cannot bypass the two-attempts-per-hour limit.
+        refreshAt = now() + interval;
+        await save();
+        const result = await refresh();
+        await save();
+        return result;
+      } catch {
+        error = "Online photos paused: unable to safely save or read the request limit.";
+        return { ...status(), items };
+      }
+    })();
     try { return await pending; } finally { pending = undefined; }
   } };
 }

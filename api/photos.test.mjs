@@ -282,7 +282,7 @@ const unsplashPhoto = (id) => ({ id, created_at: "2026-09-22T12:00:00Z",
 });
 
 test("Unsplash is disabled without a key and status never fetches images", async () => {
-  const source = createUnsplash({ accessKey: "", fetcher: () => assert.fail("Unexpected request") });
+  const source = createUnsplash({ statePath: null, accessKey: "", fetcher: () => assert.fail("Unexpected request") });
   assert.equal(source.status().enabled, false);
   assert.deepEqual((await source.load()).items, []);
   assert.match((await source.load()).error, /access key/);
@@ -290,7 +290,7 @@ test("Unsplash is disabled without a key and status never fetches images", async
 
 test("Unsplash coalesces requests, refreshes batches, preserves hotlinks and caps the collection", async () => {
   let time = 0, calls = 0;
-  const source = createUnsplash({ accessKey: "test-secret", now: () => time, fetcher: async (value, options) => {
+  const source = createUnsplash({ statePath: null, accessKey: "test-secret", now: () => time, fetcher: async (value, options) => {
     const url = new URL(value);
     assert.equal(url.origin, "https://api.unsplash.com");
     assert.equal(url.searchParams.get("count"), "30");
@@ -324,7 +324,7 @@ test("Unsplash coalesces requests, refreshes batches, preserves hotlinks and cap
 
 test("Unsplash rejects unsafe metadata, deduplicates results and backs off with stale photos", async () => {
   let time = 0, calls = 0, fail = false;
-  const source = createUnsplash({ accessKey: "key", now: () => time, fetcher: async () => {
+  const source = createUnsplash({ statePath: null, accessKey: "key", now: () => time, fetcher: async () => {
     calls++;
     if (fail) return ok({}, 429);
     return ok([unsplashPhoto("good"), unsplashPhoto("good"),
@@ -345,10 +345,53 @@ test("Unsplash rejects unsafe metadata, deduplicates results and backs off with 
 test("Unsplash cold failures and malformed responses are cached without leaking errors or keys", async () => {
   for (const response of [() => ok({}, 401), () => ok({ invalid: true }), () => { throw new Error("secret-key transport failure"); }]) {
     let calls = 0;
-    const source = createUnsplash({ accessKey: "secret-key", fetcher: async () => { calls++; return response(); } });
+    const source = createUnsplash({ statePath: null, accessKey: "secret-key", fetcher: async () => { calls++; return response(); } });
     const result = await source.load();
     assert.equal(result.items.length, 0); assert.ok(result.error);
     assert.equal(JSON.stringify(result).includes("secret-key"), false);
     await source.load(); assert.equal(calls, 1);
   }
+});
+
+
+test("Unsplash stays below 40 requests in every rolling hour despite repeated clients and failures", async () => {
+  for (const failing of [false, true]) {
+    let time = 0;
+    const calls = [];
+    const source = createUnsplash({ statePath: null, accessKey: "key", now: () => time, fetcher: async () => {
+      calls.push(time);
+      return failing ? ok({}, 429) : ok([unsplashPhoto("landscape")]);
+    } });
+    for (time = 0; time < 3 * 3600000; time += 60000) {
+      await Promise.all(Array.from({ length: 20 }, () => source.load()));
+      const inLastHour = calls.filter((at) => at > time - 3600000).length;
+      assert.ok(inLastHour <= 2, `Expected at most two requests, got ${inLastHour}`);
+      assert.ok(inLastHour <= 40);
+    }
+    assert.equal(calls.length, 6);
+  }
+});
+
+test("Unsplash reserves request slots across restarts and fails closed if storage is unavailable", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "unsplash-rate-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const statePath = join(directory, "cache.json");
+  let time = 0, calls = 0;
+  const options = { accessKey: "key", statePath, now: () => time, fetcher: async () => {
+    calls++;
+    const saved = JSON.parse(await readFile(statePath, "utf8"));
+    assert.ok(saved.refreshAt > time, "The slot must be saved before the request starts");
+    return calls === 1 ? ok([unsplashPhoto("landscape")]) : ok({}, 503);
+  } };
+  assert.equal((await createUnsplash(options).load()).items.length, 1);
+  for (let i = 0; i < 50; i++) assert.equal((await createUnsplash(options).load()).items.length, 1);
+  assert.equal(calls, 1);
+  time = 30 * 60000;
+  await createUnsplash(options).load();
+  for (let i = 0; i < 50; i++) await createUnsplash(options).load();
+  assert.equal(calls, 2, "Failed requests also consume their slot across restarts");
+  await writeFile(statePath, "corrupt");
+  assert.match((await createUnsplash(options).load()).error, /paused/);
+  assert.match((await createUnsplash({ ...options, statePath: join(statePath, "not-a-directory") }).load()).error, /paused/);
+  assert.equal(calls, 2);
 });
