@@ -677,7 +677,6 @@ function App() {
               <path d="m9 10 1.5 1.5 3-3M17 10h6m-14 8 1.5 1.5 3-3M17 18h6M9 25h4m4 0h6" />
             </svg>
           </button>}
-          <ApplicationUpdates apiUrl={apiUrl} />
         </nav>
       </header>
 
@@ -692,6 +691,7 @@ function App() {
       </div>
 
       <nav className="corner-controls" aria-label="Calendar settings">
+        <ApplicationUpdates apiUrl={apiUrl} />
         <PhotoSettings apiUrl={apiUrl} />
         <button
           className="google-status"

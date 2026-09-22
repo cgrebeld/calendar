@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 type UpdateStatus = {
   enabled: boolean; busy: boolean; status: string; currentVersion?: string;
   availableVersion?: string; stagedVersion?: string; message?: string; releaseNotesUrl: string;
+  progress?: { label: string; state: "running" | "complete" | "failed" }[];
 };
 
 export function ApplicationUpdates({ apiUrl }: { apiUrl: string }) {
@@ -58,19 +59,30 @@ export function ApplicationUpdates({ apiUrl }: { apiUrl: string }) {
 
   if (!status?.enabled) return null;
   const busy = pending || status.busy;
+  const label = status.busy ? "Update in progress" : status.stagedVersion ? "Restart app to finish update" : status.availableVersion ? "Update available" : "Application updates";
+  const fallback = status.busy ? ({ checking: "Checking for releases…", installing: "Installing update…", activating: "Restarting and checking the app…" }[status.status] ?? "Update in progress…")
+    : status.availableVersion ? `Version ${status.availableVersion} is available.` : "No new release available.";
   return <>
-    <button className="word-button" onClick={() => dialog.current?.showModal()}>
-      {status.busy ? "Updating…" : status.stagedVersion ? "Restart app" : status.availableVersion ? "Update available" : "Updates"}
+    <button className="update-control" data-attention={Boolean(status.availableVersion || status.stagedVersion)} data-busy={status.busy}
+      aria-label={label} title={label} onClick={() => dialog.current?.showModal()}>
+      <svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M25 10a11 11 0 0 0-18-2M7 8v6h6M7 22a11 11 0 0 0 18 2m0 0v-6h-6" />
+      </svg>
     </button>
     <dialog ref={dialog} className="application-updates" aria-labelledby="updates-title">
       <h2 id="updates-title">Application updates</h2>
       <p>Installed: {status.currentVersion ?? "unknown"}</p>
-      <p aria-live="polite">{error || status.message || (status.availableVersion ? `Version ${status.availableVersion} is available.` : "No new release available.")}</p>
+      <p aria-live="polite">{error || status.message || fallback}</p>
+      {Boolean(status.progress?.length) && <ol className="update-progress" aria-label="Update progress">
+        {status.progress?.map((step, index) => <li key={`${index}-${step.label}`} data-state={step.state}>
+          <span aria-hidden="true">{step.state === "complete" ? "✓" : step.state === "failed" ? "!" : "•"}</span>{step.label}
+        </li>)}
+      </ol>}
       <p><a href={status.releaseNotesUrl} target="_blank" rel="noreferrer">Release notes</a></p>
       <div>
         {status.stagedVersion ? <button disabled={busy || status.status === "rollback_failed"} onClick={() => void act("restart")}>Restart app — {status.stagedVersion}</button>
           : status.availableVersion && <button disabled={busy || status.status === "rollback_failed"} onClick={() => void act("install")}>Install {status.availableVersion}</button>}
-        <button disabled={busy} onClick={() => void act("check")}>Check now</button>
+        <button disabled={busy || status.status === "installing"} onClick={() => void act("check")}>Check now</button>
         <button onClick={() => dialog.current?.close()}>Close</button>
       </div>
     </dialog>

@@ -73,6 +73,33 @@ class Updater:
             self.state.update(values)
             atomic_json(self.path, self.state)
 
+    def start_progress(self, label):
+        self.save(progress=[{"label": label, "state": "running"}])
+
+    def advance_progress(self, label):
+        with self.lock:
+            progress = [dict(step) for step in self.state.get("progress", [])]
+            if progress and progress[-1]["state"] == "running":
+                progress[-1]["state"] = "complete"
+            progress.append({"label": label, "state": "running"})
+            self.save(progress=progress)
+
+    def finish_progress(self, label=None):
+        with self.lock:
+            progress = [dict(step) for step in self.state.get("progress", [])]
+            if progress and progress[-1]["state"] == "running":
+                progress[-1]["state"] = "complete"
+            if label:
+                progress.append({"label": label, "state": "complete"})
+            self.save(progress=progress)
+
+    def fail_progress(self):
+        with self.lock:
+            progress = [dict(step) for step in self.state.get("progress", [])]
+            if progress and progress[-1]["state"] == "running":
+                progress[-1]["state"] = "failed"
+            self.save(progress=progress)
+
     def public(self):
         with self.lock:
             return {"enabled": True, "status": self.state["status"], "busy": self.busy,
@@ -80,6 +107,7 @@ class Updater:
                     "availableVersion": (self.state.get("available") or {}).get("version"),
                     "stagedVersion": (self.state.get("staged") or {}).get("version"),
                     "lastChecked": self.state.get("lastChecked"), "message": self.state.get("message"),
+                    "progress": self.state.get("progress", []),
                     "releaseNotesUrl": f"https://github.com/{self.repository}/releases"}
 
     def check(self):
@@ -88,10 +116,13 @@ class Updater:
             raw = response.read(16385)
         if len(raw) > 16384:
             raise ValueError("Release manifest too large")
+        self.advance_progress("Validating release manifest")
         candidate = validate_manifest(json.loads(raw), self.repository)
         active = self.state.get("active")
         available = candidate if active and version(candidate["version"]) > version(active["version"]) else None
-        self.save(available=available, lastChecked=time.time())
+        self.finish_progress("Check complete")
+        self.save(status="ready" if self.state.get("staged") else "idle", available=available, lastChecked=time.time(),
+                  message=f'Version {candidate["version"]} is available.' if available else "No new release available.")
 
     def release_env(self, manifest):
         manifest = validate_manifest(manifest, self.repository)
@@ -108,6 +139,7 @@ class Updater:
         self.run("docker", "compose", "--project-name", "calendar-wall", "--env-file", self.environment,
                  "--env-file", str(self.directory / "release.env"), "-f", self.compose,
                  "up", "-d", "--wait", "--wait-timeout", "120", "--pull", "never", timeout=180)
+        self.advance_progress("Verifying web/API version")
         health = self.run("docker", "compose", "--project-name", "calendar-wall", "--env-file", self.environment,
                          "--env-file", str(self.directory / "release.env"), "-f", self.compose,
                          "exec", "-T", "calendar-web", "wget", "-qO-", "http://127.0.0.1/api/health", timeout=20)
@@ -121,6 +153,7 @@ class Updater:
             labels = details["Config"].get("Labels") or {}
             if details.get("Architecture") != "amd64" or details.get("Os") != "linux" or labels.get("io.calendar.component") != component or labels.get("org.opencontainers.image.version") != manifest["version"]:
                 raise ValueError("Image architecture, component or version does not match the release")
+            self.advance_progress(f"Health-checking {component} image")
             # Isolated smoke test: no production data, credentials, ports, or updater socket.
             name = f"calendar-update-test-{component}"
             self.run("docker", "run", "-d", "--name", name, "--label", "io.calendar.update-test=true", "--network", "none", ref)
@@ -136,6 +169,8 @@ class Updater:
                     raise RuntimeError(f"{component} health check timed out")
             finally:
                 self.run("docker", "rm", "-f", name)
+            if component == "web":
+                self.advance_progress("Verifying API image")
 
     def install(self, candidate):
         candidate = validate_manifest(candidate, self.repository)
@@ -143,13 +178,18 @@ class Updater:
         if active and version(candidate["version"]) <= version(active["version"]):
             raise ValueError("Refusing a downgrade or reinstall")
         refs = [candidate["webImage"], candidate["apiImage"]]
-        self.save(status="installing", staged=None, message=None, images=list(dict.fromkeys(self.state.get("images", []) + refs)))
+        self.start_progress("Downloading web image")
+        self.save(status="installing", staged=None, message="Downloading and checking update…", images=list(dict.fromkeys(self.state.get("images", []) + refs)))
         try:
-            for ref in refs:
-                self.run("docker", "pull", "--platform", "linux/amd64", ref)
+            self.run("docker", "pull", "--platform", "linux/amd64", refs[0])
+            self.advance_progress("Downloading API image")
+            self.run("docker", "pull", "--platform", "linux/amd64", refs[1])
+            self.advance_progress("Verifying web image")
             self.smoke(candidate)
+            self.finish_progress("Update ready to restart")
             self.save(status="ready", staged=candidate, message="Update installed and checked. Restart the app to use it.")
         except Exception:
+            self.fail_progress()
             self.save(status="failed", staged=None, message="Installation failed. The current release is unchanged.")
             raise
         finally:
@@ -160,21 +200,27 @@ class Updater:
         if not candidate:
             raise ValueError("No verified update is ready")
         previous = self.state.get("active")
+        self.start_progress("Starting containers and waiting for health")
         self.save(status="activating", message="Restarting app and checking health…")
         try:
             self.launch(candidate)
         except Exception:
+            self.fail_progress()
             if previous:
                 try:
+                    self.advance_progress("Restoring previous release")
                     self.launch(previous)
                 except Exception:
+                    self.fail_progress()
                     self.save(status="rollback_failed", message="Restart and rollback failed. Host administrator attention required.")
                     raise
+                self.finish_progress("Previous release restored")
                 self.save(status="rolled_back", staged=None, message="Update failed. Previous release restored.")
             else:
                 self.save(status="failed", message="Initial startup failed; no previous release exists.")
             raise
         else:
+            self.finish_progress("Update complete")
             self.save(status="idle", active=candidate, previous=previous, staged=None, available=None,
                       message="Update complete.")
         finally:
@@ -228,6 +274,9 @@ class Updater:
             else:
                 raise ValueError("Unknown update action")
             self.busy = True
+            first = {"check": "Fetching release manifest", "install": "Downloading web image", "restart": "Starting containers and waiting for health"}[action]
+            self.save(status={"check": "checking", "install": "installing", "restart": "activating"}[action],
+                      message=None, progress=[{"label": first, "state": "running"}])
 
         def worker():
             try:
@@ -235,7 +284,8 @@ class Updater:
             except Exception as error:
                 print(f"Update {action}: {error}", flush=True)
                 if action == "check":
-                    self.save(message="Release check unavailable. Current app is unaffected.")
+                    self.fail_progress()
+                    self.save(status="check_failed", message="Release check unavailable. Current app is unaffected.")
             finally:
                 with self.lock:
                     self.busy = False

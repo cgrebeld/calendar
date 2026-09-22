@@ -26,8 +26,10 @@ class UpdateTest(unittest.TestCase):
             for number in (1, 2, 3):
                 updater.install(manifest(number))
                 self.assertEqual(updater.state["status"], "ready")
+                self.assertEqual(updater.state["progress"][-1], {"label": "Update ready to restart", "state": "complete"})
                 self.assertEqual(updater.state.get("active"), manifest(number - 1) if number > 1 else None)
                 updater.activate()
+                self.assertEqual(updater.state["progress"][-1], {"label": "Update complete", "state": "complete"})
             self.assertEqual(updater.state["active"], manifest(3))
             self.assertEqual(updater.state["previous"], manifest(2))
             self.assertEqual(len(updater.state["images"]), 4)
@@ -38,6 +40,7 @@ class UpdateTest(unittest.TestCase):
             with patch.object(updater, "smoke", side_effect=RuntimeError("bad image")):
                 with self.assertRaises(RuntimeError):
                     updater.install(manifest(4))
+            self.assertEqual(updater.state["progress"][-1]["state"], "failed")
             self.assertEqual(updater.state["active"], manifest(3))
             self.assertIsNone(updater.state["staged"])
             updater.install(manifest(4))
@@ -77,6 +80,7 @@ class UpdateTest(unittest.TestCase):
                 response.return_value.__enter__.return_value.read.return_value = json.dumps(manifest(2)).encode()
                 updater.check()
                 self.assertEqual(updater.state["available"], manifest(2))
+                self.assertEqual(updater.state["progress"][-1], {"label": "Check complete", "state": "complete"})
                 response.return_value.__enter__.return_value.read.return_value = json.dumps(manifest(1)).encode()
                 updater.check()
                 self.assertIsNone(updater.state["available"])

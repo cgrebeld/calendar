@@ -105,6 +105,7 @@
 html, body, main, .timeline, .two-week-grid, .month-grid, .notes, nav button, .sync-status, .day-heading, .day-column, .mini-day, .month-day { transition: background-color .6s ease, color .6s ease, border-color .6s ease; }
 @media (prefers-reduced-motion: reduce) {
   html, body, main, .timeline, .two-week-grid, .month-grid, .notes, nav button, .sync-status, .day-heading, .day-column, .mini-day, .month-day { transition: none; }
+  .corner-controls > .update-control[data-busy="true"] svg { animation: none; }
 }
 body { margin: 0; min-width: 320px; }
 body::before { content: ""; position: fixed; inset: 0; z-index: -1; background: linear-gradient(var(--bg-tint), var(--bg-tint)), var(--bg-image, none) center / cover no-repeat, var(--bg); }
@@ -147,6 +148,9 @@ nav .dark { color: var(--on-accent); background: var(--nav-dark-bg); border: 0; 
 .corner-controls > button { width: 1.75rem; min-width: 1.75rem; height: 1.75rem; min-height: 1.75rem; border-radius: .45rem; }
 .corner-controls > button svg { width: 1.125rem; height: 1.125rem; }
 .corner-controls > button:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+.corner-controls > .update-control[data-attention="true"] { color: var(--on-accent); background: var(--accent); }
+.corner-controls > .update-control[data-busy="true"] svg { transform-origin: center; animation: update-spin 1.2s linear infinite; }
+@keyframes update-spin { to { transform: rotate(360deg); } }
 
 .workspace { width: 100%; max-width: 1800px; min-height: 0; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) 16rem; gap: 1rem; align-items: stretch; }
 .workspace.notes-hidden { grid-template-columns: minmax(0, 1fr); }
@@ -331,6 +335,11 @@ nav .dark { color: var(--on-accent); background: var(--nav-dark-bg); border: 0; 
 .application-updates::backdrop { background: #0008; }
 .application-updates > div { display: flex; flex-wrap: wrap; gap: .6rem; }
 .application-updates button { font-size: 1rem; padding: .7rem; }
+.update-progress { display: grid; gap: .4rem; margin: 1rem 0; padding: 0; list-style: none; }
+.update-progress li { display: grid; grid-template-columns: 1.5rem 1fr; align-items: baseline; color: var(--text-muted); }
+.update-progress li[data-state="complete"] span { color: var(--ok); }
+.update-progress li[data-state="running"] { color: var(--text); font-weight: 750; }
+.update-progress li[data-state="failed"] { color: var(--error); font-weight: 750; }
 
 @media (max-width: 900px) {
   main { padding: 1rem; overflow-x: auto; }
