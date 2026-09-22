@@ -57,7 +57,7 @@ export function DogCompanion({ apiUrl }: { apiUrl: string }) {
     if (dogPlaying || barkPending.current) return;
     setSpeechVisible(true);
     window.clearTimeout(speechTimer.current);
-    speechTimer.current = window.setTimeout(() => setSpeechVisible(false), 5000);
+    speechTimer.current = window.setTimeout(() => setSpeechVisible(false), 10000);
     setDogPlaying(true);
     barkPending.current = true;
     const afterBark = () => {
