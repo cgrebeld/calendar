@@ -271,3 +271,84 @@ test("Removing a photo during import is rejected without changing the gallery", 
   assert.deepEqual((await f.request("items")).body.items, before);
   await f.request("disconnect", "POST");
 });
+
+// Online photos use a separate cache and never require a Google connection.
+import { createUnsplash } from "./unsplash.mjs";
+const unsplashPhoto = (id) => ({ id, created_at: "2026-09-22T12:00:00Z",
+  urls: { regular: `https://images.unsplash.com/photo-${id}?ixid=tracking&w=1080` },
+  location: { city: "Victoria", position: { latitude: 48, longitude: -123 } },
+  user: { name: "A Photographer", links: { html: "https://unsplash.com/@photographer" } },
+  links: { html: `https://unsplash.com/photos/${id}` },
+});
+
+test("Unsplash is disabled without a key and status never fetches images", async () => {
+  const source = createUnsplash({ accessKey: "", fetcher: () => assert.fail("Unexpected request") });
+  assert.equal(source.status().enabled, false);
+  assert.deepEqual((await source.load()).items, []);
+  assert.match((await source.load()).error, /access key/);
+});
+
+test("Unsplash coalesces requests, refreshes batches, preserves hotlinks and caps the collection", async () => {
+  let time = 0, calls = 0;
+  const source = createUnsplash({ accessKey: "test-secret", now: () => time, fetcher: async (value, options) => {
+    const url = new URL(value);
+    assert.equal(url.origin, "https://api.unsplash.com");
+    assert.equal(url.searchParams.get("count"), "30");
+    assert.equal(url.searchParams.get("content_filter"), "high");
+    assert.equal(url.searchParams.get("orientation"), "landscape");
+    assert.equal(options.headers.Authorization, "Client-ID test-secret");
+    assert.equal(options.redirect, "error");
+    assert.ok(options.signal instanceof AbortSignal);
+    const batch = calls++;
+    return ok(Array.from({ length: 30 }, (_, i) => unsplashPhoto(`${batch}-${i}`)));
+  } });
+  assert.equal(source.status().enabled, true); assert.equal(calls, 0);
+  const [first, same] = await Promise.all([source.load(), source.load()]);
+  assert.deepEqual(first, same); assert.equal(calls, 1);
+  assert.equal(first.items.length, 30);
+  const photo = first.items[0];
+  assert.equal(new URL(photo.url).searchParams.get("ixid"), "tracking");
+  assert.equal(new URL(photo.url).searchParams.get("w"), "1920");
+  assert.equal(photo.city, "Victoria");
+  assert.equal(photo.date, undefined, "Upload dates must not be presented as capture dates");
+  assert.equal(photo.position, undefined);
+  assert.equal(new URL(photo.photographerUrl).searchParams.get("utm_medium"), "referral");
+  assert.equal(photo.photographer, "A Photographer");
+  assert.equal(JSON.stringify(first).includes("test-secret"), false);
+  time = 30 * 60000 - 1; await source.load(); assert.equal(calls, 1);
+  for (let i = 1; i <= 4; i++) { time = i * 30 * 60000; await source.load(); }
+  const latest = await source.load();
+  assert.equal(calls, 5); assert.equal(latest.items.length, 120);
+  assert.equal(latest.items[0].id, "unsplash-1-0");
+});
+
+test("Unsplash rejects unsafe metadata, deduplicates results and backs off with stale photos", async () => {
+  let time = 0, calls = 0, fail = false;
+  const source = createUnsplash({ accessKey: "key", now: () => time, fetcher: async () => {
+    calls++;
+    if (fail) return ok({}, 429);
+    return ok([unsplashPhoto("good"), unsplashPhoto("good"),
+      { ...unsplashPhoto("bad-image"), urls: { regular: "https://attacker.test/image" } },
+      { ...unsplashPhoto("bad-link"), links: { html: "javascript:alert(1)" } },
+      { ...unsplashPhoto("bad-name"), user: { name: {} } }, null]);
+  } });
+  const first = await source.load(); assert.equal(first.items.length, 1);
+  time += 30 * 60000; fail = true;
+  const stale = await source.load();
+  assert.deepEqual(stale.items, first.items); assert.match(stale.error, /temporarily unavailable/);
+  await source.load(); assert.equal(calls, 2);
+  time += 30 * 60000; fail = false;
+  assert.equal((await source.load()).error, undefined);
+  assert.equal(calls, 3);
+});
+
+test("Unsplash cold failures and malformed responses are cached without leaking errors or keys", async () => {
+  for (const response of [() => ok({}, 401), () => ok({ invalid: true }), () => { throw new Error("secret-key transport failure"); }]) {
+    let calls = 0;
+    const source = createUnsplash({ accessKey: "secret-key", fetcher: async () => { calls++; return response(); } });
+    const result = await source.load();
+    assert.equal(result.items.length, 0); assert.ok(result.error);
+    assert.equal(JSON.stringify(result).includes("secret-key"), false);
+    await source.load(); assert.equal(calls, 1);
+  }
+});

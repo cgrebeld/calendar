@@ -29,10 +29,33 @@ to gain capture dates. The calendar’s bottom-left moon button shows a black sc
 until tapped (it does not power off the monitor); the idle slideshow stays paused.
 
 **Photo settings → Mix in online nature and travel photos** opts this browser into
-four curated [Unsplash](https://unsplash.com/license) landscapes. Images stream
-from `images.unsplash.com` on demand without an API key or local gallery import.
-The option is off by default and persists in this browser. Unavailable images are
-skipped after a short retry interval; local photos still work offline.
+fresh [Unsplash](https://unsplash.com/developers) results. The server requests 30
+landscape-oriented photos at most once every 30 minutes while online playback is
+in use, alternating nature and travel searches. It keeps up to 120 recent unique
+photos in memory, shared across displays. Restarting the server clears this cache.
+Images stream directly from Unsplash on demand, with photographer and Unsplash
+links. City names appear when provided; upload dates are not shown as capture dates.
+Failed refreshes retain the previous batch and back off for 30 minutes. Local
+photos still play when Unsplash is unavailable. Turning the option off makes no
+Unsplash requests from that display.
+
+To enable the source:
+
+1. Register an application at [Unsplash Developers](https://unsplash.com/developers)
+   and copy its **Access Key** (not the Secret Key).
+2. Set `UNSPLASH_ACCESS_KEY` in the root `.env` for local Docker Compose, or in
+   `/etc/calendar/calendar.env` on the wall box. This is a server-only variable;
+   never prefix it with `VITE_` or commit the key.
+3. Recreate the API container (`docker compose up -d --force-recreate calendar-api`
+   locally; use the deployment Compose files/environment on the wall box), then
+   enable **Mix in online nature and travel photos** in Photo settings.
+
+The initial Unsplash demo quota is 50 requests/hour; normal operation here uses
+at most two per hour, regardless of the number of displays. The integration uses
+hotlinked provider URLs and attribution as required by the
+[API guidelines](https://help.unsplash.com/en/articles/2511245-unsplash-api-guidelines).
+
+Google Photos setup:
 
 1. Enable **Google Photos Picker API** (not Google Picker API) in the same Google Cloud
    project used for Calendar and Tasks.

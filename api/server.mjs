@@ -3,6 +3,9 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { updateRequest } from "./updates.mjs";
 import { createPhotos } from "./photos.mjs";
+import { createUnsplash } from "./unsplash.mjs";
+
+const unsplash = createUnsplash();
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -272,6 +275,11 @@ function json(request, response, status, body) {
 export const server = createServer(async (request, response) => {
   try {
     const url = new URL(request.url, `http://${request.headers.host}`);
+    if (["/api/photos/ambient", "/api/photos/ambient/status"].includes(url.pathname)) {
+      if (request.method !== "GET") return json(request, response, 405, { error: "Unsupported online photos operation" });
+      response.setHeader("cache-control", "no-store");
+      return json(request, response, 200, url.pathname.endsWith("/status") ? unsplash.status() : await unsplash.load());
+    }
     if (url.pathname.startsWith("/api/photos/")) {
       const result = await photosRequest(request, url, appOrigins);
       response.writeHead(result.status, { ...(result.location ? { location: result.location } : {}), "content-type": result.type || "application/json", "cache-control": "no-store", "x-content-type-options": "nosniff", "access-control-allow-origin": allowedOrigin(request.headers.origin, appOrigins), vary: "origin" });

@@ -3,11 +3,8 @@ import "./photos.css";
 import { shufflePhotos, photoLabel, adjacentPhoto } from "./photo-order";
 import { swipeDirection } from "./dates";
 
-type Photo = { id: string; url: string; date?: string; city?: string; external?: boolean };
-const ambientPhotos: Photo[] = [
-  "1470770841072-f978cf4d019e", "1464822759023-fed622ff2c3b",
-  "1441974231531-c6227db76b6e", "1501785888041-af3ef285b470",
-].map((id) => ({ id: `unsplash-${id}`, url: `https://images.unsplash.com/photo-${id}?auto=format&fit=max&w=1920&q=85`, external: true }));
+type Photo = { id: string; url: string; date?: string; city?: string; external?: boolean;
+  photographer?: string; photographerUrl?: string; sourceUrl?: string };
 function ambientEnabled() {
   try { return localStorage.getItem("ambient-photos") === "true"; } catch { return false; }
 }
@@ -52,6 +49,7 @@ export function PhotoSettings({ apiUrl }: { apiUrl: string }) {
   const [open, setOpen] = useState(false);
   const [ambient, setAmbient] = useState(ambientEnabled);
   const [status, setStatus] = useState<PhotoStatus>();
+  const [onlineStatus, setOnlineStatus] = useState<PhotoStatus>();
   const [error, setError] = useState("");
   const [setupUrl, setSetupUrl] = useState<string>();
   const [busy, setBusy] = useState(false);
@@ -66,6 +64,7 @@ export function PhotoSettings({ apiUrl }: { apiUrl: string }) {
   useEffect(() => {
     if (!open || !visible) return;
     const controller = new AbortController();
+    photosJson(apiUrl, "ambient/status", "GET", controller.signal).then(setOnlineStatus).catch(() => { if (!controller.signal.aborted) setOnlineStatus({ enabled: false, error: "Unable to check online photos." }); });
     photosJson(apiUrl, "status", "GET", controller.signal).then(setStatus).catch((e) => { if (!controller.signal.aborted) setError(e.message); });
     return () => controller.abort();
   }, [apiUrl, open, visible]);
@@ -103,7 +102,9 @@ export function PhotoSettings({ apiUrl }: { apiUrl: string }) {
         try { localStorage.setItem("ambient-photos", String(enabled)); setAmbient(enabled); }
         catch { setError("Unable to save photo preference in this browser."); }
       }} /> Mix in online nature and travel photos</label>
-      <p>Four free landscapes from <a href="https://unsplash.com/license" target="_blank" rel="noreferrer">Unsplash</a>, loaded on demand. Requires internet; this setting applies to this display.</p>
+      <p>Fresh nature and travel photos from <a href="https://unsplash.com" target="_blank" rel="noreferrer">Unsplash</a>, loaded on demand. Requires internet; this setting applies to this display.</p>
+      {onlineStatus && !onlineStatus.enabled && <p>Online photos need a free <a href="https://unsplash.com/developers" target="_blank" rel="noreferrer">Unsplash access key</a>. Set UNSPLASH_ACCESS_KEY on the calendar server and restart it.</p>}
+      {onlineStatus?.error && <p role="status">{onlineStatus.error}</p>}
       <h3>Google Photos</h3>
       <p>Choose up to 100 photos to copy onto this calendar for offline playback. Imports add to the current collection. Existing photos stay here until you explicitly remove them or reset Photos; changes in Google Photos do not sync here.</p>
       <p>Only your selected photos are downloaded. They are stored on the calendar server and are visible to anyone who can open this calendar.</p>
@@ -136,9 +137,11 @@ export function PhotoMode({ apiUrl, now, onExit }: { apiUrl: string; now: Date; 
   const [photo, setPhoto] = useState<{ item: Photo; url: string }>();
   const [message, setMessage] = useState("");
   const [removing, setRemoving] = useState(false);
+  const [galleryMessage, setGalleryMessage] = useState("");
   const [retry, setRetry] = useState(0);
   const gesture = useRef<{ x: number; y: number } | undefined>(undefined);
   const suppressClick = useRef(false);
+  const imageTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const visible = useVisible();
   const item = items.find(({ id }) => id === selectedId) || items[0];
   const move = (direction: -1 | 1) => setSelectedId((id) => adjacentPhoto(items, id, direction));
@@ -147,20 +150,24 @@ export function PhotoMode({ apiUrl, now, onExit }: { apiUrl: string; now: Date; 
     if (!visible) return;
     const controller = new AbortController();
     async function refresh() {
-      try {
-        const result = await photosJson(apiUrl, "items", "GET", controller.signal);
-        if (controller.signal.aborted) return;
-        const incoming = [...(result.items || []), ...(ambientEnabled() ? ambientPhotos : [])];
-        setItems((previous) => {
-          const kept = previous.filter((photo) => incoming.some(({ id }) => id === photo.id));
-          return [...kept, ...shufflePhotos(incoming.filter((photo) => !kept.some(({ id }) => id === photo.id)))];
-        });
-      } catch {
-        if (!controller.signal.aborted) {
-          if (ambientEnabled()) setItems((previous) => previous.length ? previous : shufflePhotos(ambientPhotos));
-          setMessage("Local gallery unavailable; retrying shortly");
-        }
-      }
+      const online = ambientEnabled();
+      const results = await Promise.allSettled([
+        photosJson(apiUrl, "items", "GET", controller.signal),
+        online ? photosJson(apiUrl, "ambient", "GET", controller.signal) : Promise.resolve({ enabled: false, items: [] } as PhotoStatus),
+      ]);
+      if (controller.signal.aborted) return;
+      const [local, ambient] = results;
+      setGalleryMessage(local.status === "rejected" ? "Local gallery unavailable; retrying shortly"
+        : ambient.status === "rejected" ? "Online photos unavailable; local photos still play"
+        : ambient.value.error || "");
+      setItems((previous) => {
+        const incoming = [
+          ...(local.status === "fulfilled" ? local.value.items || [] : previous.filter((photo) => !photo.external)),
+          ...(ambient.status === "fulfilled" ? ambient.value.items || [] : previous.filter((photo) => photo.external)),
+        ];
+        const kept = previous.filter((photo) => incoming.some(({ id }) => id === photo.id));
+        return [...kept, ...shufflePhotos(incoming.filter((photo) => !kept.some(({ id }) => id === photo.id)))];
+      });
     }
     void refresh();
     const timer = setInterval(() => void refresh(), 5 * 60000);
@@ -173,9 +180,15 @@ export function PhotoMode({ apiUrl, now, onExit }: { apiUrl: string; now: Date; 
     let objectUrl: string | undefined;
     async function load() {
       try {
-        const response = await fetch(item.external ? item.url : `${apiUrl}${item.url}`, {
+        if (item.external) {
+          // Render the provider URL directly, including its tracking parameters.
+          setPhoto({ item, url: item.url });
+          imageTimer.current = setTimeout(() => { setPhoto(undefined); setMessage("Photo unavailable; swipe to continue"); }, 15000);
+          return;
+        }
+        const response = await fetch(`${apiUrl}${item.url}`, {
           signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]),
-          cache: item.external ? "default" : "no-store", referrerPolicy: "no-referrer",
+          cache: "no-store", referrerPolicy: "no-referrer",
         });
         if (!response.ok) throw new Error("Photo unavailable");
         const blob = await response.blob();
@@ -190,7 +203,7 @@ export function PhotoMode({ apiUrl, now, onExit }: { apiUrl: string; now: Date; 
     }
     setPhoto(undefined); setMessage("");
     void load();
-    return () => { controller.abort(); if (objectUrl) URL.revokeObjectURL(objectUrl); };
+    return () => { clearTimeout(imageTimer.current); controller.abort(); if (objectUrl) URL.revokeObjectURL(objectUrl); };
   }, [apiUrl, item, visible, retry]);
 
   useEffect(() => {
@@ -237,13 +250,15 @@ export function PhotoMode({ apiUrl, now, onExit }: { apiUrl: string; now: Date; 
         if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); move(event.key === "ArrowLeft" ? -1 : 1); }
         if (event.key === "Escape") onExit();
       }}>
-      {photo && <img key={photo.url} src={photo.url} alt="" draggable={false} />}
+      {photo && <img key={photo.url} src={photo.url} alt="" draggable={false}
+        onLoad={() => clearTimeout(imageTimer.current)}
+        onError={() => { clearTimeout(imageTimer.current); setPhoto(undefined); setMessage("Photo unavailable; swipe to continue"); }} /> }
       <span className={photo ? "photo-clock" : undefined}>{now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
     </button>
     {photo && !photo.item.external && <button className="photo-remove" disabled={removing} onClick={() => void remove()} aria-label="Remove this photo from local gallery" title="Remove from local gallery">{removing ? "…" : "×"}</button>}
     <small className="photo-caption" role="status">
-      {message || (!items.length ? "Choose photos or enable online landscapes in Photo settings" : photo && photoLabel(photo.item))}
-      {photo?.item.external && <> · <a href="https://unsplash.com" target="_blank" rel="noreferrer">Unsplash</a></>}
+      {message || galleryMessage || (!items.length ? "Choose photos or enable online landscapes in Photo settings" : photo && photoLabel(photo.item))}
+      {photo?.item.external && <> · Photo by <a href={photo.item.photographerUrl} target="_blank" rel="noreferrer">{photo.item.photographer}</a> on <a href={photo.item.sourceUrl} target="_blank" rel="noreferrer">Unsplash</a></>}
     </small>
   </div>;
 }
