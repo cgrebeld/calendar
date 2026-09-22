@@ -3,8 +3,7 @@ import "./photos.css";
 import { shufflePhotos, photoLabel, adjacentPhoto } from "./photo-order";
 import { swipeDirection } from "./dates";
 
-type Photo = { id: string; url: string; date?: string; city?: string; external?: boolean;
-  photographer?: string; photographerUrl?: string; sourceUrl?: string };
+type Photo = { id: string; url: string; date?: string; city?: string; external?: boolean };
 function ambientEnabled() {
   try { return localStorage.getItem("ambient-photos") === "true"; } catch { return false; }
 }
@@ -259,8 +258,6 @@ export function PhotoMode({ apiUrl, now, onExit }: { apiUrl: string; now: Date; 
     <small className="photo-caption" role="status">
       {message || galleryMessage || (!items.length ? "Choose photos or enable online landscapes in Photo settings" : photo && photoLabel(photo.item))}
     </small>
-    {photo?.item.external && <small className="photo-credit">
-      <a href={photo.item.photographerUrl} target="_blank" rel="noreferrer">{photo.item.photographer}</a> / <a href={photo.item.sourceUrl} target="_blank" rel="noreferrer">Unsplash</a>
-    </small>}
+
   </div>;
 }

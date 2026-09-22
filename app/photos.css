@@ -18,10 +18,5 @@
 .photo-remove { position: absolute; bottom: max(.75rem, env(safe-area-inset-bottom)); left: max(.75rem, env(safe-area-inset-left)); width: 44px; height: 44px; padding: 0; border: 0; border-radius: .5rem; background: #0005; color: #fffc; font-size: 1.5rem; }
 .photo-slideshow .photo-caption { bottom: .75rem; left: 4.25rem; max-width: calc(100% - 5rem); font-size: .85rem; pointer-events: none; }
 .photo-caption:empty { display: none; }
-.photo-caption a { color: inherit; pointer-events: auto; }
 .sleep-screen { position: fixed; inset: 0; z-index: 100; width: 100vw; height: 100dvh; margin: 0; padding: 0; border: 0; border-radius: 0; background: #000; cursor: none; }
 .sleep-screen:focus { outline: none; }
-
-.photo-slideshow:has(.photo-credit) .photo-caption { max-width: calc(50% - 4.25rem); }
-.photo-slideshow .photo-credit { position: absolute; bottom: .75rem; right: .75rem; max-width: 45%; padding: .4rem .8rem; border-radius: .5rem; background: #0009; color: white; font-size: .7rem; }
-.photo-credit a { color: inherit; }

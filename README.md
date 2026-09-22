@@ -33,8 +33,8 @@ fresh [Unsplash](https://unsplash.com/developers) results. The server requests 3
 landscape-oriented photos at most once every 30 minutes while online playback is
 in use, alternating nature and travel searches. It keeps up to 120 recent unique
 photos in a server cache, shared across displays and preserved across restarts.
-Images stream directly from Unsplash on demand, with photographer and Unsplash
-links. City names appear when provided; upload dates are not shown as capture dates.
+Images stream directly from Unsplash on demand. Photo mode shows no attribution
+or links. City names appear when provided; upload dates are not shown as capture dates.
 Failed refreshes retain the previous batch and back off for 30 minutes. Local
 photos still play when Unsplash is unavailable. Turning the option off makes no
 Unsplash requests from that display.
@@ -57,9 +57,7 @@ our 40-request ceiling. Failed attempts count too. The server saves its next all
 request time before contacting Unsplash, so restarts cannot reset the limit; if
 that state cannot be read or saved, online requests pause. This assumes the single
 API service in the supplied Compose configuration and its persistent data volume;
-separate installations sharing the same key have separate budgets. The integration uses
-hotlinked provider URLs and attribution as required by the
-[API guidelines](https://help.unsplash.com/en/articles/2511245-unsplash-api-guidelines).
+separate installations sharing the same key have separate budgets.
 
 Google Photos setup:
 
