@@ -25,7 +25,7 @@ async function fixture(t) {
     }
     if (url.includes("/mediaItems?")) {
       const page = new URL(url).searchParams.get("pageToken");
-      return ok({ mediaItems: [{ id: page ? "photo-2" : "photo-1", type: "PHOTO", mediaFile: { mimeType: "image/jpeg", baseUrl: `https://${flags.badImage ? "attacker.example" : "lh3.googleusercontent.com"}/photo` } }, { id: "video-1", type: "VIDEO", mediaFile: { baseUrl: "https://lh3.googleusercontent.com/video" } }], nextPageToken: flags.paginate && !page ? "next" : undefined });
+      return ok({ mediaItems: [{ id: page ? "photo-2" : "photo-1", type: "PHOTO", createTime: "2024-07-12T23:30:00Z", mediaFile: { mimeType: "image/jpeg", baseUrl: `https://${flags.badImage ? "attacker.example" : "lh3.googleusercontent.com"}/photo` } }, { id: "video-1", type: "VIDEO", mediaFile: { baseUrl: "https://lh3.googleusercontent.com/video" } }], nextPageToken: flags.paginate && !page ? "next" : undefined });
     }
     if (url.startsWith("https://lh3.googleusercontent.com/")) {
       if (flags.slowImage) await new Promise((resolve, reject) => { options.signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true }); });
@@ -237,4 +237,37 @@ test("Appending to a legacy collection preserves existing files and enforces the
   assert.match(failed.error, /storage limit/);
   assert.equal(failed.count, 2);
   assert.equal((await f.request(`image/${original.id}`)).status, 200);
+});
+
+
+test("Individual removal persists, deletes only the local copy, and requires a trusted origin", async (t) => {
+  const f = await fixture(t); await connect(f); f.flags.paginate = true;
+  await importSelection(f);
+  const [first, second] = (await f.request("items")).body.items;
+  assert.equal(first.date, "2024-07-12");
+  const stored = JSON.parse(await readFile(f.options.statePath));
+  const file = join(`${f.options.statePath}.media`, stored.gallery.items[0].generation, first.id);
+  assert.equal((await f.request(`remove/${first.id}`, "GET")).status, 405);
+  assert.equal((await f.request(`remove/${first.id}`, "POST", "https://evil.test")).status, 403);
+  assert.equal((await f.request("remove/missing", "POST")).status, 404);
+  f.flags.connected = false;
+  const calls = f.calls.length;
+  assert.equal((await f.request(`remove/${first.id}`, "POST")).body.count, 1);
+  await assert.rejects(stat(file), { code: "ENOENT" });
+  f.restart();
+  assert.deepEqual((await f.request("items")).body.items, [second]);
+  assert.equal((await f.request(`image/${first.id}`)).status, 404);
+  assert.equal((await f.request(`image/${second.id}`)).status, 200);
+  assert.equal(f.calls.length, calls);
+  assert.equal((await f.request(`remove/${second.id}`, "POST")).body.count, 0);
+});
+
+test("Removing a photo during import is rejected without changing the gallery", async (t) => {
+  const f = await fixture(t); await connect(f); await importSelection(f);
+  const before = (await f.request("items")).body.items;
+  await select(f); f.flags.slowImage = true;
+  await f.request("import", "POST");
+  assert.equal((await f.request(`remove/${before[0].id}`, "POST")).status, 409);
+  assert.deepEqual((await f.request("items")).body.items, before);
+  await f.request("disconnect", "POST");
 });

@@ -523,6 +523,7 @@ function App() {
   const [selected, setSelected] = useState<CalendarEvent>();
   const [openDay, setOpenDay] = useState<Date>();
   const [idle, setIdle] = useState(false);
+  const [sleeping, setSleeping] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [taskLists, setTaskLists] = useState(noteLists);
   const [tasksError, setTasksError] = useState<string>();
@@ -551,10 +552,10 @@ function App() {
   const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
   useEffect(() => {
+    if (idle || sleeping) return;
     const enterPhotos = () => { if (!document.querySelector("dialog[open]")) setIdle(true); };
     let timer = window.setTimeout(enterPhotos, 5 * 60 * 1000);
     const wake = () => {
-      setIdle(false);
       window.clearTimeout(timer);
       timer = window.setTimeout(enterPhotos, 5 * 60 * 1000);
     };
@@ -565,7 +566,7 @@ function App() {
       window.removeEventListener("pointerdown", wake);
       window.removeEventListener("keydown", wake);
     };
-  }, []);
+  }, [idle, sleeping]);
 
   useEffect(() => {
     fetch(`${apiUrl}/api/auth/status`).then((response) => response.json()).then(({ connected }) => setConnected(connected)).catch(() => setSyncStatus({ state: "error", message: "Calendar API offline" }));
@@ -648,6 +649,7 @@ function App() {
     setAnchor((date) => moveAnchor(date, mode, direction));
   };
 
+  if (sleeping) return <button autoFocus className="sleep-screen" aria-label="Wake display" onClick={() => setSleeping(false)} />;
   if (idle) return <PhotoMode apiUrl={apiUrl} now={today} onExit={() => setIdle(false)} />;
 
   const title = viewTitle(dates, mode, anchor);
@@ -691,6 +693,9 @@ function App() {
       </div>
 
       <nav className="corner-controls" aria-label="Calendar settings">
+        <button aria-label="Sleep display" title="Sleep display" onClick={() => setSleeping(true)}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z" /></svg>
+        </button>
         <ApplicationUpdates apiUrl={apiUrl} />
         <PhotoSettings apiUrl={apiUrl} />
         <button

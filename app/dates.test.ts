@@ -447,7 +447,7 @@ test("backgroundFor rotates one image per day per theme", () => {
 });
 
 
-import { shufflePhotos } from "./photo-order.ts";
+import { shufflePhotos, adjacentPhoto, photoLabel } from "./photo-order.ts";
 
 test("photo shuffle keeps every photo once, leaves the source alone, and avoids repeating across cycles", () => {
   const photos = [{ id: "a" }, { id: "b" }, { id: "c" }, { id: "d" }];
@@ -481,4 +481,25 @@ test("month grids align weekdays independently of the selected day, including le
       }
     }
   }
+});
+
+
+test("photo navigation reverses exactly, wraps, and handles empty and changed galleries", () => {
+  const items = [{ id: "a" }, { id: "b" }, { id: "c" }];
+  assert.equal(adjacentPhoto(items, "a", 1), "b");
+  assert.equal(adjacentPhoto(items, "b", -1), "a");
+  assert.equal(adjacentPhoto(items, "a", -1), "c");
+  assert.equal(adjacentPhoto(items, "c", 1), "a");
+  assert.equal(adjacentPhoto(items, "removed", 1), "b");
+  assert.equal(adjacentPhoto(items.slice(0, 1), "a", -1), "a");
+  assert.equal(adjacentPhoto([], undefined, 1), undefined);
+});
+
+test("photo labels show city and date without a time or invented missing metadata", () => {
+  const date = new Date(2024, 6, 12, 12).toLocaleDateString([], { year: "numeric", month: "short", day: "numeric" });
+  assert.equal(photoLabel({ date: "2024-07-12", city: "Victoria" }), `Victoria · ${date}`);
+  assert.equal(photoLabel({ city: "Victoria" }), "Victoria");
+  assert.equal(photoLabel({ date: "2024-07-12" }), date);
+  assert.equal(photoLabel({ date: "unknown" }), "");
+  assert.equal(photoLabel({}), "");
 });

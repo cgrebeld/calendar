@@ -15,11 +15,24 @@ Set `VITE_SCHEDULE_START` and `VITE_SCHEDULE_END` to change the visible schedule
 ## Photo mode (Google Photos Picker)
 
 Photo mode displays a local collection of still photos, changes photos once a minute,
-and starts after five minutes of inactivity or when **Photos** is pressed. Each cycle
-shows every photo once in shuffled order, avoiding an immediate repeat between cycles.
+and starts after five minutes of inactivity or when **Photos** is pressed. Photos play in a shuffled order that stays fixed while photo mode is open, so swiping
+left advances and swiping right goes back (including across the ends of the gallery).
 Routine collection checks preserve the current order. It uses
 Google Photos **Picker**, which does not require the Ambient partner program.
 It imports an explicit selection; it does not automatically sync albums.
+
+Tap the photo to return to the calendar. The subtle × at bottom left removes just
+that local copy; the original in Google Photos is untouched. Capture dates from
+new imports and city names when available appear at the bottom, without a time.
+Google Picker does not provide location metadata; older imports need reimporting
+to gain capture dates. The calendar’s bottom-left moon button shows a black screen
+until tapped (it does not power off the monitor); the idle slideshow stays paused.
+
+**Photo settings → Mix in online nature and travel photos** opts this browser into
+four curated [Unsplash](https://unsplash.com/license) landscapes. Images stream
+from `images.unsplash.com` on demand without an API key or local gallery import.
+The option is off by default and persists in this browser. Unavailable images are
+skipped after a short retry interval; local photos still work offline.
 
 1. Enable **Google Photos Picker API** (not Google Picker API) in the same Google Cloud
    project used for Calendar and Tasks.

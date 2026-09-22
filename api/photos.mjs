@@ -110,7 +110,7 @@ export function createPhotos({ getAccessToken, getConnection,
         }
         const id = `${generation}-${items.length}`;
         await writeFile(join(destination, id), Buffer.concat(chunks), { mode: 0o600 });
-        items.push({ id, type, generation, size }); importing.completed = items.length;
+        items.push({ id, type, generation, size, date: typeof photo.createTime === "string" && Number.isFinite(Date.parse(photo.createTime)) ? photo.createTime.slice(0, 10) : undefined }); importing.completed = items.length;
       }
       if (controller.signal.aborted) throw failure("Import cancelled.", 400);
       await save({ ...saved, staging: undefined, gallery: { items: [...existing, ...items] }, session: { ...saved.session, imported: true } });
@@ -127,7 +127,7 @@ export function createPhotos({ getAccessToken, getConnection,
   }
   async function handle(request, url, origins) {
     const action = url.pathname.slice("/api/photos/".length);
-    const mutation = request.method === "POST" && ["pick", "poll", "import", "clear", "disconnect"].includes(action);
+    const mutation = request.method === "POST" && (["pick", "poll", "import", "clear", "disconnect"].includes(action) || action.startsWith("remove/"));
     if (!mutation && !(request.method === "GET" && (["status", "items"].includes(action) || action.startsWith("image/")))) return { status: 405, body: { error: "Unsupported Photos operation" } };
     if (mutation && !origins.includes(request.headers.origin)) return { status: 403, body: { error: "Photos controls require the configured app origin" } };
     await load();
@@ -135,7 +135,7 @@ export function createPhotos({ getAccessToken, getConnection,
     connection = await getConnection();
     if (previousConnection && previousConnection.key !== connection.key) { retryAt = 0; problem = setupUrl = undefined; }
     if (action === "status") return { status: 200, body: status() };
-    if (action === "items") return { status: 200, body: { ...status(), items: (saved.gallery?.items || []).map(({ id }) => ({ id, url: `/api/photos/image/${id}` })) } };
+    if (action === "items") return { status: 200, body: { ...status(), items: (saved.gallery?.items || []).map(({ id, date, city }) => ({ id, date, city, url: `/api/photos/image/${id}` })) } };
     if (action.startsWith("image/")) {
       const item = saved.gallery?.items.find(({ id }) => id === action.slice(6));
       if (!item) throw failure("Photo not found.", 404);
@@ -150,6 +150,14 @@ export function createPhotos({ getAccessToken, getConnection,
       return { status: 200, body: status() };
     }
     if (importing) throw failure("An import is already running.", 409);
+    if (action.startsWith("remove/")) {
+      const item = saved.gallery?.items.find(({ id }) => id === action.slice(7));
+      if (!item) throw failure("Photo not found.", 404);
+      await save({ ...saved, gallery: { ...saved.gallery, items: saved.gallery.items.filter(({ id }) => id !== item.id) } });
+      await rm(join(mediaPath, item.generation || saved.gallery.generation, item.id), { force: true });
+      problem = undefined;
+      return { status: 200, body: status() };
+    }
     if (action === "clear") {
       await save({ ...saved, gallery: undefined });
       await rm(mediaPath, { recursive: true, force: true });
