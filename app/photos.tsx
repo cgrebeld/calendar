@@ -43,9 +43,7 @@ export function PhotoIcon({ settings = false }: { settings?: boolean }) {
   );
 }
 
-export function PhotoSettings({ apiUrl }: { apiUrl: string }) {
-  const dialog = useRef<HTMLDialogElement>(null);
-  const [open, setOpen] = useState(false);
+export function PhotoSettings({ apiUrl, open }: { apiUrl: string; open: boolean }) {
   const [ambient, setAmbient] = useState(ambientEnabled);
   const [status, setStatus] = useState<PhotoStatus>();
   const [onlineStatus, setOnlineStatus] = useState<PhotoStatus>();
@@ -53,13 +51,6 @@ export function PhotoSettings({ apiUrl }: { apiUrl: string }) {
   const [setupUrl, setSetupUrl] = useState<string>();
   const [busy, setBusy] = useState(false);
   const visible = useVisible();
-  useEffect(() => {
-    const url = new URL(location.href);
-    if (url.searchParams.get("photos") === "settings") {
-      setOpen(true); dialog.current?.showModal();
-      url.searchParams.delete("photos"); history.replaceState(null, "", url);
-    }
-  }, []);
   useEffect(() => {
     if (!open || !visible) return;
     const controller = new AbortController();
@@ -90,44 +81,36 @@ export function PhotoSettings({ apiUrl }: { apiUrl: string }) {
     finally { setBusy(false); }
   }
   const importing = Boolean(status?.importing);
-  return <>
-    <button className="photo-settings-trigger" aria-label="Photo settings" title="Photo settings" aria-haspopup="dialog" onClick={() => { setOpen(true); setError(""); dialog.current?.showModal(); }}>
-      <PhotoIcon settings />
-    </button>
-    <dialog ref={dialog} className="photo-settings" aria-labelledby="photo-settings-title" onClose={() => setOpen(false)}>
-      <h2 id="photo-settings-title">Photo settings</h2>
+  return <section className="settings-section">
+      <h3>Photos</h3>
+      <h4>Online variety</h4>
       <label><input type="checkbox" checked={ambient} onChange={(event) => {
         const enabled = event.target.checked;
         try { localStorage.setItem("ambient-photos", String(enabled)); setAmbient(enabled); }
         catch { setError("Unable to save photo preference in this browser."); }
       }} /> Mix in online nature and travel photos</label>
-      <p>Fresh nature and travel photos from <a href="https://unsplash.com" target="_blank" rel="noreferrer">Unsplash</a>, loaded on demand. Requires internet; this setting applies to this display.</p>
+      <p>Fresh Unsplash images, loaded on demand. Requires internet; saved for this display.</p>
       {onlineStatus && !onlineStatus.enabled && <p>Online photos need a free <a href="https://unsplash.com/developers" target="_blank" rel="noreferrer">Unsplash access key</a>. Set UNSPLASH_ACCESS_KEY on the calendar server and restart it.</p>}
       {onlineStatus?.error && <p role="status">{onlineStatus.error}</p>}
-      <h3>Google Photos</h3>
-      <p>Choose up to 100 photos to copy onto this calendar for offline playback. Imports add to the current collection. Existing photos stay here until you explicitly remove them or reset Photos; changes in Google Photos do not sync here.</p>
-      <p>Only your selected photos are downloaded. They are stored on the calendar server and are visible to anyone who can open this calendar.</p>
+      <h4>Local gallery</h4>
       {!status && !error && <p role="status">Loading…</p>}
       {status && !status.enabled && <p>To import, configure the Calendar Google connection on the server. See the README’s Photo mode setup.</p>}
-      <p>Photos uses the same Google account as Calendar. Reconnect Google once to allow photo selection.</p>
-      <p>{status?.count ?? 0} photos stored locally. Playback makes no Google API calls.</p>
+      <p>{status?.count ?? 0} photos stored locally for offline playback. Imports add to this collection.</p>
       {status?.session && !status.session.ready && <p><a href={status.session.url} target="_blank" rel="noreferrer">Choose photos in Google Photos</a>, press Done, then return here. Selection checking stops when this panel is closed.</p>}
       {status?.session?.ready && !importing && <p>Your selection is ready. Import it to add to this calendar’s photo collection.</p>}
       {status?.importing && <p role="status">Importing {status.importing.completed} of {status.importing.total || "…"} photos. You can close this panel; the import will continue.</p>}
       {(error || status?.error) && <p role="alert">{error || status?.error}</p>}
       {(setupUrl || status?.setupUrl) && <p><a href={setupUrl || status?.setupUrl} target="_blank" rel="noreferrer">Enable Google Photos Picker API</a></p>}
       {status?.warning && <p role="status">{status.warning}</p>}
-      <div className="photo-settings-actions">
+      <div className="settings-actions">
         {status?.enabled && <button disabled={busy || importing} onClick={() => void act("connect")}>{status.connected ? "Reconnect Google" : "Connect Google"}</button>}
         {status?.enabled && status.connected && <button disabled={busy || importing} onClick={() => void act("pick")}>{status.session ? "Start new selection" : "Choose photos"}</button>}
         {status?.session && !status.session.ready && <button disabled={busy || importing} onClick={() => void act("poll")}>Check selection</button>}
         {status?.session?.ready && <button disabled={busy || importing} onClick={() => void act("import")}>Import selected photos</button>}
         {!!status?.count && <button disabled={busy || importing} onClick={() => void act("clear")}>Remove local photos</button>}
         {(status?.connected || importing) && <button disabled={busy} onClick={() => void act("disconnect")}>Reset Photos and remove copies</button>}
-        <button onClick={() => dialog.current?.close()}>Close</button>
       </div>
-    </dialog>
-  </>;
+    </section>;
 }
 
 export function PhotoMode({ apiUrl, now, onExit }: { apiUrl: string; now: Date; onExit: () => void }) {

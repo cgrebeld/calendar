@@ -28,7 +28,7 @@ Google Picker does not provide location metadata; older imports need reimporting
 to gain capture dates. The calendar’s bottom-left moon button shows a black screen
 until tapped (it does not power off the monitor); the idle slideshow stays paused.
 
-**Photo settings → Mix in online nature and travel photos** opts this browser into
+**Settings → Photos → Mix in online nature and travel photos** opts this browser into
 fresh [Unsplash](https://unsplash.com/developers) results. The server requests 30
 landscape-oriented photos at most once every 30 minutes while online playback is
 in use, alternating nature and travel searches. It keeps up to 120 recent unique
@@ -48,7 +48,7 @@ To enable the source:
    never prefix it with `VITE_` or commit the key.
 3. Recreate the API container (`docker compose up -d --force-recreate calendar-api`
    locally; use the deployment Compose files/environment on the wall box), then
-   enable **Mix in online nature and travel photos** in Photo settings.
+   enable **Mix in online nature and travel photos** under **Settings → Photos**.
 
 The initial Unsplash demo quota is 50 requests/hour; normal operation here uses
 at most two per hour, regardless of the number of displays. Each batch of 30 photos
@@ -66,7 +66,7 @@ Google Photos setup:
 2. Use the existing `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and Calendar OAuth
    callback (`/api/auth/callback`). There is no separate Photos client or callback.
    For personal testing, add your Google account as an OAuth test user.
-3. Open **Photo settings → Reconnect Google** once to grant Picker access alongside
+3. Open **Settings → Photos → Reconnect Google** once to grant Picker access alongside
    Calendar and Tasks. Both features use the same saved Google token and account.
 4. Press **Choose photos**, follow the Google Photos link, select photos and press Done.
    Return to the calendar and press **Import selected photos**. Each import adds to

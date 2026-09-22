@@ -133,19 +133,6 @@ function DayWeatherBadge({ date, day, compact }: { date: Date; day?: DayWeather;
   </div>;
 }
 
-function GoogleConnectionIcon({ connected }: { connected: boolean }) {
-  return (
-    <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">
-      <rect className="calendar-body" x="4" y="6" width="22" height="21" rx="3" />
-      <path className="calendar-body" d="M4 12h22M10 3v6M20 3v6" />
-      <circle className="connection-badge" cx="24" cy="23" r="6" />
-      {connected
-        ? <path className="connection-mark" d="m21 23 2 2 4-5" />
-        : <path className="connection-mark" d="m21.5 20.5 5 5m0-5-5 5" />}
-    </svg>
-  );
-}
-
 function Timeline({ dates, today, now, events, range, focus, forecast, onSelect, onOpenDay }: { dates: Date[]; today: Date; now: Date; events: CalendarEvent[]; range: ScheduleRange; focus?: Date; forecast: Map<string, DayWeather>; onSelect: (event: CalendarEvent) => void; onOpenDay: (date: Date) => void }) {
   const nowHour = hourOf(now);
   const todayShown = dates.some((date) => sameDay(date, now));
@@ -524,6 +511,7 @@ function App() {
   const [openDay, setOpenDay] = useState<Date>();
   const [idle, setIdle] = useState(false);
   const [sleeping, setSleeping] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [taskLists, setTaskLists] = useState(noteLists);
   const [tasksError, setTasksError] = useState<string>();
@@ -536,6 +524,7 @@ function App() {
   const [connected, setConnected] = useState(false);
   const [syncStatus, setSyncStatus] = useState<{ state: "idle" | "syncing" | "ok" | "error"; message?: string }>({ state: "idle" });
   const calendarLoadId = useRef(0);
+  const settingsDialog = useRef<HTMLDialogElement>(null);
   const swipeStart = useRef<[number, number] | undefined>(undefined);
   const now = useNow();
   const today = now;
@@ -550,6 +539,19 @@ function App() {
   }, [theme, dayKey, background]);
   const dates = viewDates(anchor, mode);
   const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+
+  const openSettings = () => {
+    setSettingsOpen(true);
+    settingsDialog.current?.showModal();
+  };
+
+  useEffect(() => {
+    const url = new URL(location.href);
+    if (url.searchParams.get("photos") !== "settings") return;
+    openSettings();
+    url.searchParams.delete("photos");
+    history.replaceState(null, "", url);
+  }, []);
 
   useEffect(() => {
     if (idle || sleeping) return;
@@ -696,19 +698,27 @@ function App() {
         <button aria-label="Sleep display" title="Sleep display" onClick={() => setSleeping(true)}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z" /></svg>
         </button>
-        <ApplicationUpdates apiUrl={apiUrl} />
-        <PhotoSettings apiUrl={apiUrl} />
-        <button
-          className="google-status"
-          data-connected={connected}
-          data-syncing={connected && syncStatus.state === "syncing"}
-          onClick={connected ? syncGoogle : connectGoogle}
-          aria-label={googleStatus}
-          title={googleStatus}
-        >
-          <GoogleConnectionIcon connected={connected} />
+        <button className="settings-trigger" data-connected={connected} data-syncing={connected && syncStatus.state === "syncing"}
+          onClick={openSettings} aria-label="Open settings" title="Settings" aria-haspopup="dialog">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+            <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.6v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z" />
+          </svg>
         </button>
       </nav>
+
+      <dialog ref={settingsDialog} className="settings-dialog" aria-labelledby="settings-title" onClose={() => setSettingsOpen(false)}>
+        <div className="settings-heading"><h2 id="settings-title">Settings</h2><button className="close" onClick={() => settingsDialog.current?.close()} aria-label="Close settings">×</button></div>
+        <section className="settings-section">
+          <h3>Google Calendar</h3>
+          <p className="settings-status" data-state={connected ? syncStatus.state : "error"}>{googleStatus}</p>
+          <div className="settings-actions">
+            <button onClick={connected ? syncGoogle : connectGoogle}>{connected ? "Sync now" : "Connect Google"}</button>
+          </div>
+        </section>
+        <PhotoSettings apiUrl={apiUrl} open={settingsOpen} />
+        <ApplicationUpdates apiUrl={apiUrl} open={settingsOpen} />
+        <div className="settings-footer"><button onClick={() => settingsDialog.current?.close()}>Close</button></div>
+      </dialog>
 
       {skin === "woodland" && <DogCompanion apiUrl={apiUrl} />}
       {skin === "woodland" && <WoodlandBackground />}
