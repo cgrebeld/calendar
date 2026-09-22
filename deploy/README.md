@@ -55,6 +55,17 @@ and publish another version; runtime Google/weather settings remain on the box.
 
 1. Install Docker Engine with the Compose v2 plugin and Python 3 on Debian 13.
    The installer does not install OS packages or change kiosk settings.
+   On Wi-Fi hosts using Debian's default ifupdown setup, make
+   `network-online.target` wait for DHCP before Docker starts its containers:
+
+   ```sh
+   printf '\nWAIT_ONLINE_METHOD=route\nWAIT_ONLINE_TIMEOUT=60\n' | \
+     sudo tee -a /etc/default/networking
+   sudo systemctl enable ifupdown-wait-online.service
+   ```
+
+   Without this, Docker can capture an unusable DNS configuration during boot;
+   Google API calls then fail with `getaddrinfo EAI_AGAIN` until Docker restarts.
 2. Copy this `deploy/` directory from the release's source checkout to the box.
 3. Copy `calendar.env.example` to a private `calendar.env` and fill in Google
    credentials, the exact browser origin and OAuth callback URL. Use a domain
