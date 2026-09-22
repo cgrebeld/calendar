@@ -258,7 +258,9 @@ export function PhotoMode({ apiUrl, now, onExit }: { apiUrl: string; now: Date; 
     {photo && !photo.item.external && <button className="photo-remove" disabled={removing} onClick={() => void remove()} aria-label="Remove this photo from local gallery" title="Remove from local gallery">{removing ? "…" : "×"}</button>}
     <small className="photo-caption" role="status">
       {message || galleryMessage || (!items.length ? "Choose photos or enable online landscapes in Photo settings" : photo && photoLabel(photo.item))}
-      {photo?.item.external && <> · Photo by <a href={photo.item.photographerUrl} target="_blank" rel="noreferrer">{photo.item.photographer}</a> on <a href={photo.item.sourceUrl} target="_blank" rel="noreferrer">Unsplash</a></>}
     </small>
+    {photo?.item.external && <small className="photo-credit">
+      <a href={photo.item.photographerUrl} target="_blank" rel="noreferrer">{photo.item.photographer}</a> / <a href={photo.item.sourceUrl} target="_blank" rel="noreferrer">Unsplash</a>
+    </small>}
   </div>;
 }
