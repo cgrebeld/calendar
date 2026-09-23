@@ -503,3 +503,32 @@ test("photo labels show city and date without a time or invented missing metadat
   assert.equal(photoLabel({ date: "unknown" }), "");
   assert.equal(photoLabel({}), "");
 });
+
+
+import { ambientEnabled, googlePhotosEnabled } from "./photo-preferences.ts";
+
+test("photo source preferences persist independently and preserve existing defaults", () => {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  const values = new Map<string, string>();
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: {
+    getItem: (key: string) => values.get(key) ?? null,
+  } });
+  try {
+    assert.equal(googlePhotosEnabled(), true);
+    assert.equal(ambientEnabled(), false);
+    for (const google of [false, true]) {
+      for (const ambient of [false, true]) {
+        values.set("google-photos", String(google));
+        values.set("ambient-photos", String(ambient));
+        assert.equal(googlePhotosEnabled(), google);
+        assert.equal(ambientEnabled(), ambient);
+      }
+    }
+    Object.defineProperty(globalThis, "localStorage", { configurable: true, get() { throw new Error("Storage blocked"); } });
+    assert.equal(googlePhotosEnabled(), true);
+    assert.equal(ambientEnabled(), false);
+  } finally {
+    if (descriptor) Object.defineProperty(globalThis, "localStorage", descriptor);
+    else Reflect.deleteProperty(globalThis, "localStorage");
+  }
+});

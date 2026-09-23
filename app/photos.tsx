@@ -2,11 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import "./photos.css";
 import { shufflePhotos, photoLabel, adjacentPhoto } from "./photo-order";
 import { swipeDirection } from "./dates";
+import { ambientEnabled, googlePhotosEnabled } from "./photo-preferences";
 
 type Photo = { id: string; url: string; date?: string; city?: string; external?: boolean };
-function ambientEnabled() {
-  try { return localStorage.getItem("ambient-photos") === "true"; } catch { return false; }
-}
 
 type PhotoStatus = {
   enabled: boolean; connected?: boolean; count?: number; error?: string; warning?: string; setupUrl?: string;
@@ -45,6 +43,7 @@ export function PhotoIcon({ settings = false }: { settings?: boolean }) {
 
 export function PhotoSettings({ apiUrl, open }: { apiUrl: string; open: boolean }) {
   const [ambient, setAmbient] = useState(ambientEnabled);
+  const [google, setGoogle] = useState(googlePhotosEnabled);
   const [status, setStatus] = useState<PhotoStatus>();
   const [onlineStatus, setOnlineStatus] = useState<PhotoStatus>();
   const [error, setError] = useState("");
@@ -92,7 +91,13 @@ export function PhotoSettings({ apiUrl, open }: { apiUrl: string; open: boolean 
       <p>Fresh Unsplash images, loaded on demand. Requires internet; saved for this display.</p>
       {onlineStatus && !onlineStatus.enabled && <p>Online photos need a free <a href="https://unsplash.com/developers" target="_blank" rel="noreferrer">Unsplash access key</a>. Set UNSPLASH_ACCESS_KEY on the calendar server and restart it.</p>}
       {onlineStatus?.error && <p role="status">{onlineStatus.error}</p>}
-      <h4>Local gallery</h4>
+      <h4>Google Photos</h4>
+      <label><input type="checkbox" checked={google} onChange={(event) => {
+        const enabled = event.target.checked;
+        try { localStorage.setItem("google-photos", String(enabled)); setGoogle(enabled); }
+        catch { setError("Unable to save photo preference in this browser."); }
+      }} /> Display imported Google Photos</label>
+      <p>Saved for this display. Turning this off keeps your local photos.</p>
       {!status && !error && <p role="status">Loading…</p>}
       {status && !status.enabled && <p>To import, configure the Calendar Google connection on the server. See the README’s Photo mode setup.</p>}
       <p>{status?.count ?? 0} photos stored locally for offline playback. Imports add to this collection.</p>
@@ -134,13 +139,13 @@ export function PhotoMode({ apiUrl, now, onExit }: { apiUrl: string; now: Date; 
     async function refresh() {
       const online = ambientEnabled();
       const results = await Promise.allSettled([
-        photosJson(apiUrl, "items", "GET", controller.signal),
+        googlePhotosEnabled() ? photosJson(apiUrl, "items", "GET", controller.signal) : Promise.resolve({ enabled: false, items: [] } as PhotoStatus),
         online ? photosJson(apiUrl, "ambient", "GET", controller.signal) : Promise.resolve({ enabled: false, items: [] } as PhotoStatus),
       ]);
       if (controller.signal.aborted) return;
       const [local, ambient] = results;
       setGalleryMessage(local.status === "rejected" ? "Local gallery unavailable; retrying shortly"
-        : ambient.status === "rejected" ? "Online photos unavailable; local photos still play"
+        : ambient.status === "rejected" ? "Online photos unavailable; retrying shortly"
         : ambient.value.error || "");
       setItems((previous) => {
         const incoming = [
@@ -239,7 +244,7 @@ export function PhotoMode({ apiUrl, now, onExit }: { apiUrl: string; now: Date; 
     </button>
     {photo && !photo.item.external && <button className="photo-remove" disabled={removing} onClick={() => void remove()} aria-label="Remove this photo from local gallery" title="Remove from local gallery">{removing ? "…" : "×"}</button>}
     <small className="photo-caption" role="status">
-      {message || galleryMessage || (!items.length ? "Choose photos or enable online landscapes in Photo settings" : photo && photoLabel(photo.item))}
+      {message || galleryMessage || (!items.length ? "Enable Google Photos or online photos in Settings; import photos if your gallery is empty" : photo && photoLabel(photo.item))}
     </small>
 
   </div>;
