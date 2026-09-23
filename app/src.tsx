@@ -15,8 +15,8 @@ import { ApplicationUpdates } from "./updates";
 import { PhotoIcon, PhotoMode, PhotoSettings } from "./photos";
 
 const themeMode = parseThemeMode(new URLSearchParams(location.search).get("theme") ?? import.meta.env.VITE_THEME_MODE);
-const skin = parseSkin(new URLSearchParams(location.search).get("skin") ?? import.meta.env.VITE_SKIN);
-document.documentElement.dataset.skin = skin;
+const initialSkin = parseSkin(new URLSearchParams(location.search).get("skin") ?? import.meta.env.VITE_SKIN);
+document.documentElement.dataset.skin = initialSkin;
 const envThemeSchedule = parseThemeSchedule(import.meta.env.VITE_THEME_LIGHT_START, import.meta.env.VITE_THEME_DARK_START);
 
 const scheduleRange = scheduleRangeFromEnv();
@@ -506,6 +506,8 @@ function useNow(): Date {
 
 function App() {
   useButtonSounds();
+  const [skin, setSkin] = useState(initialSkin);
+  useEffect(() => { document.documentElement.dataset.skin = skin; }, [skin]);
   const [mode, setMode] = useState<ViewMode>("week");
   const [anchor, setAnchor] = useState(() => new Date());
   const [selected, setSelected] = useState<CalendarEvent>();
@@ -537,7 +539,7 @@ function App() {
     const nextTheme: ThemeName = theme === "light" ? "dark" : "light";
     const nextImage = backgroundOverrides[nextTheme] ?? (skin === "default" ? backgroundFor(nextTheme, now) : undefined);
     if (nextImage) new Image().src = nextImage;
-  }, [theme, dayKey, background]);
+  }, [theme, dayKey, background, skin]);
   const dates = viewDates(anchor, mode);
   const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
@@ -717,6 +719,14 @@ function App() {
           <div className="settings-actions">
             <button onClick={connected ? syncGoogle : connectGoogle}>{connected ? "Sync now" : "Connect Google"}</button>
           </div>
+        </section>
+        <section className="settings-section">
+          <h3>Appearance</h3>
+          <label>Skin <select value={skin} onChange={(event) => setSkin(parseSkin(event.target.value))}>
+            <option value="default">Default</option>
+            <option value="woodland">Woodland</option>
+          </select></label>
+          <p>Applies until this page is reloaded.</p>
         </section>
         <PhotoSettings apiUrl={apiUrl} open={settingsOpen} />
         <ApplicationUpdates apiUrl={apiUrl} open={settingsOpen} />
