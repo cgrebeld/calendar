@@ -1,0 +1,11 @@
+#!/bin/sh
+swayidle -w timeout 1800 'wlopm --off "*"' resume 'wlopm --on "*"' &
+(
+  until curl -fsS --max-time 5 http://localhost:8080/ >/dev/null; do
+    sleep 2
+  done
+  while true; do
+    chromium --kiosk --no-first-run --noerrdialogs --ozone-platform=wayland --user-data-dir=/home/kiosk/.config/chromium http://localhost:8080 > /home/kiosk/.config/chromium-startup.log 2>&1
+    sleep 3
+  done
+) &

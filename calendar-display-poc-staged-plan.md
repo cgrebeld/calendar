@@ -1272,7 +1272,8 @@ Docker should own:
 ## Configure
 
 - Debian 13 netinst, "standard system utilities" + SSH server only; no desktop task.
-- `apt install labwc swayidle wlopm chromium fonts-noto-color-emoji python3` (use labwc's cursor-hide setting; add `ddcutil` only if needed) plus Docker Engine from Docker's Debian repository.
+- `apt install labwc swayidle wlopm chromium fonts-noto-color-emoji python3` (use the invisible cursor theme on labwc 0.8.3; add `ddcutil` only if needed) plus Docker Engine from Docker's Debian repository.
+- Follow [the deployment runbook](deploy/README.md#graphical-kiosk-setup) for exact commands, `.config` ownership, startup logging, cursor hiding, HDMI audio, and recovery.
 - Unprivileged `kiosk` user with autologin on tty1 (`getty@tty1` override) and a `.bash_profile` that starts `labwc` when on tty1.
 - `~/.config/labwc/autostart`: `swayidle` line (Stage 7b Layer B) and `chromium --kiosk --noerrdialogs --disable-infobars --ozone-platform=wayland http://localhost:8080`.
 - Docker Compose stack as a `systemd` unit (or Compose `restart: unless-stopped`, which already exists, plus Docker enabled at boot).
