@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { addDays, moveAnchor, swipeDirection, viewDates, viewTitle, type ViewMode } from "./dates";
 import { moonPhaseOn } from "./moon";
-import { dayDifference, layoutEvents, loadGoogleEvents, type CalendarEvent } from "./google-calendar";
+import { dayDifference, layoutEvents, loadGoogleEvents, orderEvents, type CalendarEvent } from "./google-calendar";
 import { formatHour, hourLabels, hourOf, hourOffset, placeRows, scheduleHours, scheduleRangeFromEnv, timeMarkerOffset, titleLines, type ScheduleRange } from "./schedule";
 import { dateKey, fakeForecast, loadWeather, upcomingHours, weatherChartScale, weatherDescription, weatherGlyph, weatherIcon, windStrength, type DayWeather, type WeatherReport } from "./weather";
 import { backgroundFor, parseSkin, parseThemeMode, parseThemeSchedule, resolveTheme, scheduleFromSolar, type ThemeMode, type ThemeName } from "./theme";
@@ -122,7 +122,7 @@ function eventTitle(event: CalendarEvent) {
 }
 
 function eventsFor(events: CalendarEvent[], date: Date, today: Date) {
-  return events.filter((event) => sameDay(date, addDays(today, event.day)));
+  return orderEvents(events.filter((event) => sameDay(date, addDays(today, event.day))));
 }
 
 function DayWeatherBadge({ date, day, compact }: { date: Date; day?: DayWeather; compact?: boolean }) {
@@ -208,7 +208,7 @@ function Month({ dates, anchor, today, now, events, range, forecast, onSelect, o
     <section className="month-grid">
       {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <strong className="month-heading" key={day}>{day}</strong>)}
       {dates.map((date, index) => {
-        const dayEvents = eventsFor(events, date, today).sort((left, right) => Number(right.allDay) - Number(left.allDay) || left.start - right.start);
+        const dayEvents = eventsFor(events, date, today);
         const isToday = sameDay(date, now);
         const rowFraction = 1 / capacity;
         if (dayEvents.length <= capacity) {
@@ -226,7 +226,7 @@ function Month({ dates, anchor, today, now, events, range, forecast, onSelect, o
             </div>
           );
         }
-        const visible = dayEvents.slice(0, Math.max(0, capacity - 1));
+        const visible = dayEvents.slice(0, Math.max(1, capacity - 1));
         const upcoming = isToday ? visible.find((event) => !event.allDay && event.start > hourOf(now)) : undefined;
         const showRule = isToday && dayEvents.some((event) => !event.allDay);
         return (
@@ -241,7 +241,7 @@ function Month({ dates, anchor, today, now, events, range, forecast, onSelect, o
                 </React.Fragment>
               ))}
               {showRule && !upcoming && <div className="now-rule" aria-hidden />}
-              <button className="more" onClick={() => onOpenDay(date)}>⌄ {dayEvents.length - visible.length} more</button>
+              {capacity > 1 && <button className="more" onClick={() => onOpenDay(date)}>⌄ {dayEvents.length - visible.length} more</button>}
             </div>
           </div>
         );

@@ -13,6 +13,10 @@ export type CalendarEvent = {
   collection?: "garbage" | "recycling";
 };
 
+export function orderEvents(events: CalendarEvent[]) {
+  return [...events].sort((left, right) => Number(Boolean(right.collection)) - Number(Boolean(left.collection)) || Number(Boolean(right.allDay)) - Number(Boolean(left.allDay)) || left.start - right.start);
+}
+
 export function layoutEvents(events: CalendarEvent[], minimumDuration = 1, range: ScheduleRange = defaultScheduleRange) {
   const sorted = [...events].sort((left, right) => left.start - right.start || right.duration - left.duration || left.title.localeCompare(right.title));
   const place = (heightLimit = Infinity) => {

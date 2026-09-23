@@ -57,7 +57,13 @@ import { countdownItems, countdownRange } from "./countdowns.ts";
 import { execFileSync } from "node:child_process";
 import { moonPhaseInstant, moonPhaseOn, type MoonPhase } from "./moon.ts";
 import { addDays, moveAnchor, swipeDirection, viewDates, viewTitle } from "./dates.ts";
-import { convertGoogleEvent, layoutEvents, type CalendarEvent } from "./google-calendar.ts";
+import { convertGoogleEvent, layoutEvents, orderEvents, type CalendarEvent } from "./google-calendar.ts";
+
+test("pickup events come before other all-day events in crowded views", () => {
+  const regular: CalendarEvent = { day: 0, person: "Family", tone: "family", start: 7, duration: 1, title: "Trip", detail: "", allDay: true };
+  const pickup: CalendarEvent = { ...regular, title: "Recycling", collection: "recycling" };
+  assert.deepEqual(orderEvents([regular, pickup]), [pickup, regular]);
+});
 import { defaultScheduleRange, hourLabels, hourOf, hourOffset, parseScheduleRange, placeRows, timeMarkerOffset, titleLines } from "./schedule.ts";
 import { dateKey, fakeForecast, weatherChartScale, weatherDescription, weatherGlyph, weatherIcon, windStrength, type DayWeather } from "./weather.ts";
 import { backgroundFor, defaultThemeSchedule, parseSkin, parseThemeMode, parseThemeSchedule, resolveTheme, scheduleFromSolar } from "./theme.ts";
