@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { addDays, moveAnchor, swipeDirection, viewDates, viewTitle, type ViewMode } from "./dates";
 import { moonPhaseOn } from "./moon";
-import { layoutEvents, loadGoogleEvents, type CalendarEvent } from "./google-calendar";
+import { dayDifference, layoutEvents, loadGoogleEvents, type CalendarEvent } from "./google-calendar";
 import { formatHour, hourLabels, hourOf, hourOffset, placeRows, scheduleHours, scheduleRangeFromEnv, timeMarkerOffset, titleLines, type ScheduleRange } from "./schedule";
 import { dateKey, fakeForecast, loadWeather, upcomingHours, weatherChartScale, weatherDescription, weatherGlyph, weatherIcon, windStrength, type DayWeather, type WeatherReport } from "./weather";
 import { backgroundFor, parseSkin, parseThemeMode, parseThemeSchedule, resolveTheme, scheduleFromSolar, type ThemeMode, type ThemeName } from "./theme";
@@ -117,6 +117,10 @@ function eventTime(event: CalendarEvent) {
   return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
+function eventTitle(event: CalendarEvent) {
+  return <>{event.collection && <span className="collection-icon" aria-hidden="true">{event.collection === "garbage" ? "🗑️" : "♻️"}</span>}{event.title}</>;
+}
+
 function eventsFor(events: CalendarEvent[], date: Date, today: Date) {
   return events.filter((event) => sameDay(date, addDays(today, event.day)));
 }
@@ -155,7 +159,7 @@ function Timeline({ dates, today, now, events, range, focus, forecast, onSelect,
         return (
           <div className={`day-column ${sameDay(date, today) ? "today" : ""} ${focus ? (sameDay(date, focus) ? "focus" : "context") : ""}`} key={date.toDateString()} onClick={dayTap(onOpenDay, date)} aria-label={`Open ${longDate.format(date)}`}>
             <div className="all-day-lane">
-              {dayEvents.filter((event) => event.allDay).map((event) => <button className={`all-day ${event.tone}`} onClick={() => onSelect(event)} key={event.title}>{event.title}</button>)}
+              {dayEvents.filter((event) => event.allDay).map((event) => <button className={`all-day ${event.tone}`} onClick={() => onSelect(event)} key={event.title}>{eventTitle(event)}</button>)}
             </div>
             <div className="hours" style={{ "--schedule-hours": scheduleHours(range) } as React.CSSProperties}>
               {nowOffset !== null && <div className="now-line" style={{ top: `${nowOffset * 100}%` }} aria-hidden />}
@@ -217,7 +221,7 @@ function Month({ dates, anchor, today, now, events, range, forecast, onSelect, o
               <DayWeatherBadge date={date} day={forecast.get(dateKey(date))} compact />
               <div className="month-events placed" ref={index === 0 ? capacityRef : undefined}>
                 {ruleTop !== null && <div className="now-rule" style={{ top: `${ruleTop * 100}%` }} aria-hidden />}
-                {dayEvents.map((event, row) => <button className={event.tone} style={{ top: `${tops[row] * 100}%` }} onClick={() => onSelect(event)} key={`${event.start}-${event.title}`} aria-label={`${eventTime(event)} ${event.title}`}>{event.title}</button>)}
+                {dayEvents.map((event, row) => <button className={event.tone} style={{ top: `${tops[row] * 100}%` }} onClick={() => onSelect(event)} key={`${event.start}-${event.title}`} aria-label={`${eventTime(event)} ${event.title}`}>{eventTitle(event)}</button>)}
               </div>
             </div>
           );
@@ -233,7 +237,7 @@ function Month({ dates, anchor, today, now, events, range, forecast, onSelect, o
               {visible.map((event) => (
                 <React.Fragment key={`${event.start}-${event.title}`}>
                   {event === upcoming && <div className="now-rule" aria-hidden />}
-                  <button className={event.tone} onClick={() => onSelect(event)} aria-label={`${eventTime(event)} ${event.title}`}>{event.title}</button>
+                  <button className={event.tone} onClick={() => onSelect(event)} aria-label={`${eventTime(event)} ${event.title}`}>{eventTitle(event)}</button>
                 </React.Fragment>
               ))}
               {showRule && !upcoming && <div className="now-rule" aria-hidden />}
@@ -257,7 +261,7 @@ function TwoWeek({ dates, today, now, events, range, forecast, onSelect, onOpenD
           <article className={`mini-day ${sameDay(date, today) ? "today" : ""}`} key={date.toDateString()} onClick={dayTap(onOpenDay, date)} aria-label={`Open ${longDate.format(date)}`}>
             <header><span>{dayName.format(date)}</span><strong>{date.getDate()}</strong><DayWeatherBadge date={date} day={forecast.get(dateKey(date))} /></header>
             <div className="mini-all-day">
-              {dayEvents.filter((event) => event.allDay).map((event) => <button className={event.tone} onClick={() => onSelect(event)} key={event.title}>{event.title}</button>)}
+              {dayEvents.filter((event) => event.allDay).map((event) => <button className={event.tone} onClick={() => onSelect(event)} key={event.title}>{eventTitle(event)}</button>)}
             </div>
             <div className="mini-hours" style={{ "--schedule-hours": scheduleHours(range) } as React.CSSProperties}>
               {nowOffset !== null && <div className="now-line mini" style={{ top: `${nowOffset * 100}%` }} aria-hidden />}
@@ -520,6 +524,7 @@ function App() {
   const [tasksError, setTasksError] = useState<string>();
   const [countdownRefresh, setCountdownRefresh] = useState(0);
   const [calendarEvents, setCalendarEvents] = useState(fakeEvents);
+  const [collectionDates, setCollectionDates] = useState<{ date: string; kind: "garbage" | "recycling" }[]>([]);
   const [forecast, setForecast] = useState(() => fakeForecast(new Date()));
   const [weatherNow, setWeatherNow] = useState<WeatherReport>();
   const [weatherOpen, setWeatherOpen] = useState(false);
@@ -542,6 +547,22 @@ function App() {
   }, [theme, dayKey, background, skin]);
   const dates = viewDates(anchor, mode);
   const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+  const displayEvents: CalendarEvent[] = [...calendarEvents, ...collectionDates.map(({ date, kind }): CalendarEvent => {
+    const [year, month, day] = date.split("-").map(Number);
+    return { day: dayDifference(new Date(year, month - 1, day), today), person: kind === "garbage" ? "City of Victoria" : "CRD", tone: "collection", start: scheduleRange.startHour, duration: 1, title: kind === "garbage" ? "Garbage & organics" : "Recycling", detail: kind === "garbage" ? "City of Victoria collection" : "CRD blue box collection", allDay: true, collection: kind };
+  })];
+
+  useEffect(() => {
+    const load = () => fetch(`${apiUrl}/api/collections`).then(async (response) => {
+      if (!response.ok) throw new Error(`Collection API returned ${response.status}`);
+      const data = await response.json();
+      setCollectionDates(data.events);
+      if (data.errors.length) console.warn("Collection schedules unavailable:", data.errors);
+    }).catch((error: Error) => console.warn("Collection schedules unavailable:", error.message));
+    void load();
+    const timer = window.setInterval(load, 60 * 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, [apiUrl]);
 
   const openSettings = () => {
     setSettingsOpen(true);
@@ -694,7 +715,7 @@ function App() {
 
       <div className={`workspace ${notesOpen ? "" : "notes-hidden"}`}>
         <div className="calendar-pane" onTouchStart={startSwipe} onTouchEnd={finishSwipe} onTouchCancel={() => { swipeStart.current = undefined; }}>
-          {mode === "month" ? <Month dates={dates} anchor={anchor} today={today} now={now} events={calendarEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : mode === "twoWeek" ? <TwoWeek dates={dates} today={today} now={now} events={calendarEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : <Timeline dates={dates} today={today} now={now} events={calendarEvents} range={scheduleRange} forecast={forecast} focus={mode === "day" ? anchor : undefined} onSelect={setSelected} onOpenDay={setOpenDay} />}
+          {mode === "month" ? <Month dates={dates} anchor={anchor} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : mode === "twoWeek" ? <TwoWeek dates={dates} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : <Timeline dates={dates} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} focus={mode === "day" ? anchor : undefined} onSelect={setSelected} onOpenDay={setOpenDay} />}
         </div>
         {notesOpen && <Notes onClose={() => setNotesOpen(false)} onToggle={(listId, taskId, completed) => setTaskLists((lists) => lists.map((list) => list.id === listId ? { ...list, items: list.items.map((task) => task.id === taskId ? { ...task, completed } : task) } : list))} lists={taskLists} error={tasksError} reconnect={connectGoogle} apiUrl={apiUrl} connected={connected} refresh={countdownRefresh} />}
       </div>
@@ -738,9 +759,9 @@ function App() {
 
       {weatherOpen && <WeatherModal report={weatherNow} forecast={forecast} onClose={() => setWeatherOpen(false)} />}
 
-      {openDay && <DayModal date={openDay} today={today} now={now} events={calendarEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onClose={() => setOpenDay(undefined)} />}
+      {openDay && <DayModal date={openDay} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onClose={() => setOpenDay(undefined)} />}
 
-      {selected && <div className="backdrop event-backdrop" onClick={() => setSelected(undefined)}><section className="event-detail" role="dialog" aria-modal="true" aria-labelledby="event-title" onClick={(event) => event.stopPropagation()}><button className="close" onClick={() => setSelected(undefined)} aria-label="Close" data-sound="boop">×</button><span className={`badge ${selected.tone}`}>{selected.person}</span><h2 id="event-title">{selected.title}</h2><p>{eventTime(selected)}</p><p>{selected.detail}</p></section></div>}
+      {selected && <div className="backdrop event-backdrop" onClick={() => setSelected(undefined)}><section className="event-detail" role="dialog" aria-modal="true" aria-labelledby="event-title" onClick={(event) => event.stopPropagation()}><button className="close" onClick={() => setSelected(undefined)} aria-label="Close" data-sound="boop">×</button><span className={`badge ${selected.tone}`}>{selected.person}</span><h2 id="event-title">{eventTitle(selected)}</h2><p>{eventTime(selected)}</p><p>{selected.detail}</p></section></div>}
     </main>
   );
 }

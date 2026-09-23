@@ -3,13 +3,14 @@ import { defaultScheduleRange, type ScheduleRange } from "./schedule.ts";
 export type CalendarEvent = {
   day: number;
   person: string;
-  tone: "alex" | "sam" | "maya" | "family";
+  tone: "alex" | "sam" | "maya" | "family" | "collection";
   start: number;
   duration: number;
   title: string;
   detail: string;
   timeLabel?: string;
   allDay?: boolean;
+  collection?: "garbage" | "recycling";
 };
 
 export function layoutEvents(events: CalendarEvent[], minimumDuration = 1, range: ScheduleRange = defaultScheduleRange) {

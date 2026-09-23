@@ -38,6 +38,8 @@
   --tone-maya-bg: #f6efff;
   --tone-family: #3a9b75;
   --tone-family-bg: #eaf8f2;
+  --tone-collection: #64748b;
+  --tone-collection-bg: #edf2f7;
   --bg-tint: rgb(255 255 255 / .28);
   --glass-bg: rgb(255 255 255 / .6);
   --glass-border: rgb(255 255 255 / .55);
@@ -92,6 +94,8 @@
   --tone-maya-bg: #a883d8;
   --tone-family: #9fdcc3;
   --tone-family-bg: #4fb08a;
+  --tone-collection: #bdcadc;
+  --tone-collection-bg: #56657a;
   --bg-tint: rgb(10 14 24 / .5);
   --glass-bg: rgb(22 26 36 / .58);
   --glass-border: rgb(255 255 255 / .1);
@@ -217,6 +221,8 @@ nav .dark { color: var(--on-accent); background: var(--nav-dark-bg); border: 0; 
 .sam { --tone: var(--tone-sam); --tone-bg: var(--tone-sam-bg); }
 .maya { --tone: var(--tone-maya); --tone-bg: var(--tone-maya-bg); }
 .family { --tone: var(--tone-family); --tone-bg: var(--tone-family-bg); }
+.collection { --tone: var(--tone-collection); --tone-bg: var(--tone-collection-bg); }
+.collection-icon { margin-right: .3em; }
 .two-week-grid { max-width: 1800px; min-width: 900px; height: 760px; margin: auto; display: grid; grid-template-columns: repeat(7, 1fr); grid-template-rows: repeat(2, 1fr); overflow: hidden; border: 1px solid var(--border); border-radius: 1rem; background: var(--calendar-surface); box-shadow: var(--shadow-md); }
 .mini-day { min-width: 0; display: grid; grid-template-rows: 2.8rem 1.8rem 1fr; overflow: hidden; background: var(--surface); cursor: pointer; }
 .mini-day:not(:nth-child(7n)) { border-right: 1px solid var(--border); }

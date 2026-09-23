@@ -4,6 +4,7 @@ import { createServer } from "node:http";
 import { updateRequest } from "./updates.mjs";
 import { createPhotos } from "./photos.mjs";
 import { createUnsplash } from "./unsplash.mjs";
+import { loadCollection } from "./collections.mjs";
 
 const unsplash = createUnsplash();
 import { dirname } from "node:path";
@@ -291,6 +292,15 @@ export const server = createServer(async (request, response) => {
       return json(request, response, result.status, result.body);
     }
     if (request.method === "GET" && url.pathname === "/api/quote") return json(request, response, 200, await loadDailyQuote());
+    if (request.method === "GET" && url.pathname === "/api/collections") {
+      const address = process.env.COLLECTION_ADDRESS?.trim();
+      if (!address) return json(request, response, 200, { events: [], errors: [] });
+      const results = await Promise.allSettled(["garbage", "recycling"].map((kind) => cachedWithStale(`collections:${kind}:${address}`, async () => ({ events: await loadCollection(kind, address) }), 12 * 3600000)));
+      return json(request, response, 200, {
+        events: results.flatMap((result) => result.status === "fulfilled" ? result.value.events : []),
+        errors: results.flatMap((result, index) => result.status === "rejected" ? [{ kind: ["garbage", "recycling"][index], message: result.reason.message }] : []),
+      });
+    }
     if (url.pathname === "/api/auth/status") return json(request, response, 200, { connected: Boolean((await savedToken()).refresh_token) });
     if (url.pathname === "/api/auth/start") {
       if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) throw new Error("Google OAuth credentials are not configured");
