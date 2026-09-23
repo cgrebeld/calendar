@@ -1,132 +1,23 @@
 # Calendar Display POC — Staged Implementation Plan
 
-## September 19 feature work
-
-- [x] Extract a reusable dog companion and encapsulate woodland background animation. `DogCompanion` owns its state, quote loading, audio and styles; `WoodlandBackground` owns the theme animation markup. Verified: 50 tests and production build.
-- [ ] Skipped: play a bark, pause a beat, then speak the daily quote with Piper's Norman voice. Piper is not installed in the development environment or API image, and no Norman model is supplied; speech cannot be validated here.
-- [x] Fix events missing from the first date in the three-day view. Normalize every view's dates to local midnight before querying; verified with a regression test, all 51 tests and production build.
-- [x] Add a calendar-backed Countdowns tab covering `#countdown`-tagged events in the next six months, without checkboxes. Separate calendar endpoint, paginated event loading, local-date counts and refresh support. Verified: 55 tests and production build; live Google/browser interaction was not exercised here.
-
-Implement in order; run frontend/API tests and the production build for each chunk, then commit separately. If an item cannot be validated or stops converging, record the limitation and continue.
+For a new installation, follow the [deployment guide](deploy/README.md).
+Use this plan for feature development and hardware acceptance; use
+[README.md](README.md) for application configuration and local development.
 
 ## Goal
 
-Validate the calendar-display software stack and wall-mounted touchscreen UX on the **ASUS VT229H connected to the Linux desktop host** before moving to the production setup: a refurbished **Lenovo ThinkCentre M710q Tiny** (Intel Core i3-6100T, 8 GB, 256 GB NVMe, Wi-Fi) driving the same display.
+Provide a family calendar on a 21.5-inch ASUS VT229H touchscreen, driven by a
+Lenovo ThinkCentre M710q Tiny running Debian 13. The production target is
+`linux/amd64` with native Chromium on labwc and the `calendar-web` and
+`calendar-api` containers.
 
-> **Hardware decision (September 2026).** The plan originally targeted a Raspberry Pi 5 2 GB. Canadian pricing put a complete Pi 5 4 GB kit at ~$220 while the M710q refurb is ~$139 (+ ~$25 for a DP→HDMI cable and Tiny VESA bracket). The x86 box has 2–4× the RAM, an NVMe SSD instead of microSD, a business BIOS with reliable power-on-after-AC-loss, a single `linux/amd64` build matching the development machine, and standard DPMS/DDC screen control. Trade-offs accepted: a blower-cooled 35 W TDP CPU and estimated ~8–12 W system idle draw versus ~3 W (measure the actual unit). Pi-specific sections below are rewritten for Debian on x86; the Pi remains a fallback since the app is only `docker compose up` plus a kiosk browser.
-
-The POC should answer two main questions:
-
-1. Does the family-calendar UX work well on a 21.5-inch, 1920×1080 wall display?
-2. Can the app be packaged and deployed in a way that closely matches the eventual wall installation?
-
-The recommended architecture is:
-
-```text
-Linux desktop host + ASUS VT229H
-│
-├── Native Chromium
-│       └── http://localhost:8080
-│
-└── Docker
-        ├── calendar-web
-        └── calendar-api   [only if needed]
-```
-
-For the final wall installation:
-
-```text
-Debian 13 (ThinkCentre M710q Tiny)
-│
-├── Native Chromium kiosk
-│       └── http://localhost:8080
-│
-└── Docker
-        ├── calendar-web
-        └── calendar-api   [only if needed]
-```
-
-The browser remains native so touch, HDMI, GPU acceleration, audio, on-screen keyboard behavior, and display-management behavior stay close to the real hardware.
-
----
-
-# Current State — September 16, 2026
-
-## Current milestone
-
-Milestone 2 — Google Calendar read-only integration is complete. The ASUS VT229H has arrived. The next gate is real-screen and touch validation on the Linux desktop host, including an SBOM refresh, before the M710q arrives and before Milestone 3 editing.
-
-## Completed
-
-- Git repository and React 19 + TypeScript + Vite application.
-- Production nginx container definition, Compose configuration, health check, restart policy, and environment-variable support.
-- Locked npm dependencies and a generated CycloneDX 1.5 SBOM.
-- Native Vite development workflow; Herdr may keep the development terminal running but is not part of the deployed application.
-- Chromium selected as the native browser and eventual kiosk runtime.
-- Fake family events, family-member colors, all-day events, touch-sized navigation, event details, and idle/photo-mode preview.
-- Family Notes reads open items from Google Tasks, with configurable list tabs, five-minute refresh, fake fallback items, and local-only ticks.
-- Vertical schedule bounded to a configurable range (`VITE_SCHEDULE_START` / `VITE_SCHEDULE_END`, default 8:00 AM–8:00 PM).
-- Timed events use full-width chronological rows with the time before the title. Crowded days compress row heights to keep every event visible; exact grid alignment is secondary.
-- Month cells place fixed-height rows at roughly their time offset; days that do not fit show the first rows and a "⌄ N more" button. Capacity is measured from the cell height (4 rows at 1920×1080).
-- Tapping the background of any day panel (or "N more") opens a large single-day modal built from the same timeline component; events inside it open the usual detail dialog.
-- View selectors for:
-  - Day (shows previous, current, and next day; the anchor day is emphasized)
-  - Full week
-  - Two week
-  - Month
-- Previous / Next page by one day, one week, two weeks, or one month respectively; `DAY_VIEW_STEP` is a single constant if three-day paging is preferred later.
-- Theme colors are CSS custom properties on `html[data-theme]`; `VITE_THEME_MODE=auto` switches light/dark by time of day (fixed `VITE_THEME_LIGHT_START` / `VITE_THEME_DARK_START` times, overridden by the day's sunrise + 15 min / sunset + 30 min once the forecast loads). `?theme=dark` forces a theme for testing; photo mode is always dark.
-- Real weather: `calendar-api` proxies Open-Meteo (`/api/weather`, `WEATHER_LATITUDE` / `WEATHER_LONGITUDE`, 1 h cache, stale-on-error). The header shows Now / High / Wind high with a condition glyph; every day heading shows the day's glyph and high (Month: glyph only). A fake forecast renders when the API is unreachable.
-- Current-time line in today's column in Day, Week, and Two Week, positioned in laid-out coordinates so it stays ordered correctly among compressed events; Month shows a rule between past and upcoming events.
-- Golden-hour background images (three per theme, rotating daily) behind a tint layer; the weather card, navigation, and view picker are frosted glass, calendar surfaces stay near-opaque. `VITE_BACKGROUND=none` restores the flat look; `VITE_BACKGROUND_LIGHT` / `VITE_BACKGROUND_DARK` swap in household photos.
-- Skins: `html[data-skin]` beside `data-theme`, chosen by `VITE_SKIN` / `?skin=`. The "woodland" skin (`app/skins/woodland.css`, assets in `app/public/skins/woodland/`) is parchment surfaces, Pixelify Sans headings, bevelled controls, CSS wood frames, pixel weather SVGs, and a gradient scene in place of the photos; see [Stage 1.7](#stage-17--skins).
-- Two Week renders as two compact seven-day schedule rows with grid lines but no repeated time labels, and fits within the target viewport.
-- Timed-event titles wrap to as many lines as the row height allows and elide only on the last line.
-- Sync status is a fixed-width pill in the header, so paging no longer shifts the navigation buttons.
-- Production frontend build, date-range tests, and local server response verified.
-- Native `linux/arm64` production image built successfully; its nginx response and Docker health check passed. (Historical — the target is now `linux/amd64`, which is what the development machine builds and runs daily.)
-- Google OAuth authorization-code flow completed once; the Compose stack runs with the root `.env` credentials.
-- Real family calendars render with correct colors, recurring events, and all-day events in all four views.
-- Refresh token persists in the `calendar-data` volume: `docker compose restart calendar-api` and a full `rm -sf` / `up -d` recreate both report `connected: true` and serve events with no new sign-in.
-
-## Open work
-
-- Hardware: validate the VT229H now on the Linux desktop host. The M710q, DP→HDMI cable, and Tiny VESA bracket remain separate Stage 10 work; on arrival confirm BIOS "After Power Loss → Power On", the fitted Wi-Fi card, and whether the optional rear port is HDMI.
-- Stage 1.7 Step 6: run `VITE_SKIN=woodland` on the wall box for a few days and tune the palette or scene in `app/skins/woodland-art.mjs`.
-- Stage 9.5: publish versioned release images and add periodic update discovery plus a user-approved, next-startup update path.
-- Household-trial questions now answerable on screen: Day-view paging step (1 vs 3 days), whether the "Day" label should read "3 Days", and whether the Month "N more" threshold feels right.
-
-## Stage 1.5 progress
-
-| Step | Status |
-| --- | --- |
-| 1. Three-day Day view | Done |
-| 2. Per-day weather glyphs | Done (real data) |
-| 3. Theme tokens | Done |
-| 4. Auto dark/light | Done |
-| 5. Background image + frosted card | Done (six golden-hour Unsplash images, `app/public/backgrounds/SOURCES.md`) |
-| 6. Current-time marker | Done |
-| 7. `/api/weather` proxy | Done |
-| Extra: single-day modal, Month row cap | Done |
-
-See [Stage 1.5 — UX Refinements](#stage-15--ux-refinements) for details and the [Reference Images](#reference-images) section.
-
-## Operating notes
-
-- After changing `api/` or `app/`, rebuild the affected service: `docker compose up -d --build calendar-api` (or `calendar-web`). A plain `up -d` reuses the old image.
-- `APP_ORIGIN` is a comma-separated CORS and OAuth return allow-list. Authentication returns to the listed frontend origin that started it; unlisted origins fall back to the first entry.
-- `WEB_PORT` (default 8080) sets the host port of `calendar-web`. If 8080 is taken on the Linux desktop, use 8081 for the trial; the wall box keeps 8080.
-- `npm test` in `app/` runs both the frontend tests and `api/server.test.mjs`.
-
-## Current gate
-
-Milestone 2 and Stage 1.5 are complete. Pass the Linux desktop + VT229H validation in Stage 2, then run the display for several days (Stage 8 questions) before Milestone 3 editing, unless a blocking UX problem appears sooner.
+The host owns display, touch, audio, power management, and browser startup.
+Containers own the application and its API. Validate touch, HDMI audio,
+screen standby/wake, offline boot, and update recovery on the target hardware.
 
 ---
 
 # Stage 0 — Repository and Runtime Foundation
-
-**Status:** Implemented. The `linux/amd64` image is the one built and run daily on the development machine and is the production target; `linux/arm64` was also verified once and is kept as an optional fallback build.
 
 ## Objective
 
@@ -148,7 +39,7 @@ Create the project structure and containerized runtime before building much UI.
 - Add environment-variable support for configuration.
 - Add Docker health checks.
 - Configure container restart behavior.
-- Build for `linux/amd64` (production); `linux/arm64` optional, for a Pi fallback.
+- Build for `linux/amd64`.
 
 ## Initial project structure
 
@@ -176,8 +67,6 @@ calendar-display/
 ---
 
 # Stage 1 — Static 1920×1080 UX Prototype
-
-**Status:** UI implementation complete; real VT229H display and touchscreen gate pending on the Linux desktop host.
 
 ## Objective
 
@@ -307,8 +196,6 @@ What not to copy:
 ---
 
 # Stage 1.5 — UX Refinements
-
-**Status:** Complete.
 
 ## Objective
 
@@ -483,8 +370,6 @@ Tests for `timeMarkerOffset`: identity on an empty day, `null` outside the range
 
 # Stage 1.6 — Family Notes from Google Tasks
 
-**Status:** Done. The display requires a one-time re-consent for the added read-only Tasks scope.
-
 ## Objective
 
 Replace the fake note items with real Google Tasks lists so the wall and the family's phones share one list (Tasks syncs to Android, Gmail, and the Calendar sidebar), with no local storage.
@@ -506,78 +391,30 @@ Replace the fake note items with real Google Tasks lists so the wall and the fam
 
 # Stage 1.7 — Skins
 
-**Status:** Steps 1–5 done (commits `eb3d1e9`, `f537284`, `3576604`, `33ed904`); Step 6 (on-wall check) open. Concept: `docs/reference/woodland-pixel-concept.jpg`.
+## Design
 
-## As built
+A skin changes colors, borders, fonts, icons, and scenery while keeping the
+calendar, notes, and controls as accessible HTML.
 
-All artwork is generated by `app/skins/woodland-art.mjs` (`npm run art`, dependency-free PNG encoder, seeded RNG so output is byte-stable) so palette and composition are edited in code, not in an image editor:
+- `data-theme` selects light/dark mode; `data-skin` selects visual identity.
+- `VITE_SKIN` sets the default skin; `?skin=` overrides it for testing.
+- Woodland styles live in `app/skins/woodland.css`, scoped to `[data-skin="woodland"]`.
+- Woodland uses parchment surfaces, wood frames, moss-green controls, Galmuri
+  headings and labels, and pixel weather icons. Event text uses the base font.
+- Scene and frame assets are generated by `app/skins/woodland-art.mjs`
+  (`npm run art`). Asset licenses are in `app/public/skins/woodland/SOURCES.md`.
+- Both skins support light/dark mode; photo mode stays dark.
 
-- **Frames**: `frame.png` / `frame-night.png`, 18×18 with a 6 px slice (outline, highlight, grained wood, shade, inner line, corner nails), applied as `border-image: var(--frame-image) 6 / 12px round` with `image-rendering: pixelated`. Grid texture was skipped (the "no texture behind event text" note plus flat parchment reads cleaner).
-- **Scenery**: `day.png` / `night.png`, 480×270 scaled ×4 — banded sky, sun or crescent moon and stars, clouds, snow-capped mountains, two hill layers, pines clustered in the visible side margins, a cottage (windows glow at night), and a lake with ripples along the visible bottom third. Painted by `[data-skin="woodland"] body::before` under a light tint. Woodland skips the golden-hour photo rotation; `VITE_BACKGROUND_LIGHT/DARK` still override it. `backgroundFor()` is unchanged — `src.tsx` only calls it for the default skin, and `--bg-image` is removed (not set to `none`) when there is no image so the CSS fallback `var(--bg-image, var(--scene))` works.
-- **Weather icons** are eight 12×12 pixel SVGs in `app/public/skins/woodland/icons/`, one per `data-icon` key, mapped via a per-key `--icon` variable instead of a sprite.
-- **Font:** Pixelify Sans (OFL, latin subset WOFF2 + `OFL.txt`) on headings, day labels, view picker, word buttons, and the weather card; body text stays Inter. The `h1` fits at 1920 without a size override.
-- **Controls:** 2 px border, `--bevel-hi/-lo` inset shadows, `:active` pressed state, moss-green active view; `backdrop-filter` disabled under woodland.
+## Acceptance checks
 
-## Objective
-
-Let the display wear a different visual identity (first: "woodland" pixel art) without forking the calendar. The calendar, notes, and controls stay real HTML; a skin changes tokens, borders, fonts, icons, and scenery only. Light/dark switching, idle mode, and every view keep working under every skin.
-
-## Two axes, not one
-
-`html[data-theme]` already means *light or dark* and is driven by the clock, sunrise/sunset, and idle. A skin is a second, independent axis: `html[data-skin="default" | "woodland"]`. The concept's `data-theme="woodland"` would collide with the mode attribute and lose auto dark/light. So:
-
-- `data-theme` — mode, unchanged (`light` / `dark`, set by `useTheme`).
-- `data-skin` — identity, set once at startup from `?skin=` (testing override) or `VITE_SKIN` (default `default`), the same pattern as `?theme=` / `VITE_THEME_MODE`.
-
-Every skin defines both modes: `:root[data-skin="woodland"]` (day: parchment, daylight scenery) and `:root[data-skin="woodland"][data-theme="dark"]` (night: darker parchment, lantern-lit scenery). Photo mode stays dark under any skin.
-
-## Where the skin hooks in
-
-The base stylesheet already exposes most seams as custom properties; a skin is one stylesheet that overrides them plus a handful of selector rules for things tokens cannot express. No base rule is rewritten for the default skin.
-
-| Element | Existing seam | Skin rule (woodland) |
-| --- | --- | --- |
-| Calendar surfaces | `--calendar-surface`, `--surface`, `--surface-muted`, `--notes-surface`, `--grid-line`, `--border` | Parchment/tan values; a faint tiled texture as `background-image` on `.timeline`, `.two-week-grid`, `.month-grid`. Event blocks already have opaque `--tone-bg`, so no texture sits behind event text. |
-| Frosted glass | `--glass-bg`, `--glass-border`, `--glass-blur` | Opaque wood/parchment, `--glass-blur: 0` (also cheaper to composite). |
-| Panel frames | `.timeline`, `.two-week-grid`, `.month-grid`, `.notes`, `.weather`, `.day-modal`, `.event-detail` — currently `border: 1px` + `border-radius` + `box-shadow` | `border: <slice>px solid transparent; border-image: url(frame.png) <slice> fill / <slice>px round; border-radius: 0; box-shadow: none`. One 9-slice PNG resizes to every panel; thinner than the mockup. |
-| Buttons | `nav button`, `.mode-picker button`, `.notes-actions button`, `.close`, `.sync-status` | Bevel via `border` + `inset` `box-shadow`; `.mode-picker .active` moss green (`--accent` / `--accent-strong` / `--on-accent`); add `:active` pressed state (inset shadow, 1px translate). The base has no pressed state today; it is skin-only. |
-| Event colours | `--tone-alex/-bg`, `--tone-sam/-bg`, `--tone-maya/-bg`, `--tone-family/-bg`, `--tone-text` | Terracotta, sky blue, lavender, sage — a 1:1 remap, associations preserved. Night values follow the dark-theme pattern (saturated `-bg`, pale accent). |
-| Typography | `:root { font-family }`; headings are `h1`, `.eyebrow`, `h2`, `.day-heading strong`, `.mode-picker button`, `nav .word-button` | `@font-face` for one OFL pixel font (e.g. Pixelify Sans or Silkscreen) as a local WOFF2 in the skin folder, applied to those selectors only. Event text, notes items, and time labels keep Inter. Pixel fonts need `font-size` adjustments; check the `h1` `white-space: nowrap` still fits at 1920. |
-| Scenery | `--bg-image` set by `backgroundFor()`; `body::before` paints tint + image | Scenery is the background image: one composed 1920×1080 scene per mode in the skin folder, `--bg-tint` transparent. `backgroundFor()` gains the skin: default keeps `/backgrounds/{theme}-N.webp` (three rotating); woodland points at `/skins/woodland/{theme}.webp` (one each). No new layer, no `pointer-events` concerns. A foreground layer over panel corners (lamp posts, vines as in the mockup) is deferred — it is what the "less foliage" note argues against. |
-| Icons | `weatherGlyph()` returns an emoji; rendered in `.glyph` (day headings) and `.weather-icon` (header) | Split into `weatherIcon(day): IconKey` (`sun`, `partly`, `cloud`, `fog`, `rain`, `snow`, `storm`, `cold`) and render `<span class="glyph" data-icon={key}>{emoji}</span>`. Default skin shows the emoji. Woodland: `[data-skin="woodland"] .glyph { font-size: 0; width/height; background: url(weather.png) …; image-rendering: pixelated }` with one `background-position` per `data-icon`. The emoji stays in the DOM as the accessible name. Nav arrows, close, and cart stay text glyphs restyled by the font. |
-
-TypeScript changes are limited to: `parseSkin` (theme.ts), one `dataset.skin` assignment and the skin argument to `backgroundFor` (src.tsx), and the `weatherIcon` key split (weather.ts). Everything else is CSS and assets.
-
-## Files
-
-- `app/skins/woodland.css` — imported statically from `src.tsx` after `style.css`; every rule is scoped under `[data-skin="woodland"]`, so it is inert for the default skin. Static import beats a dynamic one: one small file, no loading flash, no code path to test.
-- `app/public/skins/woodland/` — `frame.png` (9-slice), `texture.png` (tile), `weather.png` (sprite), `heading.woff2`, `light.webp`, `dark.webp`, and `SOURCES.md` crediting licences (same convention as `app/public/backgrounds/SOURCES.md`).
-- Asset production is outside the codebase: pixel-art frames, sprite, and two scenes have to be drawn or generated, exported at 1× for `image-rendering: pixelated` (frame slices and sprite cells sized in CSS px, e.g. 12 px slices, 24 px icons).
-
-## Steps
-
-| Step | Scope | Check |
-| --- | --- | --- |
-| 1. Seam | `data-skin` attribute, `VITE_SKIN` + `?skin=`, `parseSkin` with test, `woodland.css` that only remaps the colour tokens (parchment surfaces, four event tones, moss accent) | Done — `?skin=woodland` recolours all views in both modes; default unchanged (screenshot byte-identical) |
-| 2. Type and controls | Pixel heading font, bevelled buttons, pressed state, opaque glass | Done — "September 2026" measures 461 px in the ~1100 px title column |
-| 3. Frames | Generated 9-slice `border-image` on the seven panel selectors | Done — Week verified in both modes; Day/Two Week/Month and the modals still to eyeball on the wall |
-| 4. Icons | `weatherIcon` keys + eight pixel SVGs | Done — test covers every code family; emoji kept in the DOM |
-| 5. Scenery | Generated 480×270 pixel scene per mode, scaled ×4 | Done — sun, clouds and mountains in the header margin; lake, cottage and pines in the bottom third |
-| 6. Quiet pass on the wall | Run on the wall box, tune palette after a few days | Open — no `backdrop-filter` in the woodland skin already |
-
-Open follow-ups: dark-mode event fills are saturated (matches the default dark theme; may want softer night tones); the light-mode "Photos" button is deliberately dark wood; the `.timeline` inside the day modal gets a second frame inside the modal's frame.
-
-## Exit criteria
-
-- `VITE_SKIN=woodland` on the wall display, `?skin=default` for comparison, both switch light/dark on schedule and dim in idle.
-- No TypeScript change is needed to add a third skin beyond one new `.css` file, one asset folder, and (if it wants pixel icons) sprite positions — the icon keys and tokens are the contract.
-- The default skin's rendered output is unchanged (spot-check screenshots of the four views before and after Step 1).
+- Check all four views, notes, weather, and modals at 1920×1080 in both themes.
+- Confirm header controls fit, text remains readable, and touch targets are usable.
+- Compare `?skin=woodland` and `?skin=default`; confirm scheduled theme changes.
+- Evaluate night colors, nested modal frames, and animation over a household trial.
 
 ---
 
 # Stage 2 — Touchscreen Validation
-
-**Status:** Ready to run on the ASUS VT229H using the Linux desktop host; the M710q is not required for this gate.
 
 ## Objective
 
@@ -661,8 +498,6 @@ Replace desktop-style interaction patterns with large, explicit touch controls w
 ---
 
 # Stage 3 — Google Calendar Read-Only Integration
-
-**Status:** Complete. Backend OAuth, persistent refresh-token storage, and cached read-only API loading are implemented and validated with real family calendars; container restart and recreation preserve the connection.
 
 ## Objective
 
@@ -783,8 +618,6 @@ Test:
 ---
 
 # Stage 5 — Local API Service
-
-**Status:** Implemented early for persistent OAuth and cached Google Calendar reads; appliance recovery testing remains open.
 
 ## Objective
 
@@ -1086,8 +919,6 @@ Observe how people actually interact with it.
 
 # Stage 9 — Production Image Build
 
-**Status:** Largely moot since the target became x86. The development machine builds and runs the `linux/amd64` image daily, which is the production architecture; the `linux/arm64` image was verified once and remains an optional fallback.
-
 ## Objective
 
 Produce the image that will run on the wall box and confirm it is the same one exercised during development.
@@ -1098,8 +929,6 @@ Produce the image that will run on the wall box and confirm it is the same one e
 docker compose build          # linux/amd64 on the development machine
 ```
 
-Multi-platform manifests (Buildx) are only needed if a Pi fallback is ever pursued.
-
 ## Exit criteria
 
 - The `linux/amd64` image builds and passes its health check.
@@ -1109,106 +938,20 @@ Multi-platform manifests (Buildx) are only needed if a Pi fallback is ever pursu
 
 # Stage 9.5 — Release Distribution and User-Approved Updates
 
-**Implemented September 19, 2026:** Ubuntu 24.04 CI builds M710q `linux/amd64`
-images; stable `vX.Y.Z` tags publish GHCR images and a digest-pinned GitHub release
-manifest. A root-owned host service checks every six hours. The app offers
-**Install** (download and isolated health checks), then **Restart app** (activate,
-check the web/API path, roll back on failure). Active/previous images are retained;
-older updater-owned images are removed. macOS development deployment is unchanged.
-See [deployment instructions](deploy/README.md) for the current implementation,
-setup, and recovery. The original next-host-startup design below is superseded by
-this two-step app restart flow; it is retained as design history. Actual GitHub
-publishing and wall-box update/reboot acceptance checks remain to be run.
+Use the [deployment guide](deploy/README.md) for publishing, installation, and recovery.
+Stable version tags publish the web/API images to GHCR with a digest-pinned
+`release.json` attached to the GitHub release.
 
-## Objective
+The host updater checks every six hours. **Install** downloads and health-checks
+the candidate; **Restart app** activates it and rolls back if health checks fail.
+Google tokens persist across updates. Offline boot uses the installed images.
 
-Let the running display periodically discover a newer application release, ask the household before changing anything, and install an approved release the next time the wall box starts. An available update must never interrupt the calendar or silently replace a working version.
+## Acceptance checks
 
-## Hosting recommendation
-
-Use **GitHub Container Registry (GHCR)** for the two OCI images and a small `release.json` manifest attached to the matching GitHub Release:
-
-```text
-ghcr.io/<owner>/calendar-web:1.1.0
-ghcr.io/<owner>/calendar-api:1.1.0
-https://github.com/<owner>/<repo>/releases/latest/download/release.json
-```
-
-Make the packages public so the wall box can pull anonymously without storing a GitHub token. GitHub currently documents public package usage as free, public GHCR images as anonymously pullable, and container-registry storage and bandwidth as free. Reconfirm those terms before relying on them long-term:
-
-- [GitHub Packages billing](https://docs.github.com/en/billing/concepts/product-billing/github-packages)
-- [Working with the Container registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)
-- [Publishing Docker images with GitHub Actions](https://docs.github.com/en/actions/tutorials/publish-packages/publish-docker-images)
-
-GitHub Actions can build, test, attest, and publish both Dockerfile targets when a versioned release is created. Keep OAuth credentials and refresh tokens out of the images; they remain runtime configuration and persistent local data.
-
-Google Drive is not the preferred distribution path. It can host a tar archive for manual disaster recovery, but it is not an OCI registry and its sharing pages, download behavior, and quota controls would require a custom downloader. Do not give the app access to the household's Drive merely to distribute its own binaries.
-
-## Release manifest
-
-Publish a small, schema-versioned JSON document containing at least:
-
-```json
-{
-  "schemaVersion": 1,
-  "version": "1.1.0",
-  "publishedAt": "2026-09-17T00:00:00Z",
-  "releaseNotesUrl": "https://github.com/<owner>/<repo>/releases/tag/v1.1.0",
-  "webImage": "ghcr.io/<owner>/calendar-web@sha256:<digest>",
-  "apiImage": "ghcr.io/<owner>/calendar-api@sha256:<digest>",
-  "minimumUpdaterVersion": 1
-}
-```
-
-Human-readable tags make releases understandable, but the updater must deploy the immutable digest references from the manifest. Include the release version in both images as an OCI label and an `APP_VERSION` value exposed by `calendar-api` so the UI can compare current and available versions. Treat the manifest URI as installation-time configuration, not a URI that can be entered from the touchscreen.
-
-## Periodic version check
-
-- `calendar-api` fetches the configured HTTPS manifest shortly after startup and every six hours, with a short timeout and a small randomized delay. It also retries on network recovery; a failed check does not affect calendar service.
-- `GET /api/app-version` returns the installed version, last successful check time, available version, release-notes URL, and update state. Cache the remote result locally so Chromium reloads do not cause extra GitHub requests.
-- The frontend checks that local endpoint on startup, every six hours, and on visibility/wake. When a newer stable semantic version exists, show a quiet **Update available** indicator rather than a blocking dialog.
-- Tapping the indicator shows the current and target versions, release notes, and **Install on next restart** / **Not now**. Never auto-approve an update, and do not repeatedly nag after **Not now** during the same release.
-
-## User approval and startup bootstrap
-
-The browser and application containers must not receive the Docker socket or unrestricted root access. Split responsibilities narrowly:
-
-```text
-User taps "Install on next restart"
-→ calendar-api validates that the advertised version is newer
-→ writes a pending-update marker to a dedicated host bind mount
-→ UI reports "Update scheduled for next restart"
-
-Next host startup
-→ root-owned calendar-update.service runs before the Compose service
-→ reads the fixed manifest URI and pending marker
-→ re-fetches and validates the manifest
-→ pulls both digest-pinned GHCR images
-→ records the previous release and atomically updates release.env
-→ starts Compose and waits for both health checks
-→ clears the marker on success, or restores the previous digests on failure
-→ starts the known-good stack even when the network or registry is unavailable
-```
-
-The marker contains only the approved target version and manifest identity, never shell text or an arbitrary download URI. The host updater accepts only `https://` and the configured registry/repository, rejects a manifest schema it does not understand, refuses downgrades unless a local administrator explicitly requests one, and retains at least the previous image for rollback. A later hardening pass may verify GitHub artifact attestations or a signed manifest; digest pinning, a fixed origin, least privilege, and rollback are the minimum POC controls.
-
-Do not make routine boot depend on the update server. With no pending marker, startup must not wait for a network check. With a pending marker but no network, defer the update, leave the marker in place, and boot the installed release.
-
-## Implementation slices
-
-1. Add build-time version metadata and `/api/app-version`; implement read-only periodic checks and the **Update available** UI first.
-2. Publish `calendar-web` and `calendar-api` images plus `release.json` from a tagged GitHub release; test anonymous pulls on a clean machine.
-3. Add the persisted approval marker and root-owned startup updater; keep the Docker socket outside the app containers.
-4. Add health-gated activation, automatic rollback, update history, and a manual recovery command over SSH.
-5. Exercise interrupted download, invalid manifest, unavailable registry, bad image, failed health check, power loss, and successful retry in Stage 11.
-
-## Exit criteria
-
-- A newer published version is detected within six hours or on the next wake without disrupting normal use.
-- No image is downloaded or activated until a person approves it.
-- Approval survives a reboot; the next startup installs the exact digest-pinned release from the configured URI.
-- Offline startup continues with the installed version, and a failed candidate automatically returns to the previous healthy release.
-- The UI clearly reports installed, available, scheduled, succeeded, deferred, and rolled-back states.
+- Verify anonymous pulls of both published images on a clean host.
+- Install and activate an update through the UI; confirm browser reload and token persistence.
+- Verify rollback and interrupted-update recovery in CI or a disposable VM.
+- Confirm offline boot of the installed release on the wall box.
 
 ---
 
@@ -1238,7 +981,7 @@ GPU, touch and standby behavior require the one-time hardware checks below.
 
 ## Hardware setup
 
-- **Display**: the Tiny has two DisplayPort outputs (some units carry an optional HDMI in the rear punch-out — check on arrival). The VT229H is HDMI, so use a DP→HDMI cable; passive works at 1080p60 and passes DDC/CI through.
+- **Display**: the Tiny has two DisplayPort outputs (some units carry an optional HDMI in the rear punch-out). The VT229H is HDMI, so use a DP→HDMI cable; passive works at 1080p60 and passes DDC/CI through.
 - **Mounting**: Lenovo Tiny VESA bracket (or third-party clone) on the VT229H's 100 mm VESA holes, or a shelf in the pillar.
 - **Network**: wired Ethernet preferred. The fitted Wi-Fi card is the fallback.
 - **BIOS** (F1 at boot):
@@ -1271,17 +1014,12 @@ Docker should own:
 
 ## Configure
 
-- Debian 13 netinst, "standard system utilities" + SSH server only; no desktop task.
-- `apt install labwc swayidle wlopm chromium fonts-noto-color-emoji python3` (use the invisible cursor theme on labwc 0.8.3; add `ddcutil` only if needed) plus Docker Engine from Docker's Debian repository.
-- Follow [the deployment runbook](deploy/README.md#graphical-kiosk-setup) for exact commands, `.config` ownership, startup logging, cursor hiding, HDMI audio, and recovery.
-- Unprivileged `kiosk` user with autologin on tty1 (`getty@tty1` override) and a `.bash_profile` that starts `labwc` when on tty1.
-- `~/.config/labwc/autostart`: `swayidle` line (Stage 7b Layer B) and `chromium --kiosk --noerrdialogs --disable-infobars --ozone-platform=wayland http://localhost:8080`.
-- Docker Compose stack as a `systemd` unit (or Compose `restart: unless-stopped`, which already exists, plus Docker enabled at boot).
-- Root-owned `calendar-updater.service` from `deploy/install.sh` checks releases every six hours and handles Install → Restart app with rollback. Only its narrow Unix socket is shared with the API; never mount `/var/run/docker.sock` into app containers.
-- Night-window timers (Stage 7b Layer C).
-- `journald` size cap and Docker `json-file` log rotation.
-- Unattended-upgrades for Debian security updates; Chromium updates come with them.
-- Automatic Chromium relaunch if it exits (a `while true` loop in autostart or a user `systemd` service).
+Follow the [deployment guide](deploy/README.md) for the application containers,
+kiosk account and autologin, startup logging, cursor hiding, HDMI audio, and recovery.
+Keep Chromium's sandbox and GPU acceleration enabled.
+
+Configure Debian security updates and log rotation separately. If scheduled
+nighttime standby is required, add the Stage 7b Layer C timers.
 
 ## Exit criteria
 
@@ -1385,8 +1123,8 @@ Build and test both images
 → tag a semantic release
 → publish digest-pinned images and release manifest
 → display detects the release
-→ user chooses "Install on next restart"
-→ startup updater pulls, activates, and health-checks it
+→ user chooses "Install" to download and health-check the candidate
+→ user chooses "Restart app" to activate it with automatic rollback
 ```
 
 If health checks fail, rollback is automatic and uses recorded immutable digests:
@@ -1397,7 +1135,7 @@ calendar-web/api@sha256:<1.1.0 digests>
 calendar-web/api@sha256:<1.0.0 digests>
 ```
 
-Keep the SSH/manual update procedure as the recovery path if the in-app checker or approval marker is broken.
+Keep the SSH/manual update procedure as the recovery path if the in-app update controls are unavailable.
 
 ---
 
@@ -1503,7 +1241,7 @@ Survey of what commercial and open-source family displays ship (Skylight Calenda
 | Feature | Seen in | Reason to defer |
 | --- | --- | --- |
 | Rewards / points for chores | Skylight Plus, Hearth | Needs its own data model; wait until chores prove useful. |
-| Music "now playing" / Spotify controls | Echo Show, Nest Hub | Requires Spotify OAuth and a playback target; no speaker plan yet. |
+| Music "now playing" / Spotify controls | Echo Show, Nest Hub | Requires Spotify OAuth and a playback target; requires a playback integration. |
 | Commute / traffic time | DAKboard | Requires a paid maps API; low value for a school-age household. |
 | School lunch menu, sports scores | DAKboard, MagicMirror | Source-specific scraping; brittle. Sports schedules already arrive as iCal subscriptions. |
 | Video calling, voice assistant | Echo Show, Nest Hub | Needs mic/camera; explicitly out of scope. |
@@ -1525,6 +1263,7 @@ Until the base calendar is validated, defer:
 - video calling
 - camera-based presence detection
 - voice assistant features
+- spoken daily quotes (requires a speech engine, voice model, and playback validation)
 - complex notifications
 - custom databases
 - multiple backend services
@@ -1535,6 +1274,7 @@ These can be added later without changing the core architecture.
 
 ---
 
-# Recommended Immediate Next Step
+# Next Setup Check
 
-Connect the VT229H to the Linux desktop over HDMI + USB, run the Stage 2 checklist (including tests, production build, and SBOM refresh), and fix only blocking screen or touch defects. Once it passes, leave that setup running for the Stage 8 household trial. Start Milestone 3 after the trial; repeat host-specific kiosk, DPMS/DDC, and boot checks on the M710q when it arrives.
+Complete the [deployment guide](deploy/README.md), then run the Stage 10 hardware
+acceptance checks and Stage 11 reliability soak before mounting the display.

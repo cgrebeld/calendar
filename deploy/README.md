@@ -10,8 +10,8 @@ Install Debian 13 (trixie) amd64 with standard system utilities and SSH, without
 a desktop environment. Use an unprivileged kiosk user running labwc and native
 Chromium with `--kiosk --ozone-platform=wayland`. Keep Chromium's sandbox and
 Intel GPU acceleration enabled. Install `swayidle` and `wlopm` for monitor
-standby/touch wake, plus `fonts-noto-color-emoji`. The Stage 10 plan describes
-the kiosk session; the application installer below does not provision it.
+standby/touch wake, plus `fonts-noto-color-emoji`. The application installer
+does not provision the graphical session.
 Follow [Graphical kiosk setup](#graphical-kiosk-setup) after installing the app.
 
 The remaining runtime is Docker Engine, Compose v2 and Python 3 (standard library
@@ -93,22 +93,20 @@ parent directory containing the copied `deploy/` folder. A console login after a
 minimal Debian installation is expected. Log in with the account created during
 installation; `hostname -I` shows its LAN address. From another machine use
 `ssh YOUR_ADMIN_USER@calendar-wall` (or the LAN IP if the hostname does not resolve).
-SSH access does not grant passwordless sudo: enter administrator passwords only
-in your own terminal, never in chat or checked-in files.
+Use your administrator account for `sudo`; the `kiosk` account runs the display.
 
 ### Packages and kiosk account
 
-First confirm the application responds; installing a graphical session does not
-install the calendar containers:
+Install the graphical packages, then confirm the calendar application responds:
 
 ```sh
-curl -I --max-time 5 http://localhost:8080
 sudo apt update
 sudo apt install labwc chromium swayidle wlopm fonts-noto-color-emoji dbus-user-session dbus-daemon curl python3
+curl -I --max-time 5 http://localhost:8080
 ```
 
-Expect HTTP 200. If curl is not yet installed, install the packages and retry.
-For connection refused or a timeout, finish the application installation above.
+Expect HTTP 200. For connection refused or a timeout, finish the application
+installation above.
 
 Create the dedicated account (skip `adduser` if `kiosk` already exists):
 
@@ -120,10 +118,8 @@ sudo install -o kiosk -g kiosk -m 755 deploy/kiosk-autostart /home/kiosk/.config
 sudo chown -R kiosk:kiosk /home/kiosk/.config
 ```
 
-**The parent `.config` directory must belong to kiosk.** Creating only the nested
-`labwc` directory with `sudo install -d` can leave `.config` owned by root. This
-caused the actual black-screen-with-cursor failure: Chromium could create neither
-its profile nor its startup log. Correcting ownership and rebooting fixed it.
+The parent `.config` directory and its contents must belong to `kiosk` so Chromium
+can create its profile and startup log.
 
 The supplied [autostart script](kiosk-autostart) starts screen standby after 30
 minutes without input, resumes on input, waits for the local calendar, and
@@ -158,14 +154,12 @@ sudo reboot
 
 The PC should open the calendar fullscreen. Use **Ctrl+Alt+F2** to log into an
 administrator console and **Ctrl+Alt+F1** to return to the kiosk. Prefer a reboot
-when changing the session: restarting `getty@tty1` left an old background browser
-retry loop running during troubleshooting.
+when changing the session to clear background browser retry loops.
 
 ### Hide the mouse cursor
 
-The installed labwc 0.8.3 does not support the newer `HideCursor` action. Use the
-kiosk-only invisible cursor theme instead. It uses the existing Xcursor library,
-validates the generated cursor before installation, and keeps touch/mouse input
+For labwc 0.8.3, use the kiosk-only invisible cursor theme. It uses the existing
+Xcursor library, validates the generated cursor before installation, and keeps touch/mouse input
 working. It does not change the web app's cursor on other computers.
 
 Copy the helper somewhere the kiosk account can read, then run it **as kiosk**:
@@ -178,18 +172,13 @@ sudo reboot
 
 [hide-cursor.py](hide-cursor.py) writes `~/.icons/calendar-hidden` and
 `~/.config/labwc/environment.d/99-calendar-cursor.env` for kiosk. To restore the
-normal cursor, remove that environment fragment and reboot. The cursor binary
-was validated with the PC's native library; visually confirm it disappears after
-installation. The original staged `/tmp` helper disappears after reboot, so use
-the repository copy for future installations.
+normal cursor, remove that environment fragment and reboot. Confirm the cursor
+is hidden and touch input still works.
 
 ### HDMI audio through the monitor
 
-The ASUS VT229H has two 1.5 W speakers. On the wall box, the connected monitor
-reported valid HDMI stereo LPCM audio in `/proc/asound/card0/eld#2.6`; the Intel
-PCH card exposes HDMI playback devices. ELD filenames and device numbers may vary,
-so the setup helper selects an available HDMI profile rather than hard-coding them.
-The minimal Debian install had no PipeWire audio service installed.
+The ASUS VT229H has two 1.5 W speakers and accepts stereo audio over HDMI.
+The setup helper installs the audio service and selects the connected HDMI output.
 
 With the kiosk session running and the monitor awake:
 
@@ -205,10 +194,7 @@ persists the selection. The helper targets this single-monitor installation and
 stops if it cannot identify one connected HDMI sink.
 
 Unmute and raise the monitor's own volume using its buttons. After the script
-succeeds, reboot and tap the dog to verify browser audio. Hardware audio support
-was confirmed and the script was staged/syntax-checked; successful playback still
-needs confirmation on the PC. Do not mark audible playback verified solely
-because the script exits successfully.
+succeeds, reboot and tap the dog. Confirm the bark is audible through the monitor.
 
 To inspect the kiosk audio session from an administrator console:
 
@@ -240,9 +226,6 @@ sudo systemctl status getty@tty1 calendar-updater --no-pager
 - The startup log is under **kiosk's** home, not the administrator's `.config`.
   Browser stderr is captured there; the user journal alone may show only normal
   session startup messages.
-- Copy shell blocks as plain text. Literal Markdown links, `&#x20;`, or escaped
-  formatting do not belong in shell scripts. Installing the supplied autostart
-  file avoids this copying problem. Check syntax with `sh -n` if editing it.
 - For silent HDMI, check monitor mute/volume, `wpctl status` in the kiosk session,
   and `cat /proc/asound/card*/eld*`. Confirm the default sink is HDMI, not analog.
 
