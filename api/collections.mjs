@@ -7,17 +7,13 @@ export function collectionAddress(results, address) {
   return matches[0].place_id;
 }
 
-export function collectionDates(ics, summary) {
-  const events = [];
-  for (const block of ics.replace(/\r\n[ \t]/g, "").split("BEGIN:VEVENT").slice(1)) {
-    const date = /^DTSTART;VALUE=DATE:(\d{4})(\d{2})(\d{2})\r?$/m.exec(block);
-    const title = /^SUMMARY:(.*?)\r?$/m.exec(block);
-    if (!date || title?.[1]?.toLowerCase() !== summary.toLowerCase()) continue;
-    const [, year, month, day] = date;
-    const parsed = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
-    if (parsed.getUTCFullYear() === Number(year) && parsed.getUTCMonth() + 1 === Number(month) && parsed.getUTCDate() === Number(day)) events.push(`${year}-${month}-${day}`);
-  }
-  return [...new Set(events)];
+export function collectionDates(data, kind) {
+  if (!Array.isArray(data.events)) throw new Error("Collection events response is invalid");
+  return [...new Set(data.events.filter((event) => event.flags?.some((flag) => flag.event_type === "pickup" && (kind === "garbage" ? ["garbage", "kitchenscraps"].includes(flag.name) : flag.name === "recycling"))).map((event) => event.day).filter((day) => {
+    if (typeof day !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(day)) return false;
+    const parsed = new Date(`${day}T00:00:00Z`);
+    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(day);
+  }))];
 }
 
 export async function loadCollection(kind, address, fetcher = fetch) {
@@ -27,11 +23,12 @@ export async function loadCollection(kind, address, fetcher = fetch) {
   const lookup = await fetcher(`${base}/areas/${area}/services/${id}/address-suggest?q=${query}`, { signal: AbortSignal.timeout(10000) });
   if (!lookup.ok) throw new Error(`${area} address lookup returned ${lookup.status}`);
   const placeId = collectionAddress(await lookup.json(), address);
-  const response = await fetcher(`${base}/places/${placeId}/services/${id}/events.en.ics`, { signal: AbortSignal.timeout(10000) });
+  const today = new Date();
+  const after = new Date(today.getTime() - 31 * 86400000).toISOString().slice(0, 10);
+  const before = new Date(today.getTime() + 366 * 86400000).toISOString().slice(0, 10);
+  const response = await fetcher(`${base}/places/${placeId}/services/${id}/events?after=${after}&before=${before}`, { signal: AbortSignal.timeout(10000) });
   if (!response.ok) throw new Error(`${area} calendar returned ${response.status}`);
-  const ics = await response.text();
-  if (ics.length > 1000000 || !ics.startsWith("BEGIN:VCALENDAR") || !ics.includes("END:VCALENDAR")) throw new Error(`${area} calendar is invalid`);
-  const dates = collectionDates(ics, summary);
+  const dates = collectionDates(await response.json(), kind);
   if (!dates.length) throw new Error(`${area} has no ${summary.toLowerCase()} dates`);
   return dates.map((date) => ({ date, kind }));
 }

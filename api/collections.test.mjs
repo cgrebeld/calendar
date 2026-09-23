@@ -10,9 +10,12 @@ test("collection schedules resolve an exact address and keep provider dates", as
       { name: "1500 Fairfield Rd, Victoria", place_id: "D60D4C04-75A8-11E3-A12C-C8BC8BE95184" },
       { name: "1500 Fairfield Rd, Victoria, Unit 2", place_id: "D60D4C04-75A8-11E3-A12C-C8BC8BE95185" },
     ] };
-    return { ok: true, text: async () => "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nDTSTART;VALUE=DATE:20261014\r\nSUMMARY:Recycling\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n" };
+    return { ok: true, json: async () => ({ events: [
+      { day: "2026-10-14", flags: [{ name: "recycling", event_type: "pickup" }] },
+      { day: "2026-10-15", flags: [{ name: "holiday", event_type: "notice" }] },
+    ] }) };
   };
   assert.deepEqual(await loadCollection("recycling", "1500 Fairfield Rd, Victoria, BC", fetcher), [{ date: "2026-10-14", kind: "recycling" }]);
   assert.match(calls[0], /areas\/CRD\/services\/247\/address-suggest/);
-  assert.match(calls[1], /places\/D60D4C04-75A8-11E3-A12C-C8BC8BE95184\/services\/247\/events\.en\.ics/);
+  assert.match(calls[1], /places\/D60D4C04-75A8-11E3-A12C-C8BC8BE95184\/services\/247\/events\?after=/);
 });
