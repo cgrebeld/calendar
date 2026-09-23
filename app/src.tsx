@@ -664,6 +664,9 @@ function App() {
     <main>
       <header>
         <div><p className="eyebrow">Family calendar</p><h1>{title}</h1></div>
+        <div className="mode-picker" role="group" aria-label="Calendar view">
+          {modes.map((item) => <button className={mode === item.id ? "active" : ""} onClick={() => setMode(item.id)} key={item.id}>{item.label}</button>)}
+        </div>
         <button className="weather" aria-label="Open weather details" aria-haspopup="dialog" onClick={() => setWeatherOpen(true)}>
           <span className="weather-icon" data-icon={todayWeather ? weatherIcon(todayWeather, coldThreshold) : "sun"}>{todayWeather ? weatherGlyph(todayWeather, coldThreshold) : "☀"}</span>
           {weatherNow && <span className="weather-stat"><small>Now</small><strong>{Math.round(weatherNow.current.temperature)}°</strong></span>}
@@ -686,9 +689,6 @@ function App() {
 
       <div className={`workspace ${notesOpen ? "" : "notes-hidden"}`}>
         <div className="calendar-pane" onTouchStart={startSwipe} onTouchEnd={finishSwipe} onTouchCancel={() => { swipeStart.current = undefined; }}>
-          <div className="mode-picker" role="group" aria-label="Calendar view">
-            {modes.map((item) => <button className={mode === item.id ? "active" : ""} onClick={() => setMode(item.id)} key={item.id}>{item.label}</button>)}
-          </div>
           {mode === "month" ? <Month dates={dates} anchor={anchor} today={today} now={now} events={calendarEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : mode === "twoWeek" ? <TwoWeek dates={dates} today={today} now={now} events={calendarEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : <Timeline dates={dates} today={today} now={now} events={calendarEvents} range={scheduleRange} forecast={forecast} focus={mode === "day" ? anchor : undefined} onSelect={setSelected} onOpenDay={setOpenDay} />}
         </div>
         {notesOpen && <Notes onClose={() => setNotesOpen(false)} lists={taskLists} error={tasksError} reconnect={connectGoogle} apiUrl={apiUrl} connected={connected} refresh={countdownRefresh} />}
