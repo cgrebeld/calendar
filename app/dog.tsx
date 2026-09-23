@@ -78,7 +78,7 @@ export function DogCompanion({ apiUrl }: { apiUrl: string }) {
   }, []);
   return <aside className="dog-companion" aria-label="Daily inspiration">
     <audio ref={bark} src="/audio/bark.m4a" preload="auto" />
-    {speechVisible && quote && <div className="dog-bubble" aria-live="polite"><blockquote>{quote.text}</blockquote><a href="https://zenquotes.io/" target="_blank" rel="noreferrer">Quotes by ZenQuotes</a></div>}
+    {speechVisible && quote && <div className="dog-bubble" aria-live="polite"><blockquote>{quote.text}</blockquote></div>}
     <button className="companion-dog" type="button" onClick={playDog} aria-label="Play bark and show the quote of the day">
       <img src={dogPlaying ? "/skins/woodland/dog-loop.gif" : "/skins/woodland/dog-first.png"} alt="A cheerful dog" width="380" height="620" />
     </button>
