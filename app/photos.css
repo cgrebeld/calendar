@@ -1,6 +1,5 @@
 .photo-slideshow { position: relative; overflow: hidden; height: 100dvh; }
 .photo-slideshow img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #101010; animation: photo-appear 1s ease; }
-.photo-slideshow .photo-clock { position: absolute; bottom: 4rem; left: 2rem; font-size: clamp(2rem, 5vw, 5rem); letter-spacing: -.04em; text-shadow: 0 2px 8px #000; }
 .photo-slideshow .photo-caption { position: absolute; bottom: 1.5rem; padding: .4rem .8rem; border-radius: .5rem; background: #0009; color: white; font-size: 1rem; }
 @keyframes photo-appear { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .photo-slideshow img { animation: none; } }
@@ -11,3 +10,12 @@
 .photo-caption:empty { display: none; }
 .sleep-screen { position: fixed; inset: 0; z-index: 100; width: 100vw; height: 100dvh; margin: 0; padding: 0; border: 0; border-radius: 0; background: #000; cursor: none; }
 .sleep-screen:focus { outline: none; }
+
+.photo-info { position: absolute; bottom: 4rem; left: max(2rem, env(safe-area-inset-left)); display: flex; align-items: flex-end; gap: 1.5rem; color: #fff9e8; text-align: left; text-shadow: 0 2px 8px #000; isolation: isolate; pointer-events: none; }
+.photo-info::before { content: ""; position: absolute; inset: -2rem -3rem -4rem -2rem; z-index: -1; background: radial-gradient(ellipse at bottom left, #000a, transparent 75%); }
+.photo-info .date-time-date { font-size: clamp(1rem, 2vw, 1.8rem); }
+.photo-info .date-time-clock { font-size: clamp(2.5rem, 5vw, 5rem); }
+.photo-info .date-time-clock small { font-size: .4em; opacity: 1; }
+.photo-weather { display: flex; align-items: center; gap: .4rem; padding-bottom: .15em; font-size: clamp(1.4rem, 2.5vw, 2.5rem); }
+.photo-weather .glyph { font-size: 1.25em; }
+@media (max-width: 600px) { .photo-info { left: 1rem; gap: .75rem; } }

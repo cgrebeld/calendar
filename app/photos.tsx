@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import "./photos.css";
+import { DateTime } from "./date-time";
+import { weatherDescription, weatherGlyph, weatherIcon, type WeatherReport } from "./weather";
 import { shufflePhotos, photoLabel, adjacentPhoto } from "./photo-order";
 import { swipeDirection } from "./dates";
 import { ambientEnabled, googlePhotosEnabled } from "./photo-preferences";
@@ -118,7 +120,8 @@ export function PhotoSettings({ apiUrl, open }: { apiUrl: string; open: boolean 
     </section>;
 }
 
-export function PhotoMode({ apiUrl, now, onExit }: { apiUrl: string; now: Date; onExit: () => void }) {
+export function PhotoMode({ apiUrl, now, weather, coldThreshold = 0, onExit }: { apiUrl: string; now: Date; weather?: WeatherReport; coldThreshold?: number; onExit: () => void }) {
+  const conditions = weather && { date: "", code: weather.current.code, high: weather.current.temperature, low: weather.current.temperature };
   const [items, setItems] = useState<Photo[]>([]);
   const [selectedId, setSelectedId] = useState<string>();
   const [photo, setPhoto] = useState<{ item: Photo; url: string }>();
@@ -240,7 +243,13 @@ export function PhotoMode({ apiUrl, now, onExit }: { apiUrl: string; now: Date; 
       {photo && <img key={photo.url} src={photo.url} alt="" draggable={false}
         onLoad={() => clearTimeout(imageTimer.current)}
         onError={() => { clearTimeout(imageTimer.current); setPhoto(undefined); setMessage("Photo unavailable; swipe to continue"); }} /> }
-      <span className={photo ? "photo-clock" : undefined}>{now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
+      <span className="photo-info">
+        <DateTime now={now} />
+        {conditions && <span className="photo-weather" aria-label={`${weatherDescription(conditions.code)}, ${Math.round(conditions.high)} degrees`}>
+          <span className="glyph" data-icon={weatherIcon(conditions, coldThreshold)} aria-hidden="true">{weatherGlyph(conditions, coldThreshold)}</span>
+          <strong>{Math.round(conditions.high)}°</strong>
+        </span>}
+      </span>
     </button>
     {photo && !photo.item.external && <button className="photo-remove" disabled={removing} onClick={() => void remove()} aria-label="Remove this photo from local gallery" title="Remove from local gallery">{removing ? "…" : "×"}</button>}
     <small className="photo-caption" role="status">

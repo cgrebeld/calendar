@@ -8,6 +8,7 @@ import { dateKey, fakeForecast, loadWeather, upcomingHours, weatherChartScale, w
 import { backgroundFor, parseSkin, parseThemeMode, parseThemeSchedule, resolveTheme, scheduleFromSolar, type ThemeMode, type ThemeName } from "./theme";
 import "./style.css";
 import { WoodlandBackground } from "./skins/woodland";
+import { DateTime } from "./date-time";
 import { DogCompanion } from "./dog";
 import { Countdowns } from "./countdown-list";
 import { ApplicationUpdates } from "./updates";
@@ -652,10 +653,11 @@ function App() {
   };
 
   if (sleeping) return <button autoFocus className="sleep-screen" aria-label="Wake display" onClick={() => setSleeping(false)} />;
-  if (idle) return <PhotoMode apiUrl={apiUrl} now={today} onExit={() => setIdle(false)} />;
+  if (idle) return <PhotoMode apiUrl={apiUrl} now={today} weather={weatherNow} coldThreshold={coldThreshold} onExit={() => setIdle(false)} />;
 
   const title = viewTitle(dates, mode, anchor);
   const todayWeather = forecast.get(dateKey(today));
+  const currentWeather = weatherNow ? { date: dayKey, code: weatherNow.current.code, high: weatherNow.current.temperature, low: weatherNow.current.temperature } : todayWeather;
   const googleStatus = connected
     ? syncStatus.state === "syncing" ? "Google Calendar connected; syncing" : syncStatus.state === "error" ? `Google Calendar connected; sync error: ${syncStatus.message}; press to retry` : "Google Calendar connected; press to sync"
     : syncStatus.state === "error" ? `Google Calendar disconnected: ${syncStatus.message}` : "Google Calendar disconnected; press to connect";
@@ -668,7 +670,8 @@ function App() {
           {modes.map((item) => <button className={mode === item.id ? "active" : ""} onClick={() => setMode(item.id)} key={item.id}>{item.label}</button>)}
         </div>
         <button className="weather" aria-label="Open weather details" aria-haspopup="dialog" onClick={() => setWeatherOpen(true)}>
-          <span className="weather-icon" data-icon={todayWeather ? weatherIcon(todayWeather, coldThreshold) : "sun"}>{todayWeather ? weatherGlyph(todayWeather, coldThreshold) : "☀"}</span>
+          <DateTime now={now} />
+          <span className="weather-icon" data-icon={currentWeather ? weatherIcon(currentWeather, coldThreshold) : "sun"}>{currentWeather ? weatherGlyph(currentWeather, coldThreshold) : "☀"}</span>
           {weatherNow && <span className="weather-stat"><small>Now</small><strong>{Math.round(weatherNow.current.temperature)}°</strong></span>}
           <span className="weather-stat"><small>High</small><strong>{Math.round(forecast.get(dateKey(today))?.high ?? 16)}°</strong></span>
           <span className="weather-stat"><small>Wind high</small><strong>{Math.round(forecast.get(dateKey(today))?.windMax ?? 13)} <em>{weatherNow?.units.windSpeed ?? "kt"}</em></strong></span>
