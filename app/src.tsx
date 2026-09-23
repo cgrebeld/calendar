@@ -54,7 +54,7 @@ const modes: { id: ViewMode; label: string }[] = [
   { id: "twoWeek", label: "2 weeks" },
   { id: "month", label: "Month" },
 ];
-type NoteList = { id: string; label: string; items: { id: string; title: string }[] };
+type NoteList = { id: string; label: string; items: { id: string; title: string; completed?: boolean }[] };
 const noteLists: NoteList[] = [
   { id: "reminders", label: "Reminders", items: ["Pick up dry cleaning", "Order Maya’s school photos", "Replace hallway light bulb", "Call Grandma this weekend"].map((title, id) => ({ id: `reminder-${id}`, title })) },
   { id: "groceries", label: "Groceries", items: ["Milk", "Bananas", "Coffee beans", "Dish soap", "Cheddar"].map((title, id) => ({ id: `grocery-${id}`, title })) },
@@ -411,7 +411,7 @@ function WeatherModal({ report, forecast, onClose }: { report?: WeatherReport; f
   );
 }
 
-function Notes({ onClose, lists, error, reconnect, apiUrl, connected, refresh }: { onClose: () => void; lists: NoteList[]; error?: string; reconnect: () => void; apiUrl: string; connected: boolean; refresh: number }) {
+function Notes({ onClose, onToggle, lists, error, reconnect, apiUrl, connected, refresh }: { onClose: () => void; onToggle: (listId: string, taskId: string, completed: boolean) => void; lists: NoteList[]; error?: string; reconnect: () => void; apiUrl: string; connected: boolean; refresh: number }) {
   const tabs = [...lists, { id: "countdowns", label: "Countdowns" }].sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
   const [listId, setListId] = useState(tabs[0].id);
   const list = lists.find((entry) => entry.id === listId) ?? lists[0];
@@ -454,8 +454,8 @@ function Notes({ onClose, lists, error, reconnect, apiUrl, connected, refresh }:
       {listId === "countdowns" ? <Countdowns apiUrl={apiUrl} connected={connected} refresh={refresh} /> : <>
       {error && <p className="tasks-warning" role="status" title={error}>Live tasks unavailable. <button onClick={reconnect}>Reconnect Google</button></p>}
       <div className="note-list" key={list.id}>
-        {list.items.map((note) => <label key={note.id}><input type="checkbox" /><span>{note.title}</span></label>)}
-        {!list.items.length && <p>No open tasks.</p>}
+        {list.items.map((note) => <label key={note.id}><input type="checkbox" checked={note.completed ?? false} onChange={(event) => onToggle(list.id, note.id, event.target.checked)} /><span>{note.title}</span></label>)}
+        {!list.items.length && <p>No tasks.</p>}
       </div>
       </>}
     </aside>
@@ -696,7 +696,7 @@ function App() {
         <div className="calendar-pane" onTouchStart={startSwipe} onTouchEnd={finishSwipe} onTouchCancel={() => { swipeStart.current = undefined; }}>
           {mode === "month" ? <Month dates={dates} anchor={anchor} today={today} now={now} events={calendarEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : mode === "twoWeek" ? <TwoWeek dates={dates} today={today} now={now} events={calendarEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : <Timeline dates={dates} today={today} now={now} events={calendarEvents} range={scheduleRange} forecast={forecast} focus={mode === "day" ? anchor : undefined} onSelect={setSelected} onOpenDay={setOpenDay} />}
         </div>
-        {notesOpen && <Notes onClose={() => setNotesOpen(false)} lists={taskLists} error={tasksError} reconnect={connectGoogle} apiUrl={apiUrl} connected={connected} refresh={countdownRefresh} />}
+        {notesOpen && <Notes onClose={() => setNotesOpen(false)} onToggle={(listId, taskId, completed) => setTaskLists((lists) => lists.map((list) => list.id === listId ? { ...list, items: list.items.map((task) => task.id === taskId ? { ...task, completed } : task) } : list))} lists={taskLists} error={tasksError} reconnect={connectGoogle} apiUrl={apiUrl} connected={connected} refresh={countdownRefresh} />}
       </div>
 
       <nav className="corner-controls" aria-label="Calendar settings">

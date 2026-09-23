@@ -44,7 +44,7 @@ test("update controls are disabled in development and reject untrusted mutations
   assert.equal((await updateRequest(req("not json"), "/api/updates/install", origins, "/missing.sock")).status, 400);
   assert.equal((await updateRequest(req(), "/api/updates/check", origins, "/missing.sock")).status, 503);
 });
-import { allowedOrigin, cached, cachedWithStale, countdownEvents, googleItems, loadDailyQuote, nextCstMidnight, selectTaskLists, shapeWeather } from "./server.mjs";
+import { allowedOrigin, cached, cachedWithStale, countdownEvents, familyTasks, googleItems, loadDailyQuote, nextCstMidnight, selectTaskLists, shapeWeather } from "./server.mjs";
 
 test("countdown events use exact tags in title or description and omit cancelled events", () => {
   const items = [
@@ -275,4 +275,30 @@ test("shared Google authorization includes Calendar, Tasks and Photos Picker", a
     "https://www.googleapis.com/auth/tasks.readonly",
     "https://www.googleapis.com/auth/photospicker.mediaitems.readonly",
   ]));
+});
+
+
+test("familyTasks includes completed and hidden tasks and refreshes their check state", async () => {
+  const saved = process.env.TASK_LISTS;
+  process.env.TASK_LISTS = "Family";
+  let completed = true;
+  const load = async (address) => {
+    const url = new URL(address);
+    if (url.pathname.endsWith("/@me/lists")) return { items: [{ id: "family", title: "Family" }] };
+    assert.equal(url.searchParams.get("showCompleted"), "true");
+    assert.equal(url.searchParams.get("showHidden"), "true");
+    assert.equal(url.searchParams.get("showDeleted"), "false");
+    if (!url.searchParams.has("pageToken")) return { items: [{ id: "open", title: "Milk", status: "needsAction" }], nextPageToken: "next" };
+    return { items: [{ id: "done", title: "Bread", hidden: true, status: completed ? "completed" : "needsAction" }] };
+  };
+  try {
+    assert.deepEqual(await familyTasks(true, load), [{ id: "family", label: "Family", items: [
+      { id: "open", title: "Milk", completed: false }, { id: "done", title: "Bread", completed: true },
+    ] }]);
+    completed = false;
+    assert.equal((await familyTasks(true, load))[0].items[1].completed, false);
+  } finally {
+    if (saved === undefined) delete process.env.TASK_LISTS;
+    else process.env.TASK_LISTS = saved;
+  }
 });

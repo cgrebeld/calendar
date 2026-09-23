@@ -231,14 +231,14 @@ export function selectTaskLists(lists, configured = "") {
   return titles.length ? titles.flatMap((title) => lists.filter((list) => list.title === title)) : lists;
 }
 
-async function familyTasks(force = false) {
+export async function familyTasks(force = false, load = googleJson) {
   return cached("tasks", async () => {
-    const lists = selectTaskLists(await googleItems("https://tasks.googleapis.com/tasks/v1/users/@me/lists", { maxResults: "100" }), process.env.TASK_LISTS);
+    const lists = selectTaskLists(await googleItems("https://tasks.googleapis.com/tasks/v1/users/@me/lists", { maxResults: "100" }, load), process.env.TASK_LISTS);
     return Promise.all(lists.map(async (list) => ({
       id: list.id,
       label: list.title,
-      items: (await googleItems(`https://tasks.googleapis.com/tasks/v1/lists/${encodeURIComponent(list.id)}/tasks`, { maxResults: "100", showCompleted: "false", showDeleted: "false", showHidden: "false" }))
-        .map((task) => ({ id: task.id, title: task.title || "Untitled task" })),
+      items: (await googleItems(`https://tasks.googleapis.com/tasks/v1/lists/${encodeURIComponent(list.id)}/tasks`, { maxResults: "100", showCompleted: "true", showDeleted: "false", showHidden: "true" }, load))
+        .map((task) => ({ id: task.id, title: task.title || "Untitled task", completed: task.status === "completed" })),
     })));
   }, 300000, Date.now(), force);
 }
