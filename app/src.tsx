@@ -697,7 +697,7 @@ function App() {
           <span className="weather-icon" data-icon={currentWeather ? weatherIcon(currentWeather, coldThreshold) : "sun"}>{currentWeather ? weatherGlyph(currentWeather, coldThreshold) : "☀"}</span>
           {weatherNow && <span className="weather-stat"><small>Now</small><strong>{Math.round(weatherNow.current.temperature)}°</strong></span>}
           <span className="weather-stat"><small>High</small><strong>{Math.round(forecast.get(dateKey(today))?.high ?? 16)}°</strong></span>
-          <span className="weather-stat"><small>Wind high</small><strong>{Math.round(forecast.get(dateKey(today))?.windMax ?? 13)} <em>{weatherNow?.units.windSpeed ?? "kt"}</em></strong></span>
+          <span className="weather-stat"><small>Wind</small><strong>{Math.round(weatherNow?.current.windSpeed ?? forecast.get(dateKey(today))?.windMax ?? 13)} <em>{weatherNow?.units.windSpeed ?? "kt"}</em></strong></span>
         </button>
         <nav aria-label="Calendar navigation">
           <button onClick={() => setAnchor((date) => moveAnchor(date, mode, -1))} aria-label="Previous" data-sound="boop">‹</button>
