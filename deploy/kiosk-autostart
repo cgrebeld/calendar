@@ -1,5 +1,5 @@
 #!/bin/sh
-swayidle -w timeout 1800 'wlopm --off "*"' resume 'wlopm --on "*"' &
+swayidle -w timeout 1800 'date +"%F %T off" >> /home/kiosk/.config/idle.log; wlopm --off "*"' resume 'date +"%F %T on" >> /home/kiosk/.config/idle.log; wlopm --on "*"' &
 (
   until curl -fsS --max-time 5 http://localhost:8080/ >/dev/null; do
     sleep 2
