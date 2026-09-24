@@ -1,207 +1,153 @@
-// Generates higher-fidelity (24x24, shaded) pixel-art weather icons for the
-// woodland skin, replacing the flat 12x12 single-tone originals.
+// Woodland weather sprites: 24 x 24 pixels, shared palette and silhouettes.
 import { writeFileSync } from "node:fs";
 
-const OUT = new URL("../public/skins/woodland/icons/", import.meta.url).pathname;
+const OUT = new URL("../public/skins/woodland/icons/", import.meta.url);
 const SIZE = 24;
+const P = {
+  sunEdge: "#80501e", sunHi: "#fff0a6", sun: "#f7c85d", sunShade: "#d89236",
+  cloudEdge: "#52616b", cloudHi: "#ffffff", cloud: "#f0f1e8", cloudShade: "#b9c6c7",
+  stormEdge: "#303e51", stormHi: "#9aaac4", storm: "#71829d", stormShade: "#4c5d78",
+  blueEdge: "#244d69", blueHi: "#a8dcf1", blue: "#5aa8d6",
+  frostEdge: "#427189", frostHi: "#ffffff", frost: "#a9d9e8",
+  fogEdge: "#647681", fogHi: "#dce3dc", fog: "#aabbb9",
+};
 
 function canvas() {
   const px = new Map();
   const set = (x, y, color) => {
-    x |= 0; y |= 0;
-    if (x < 0 || y < 0 || x >= SIZE || y >= SIZE || !color) return;
-    px.set(`${x},${y}`, color);
+    if (x >= 0 && x < SIZE && y >= 0 && y < SIZE) px.set(`${x},${y}`, color);
   };
-  return { px, set };
+  const rect = (x, y, w, h, color) => {
+    for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) set(xx, yy, color);
+  };
+  return { px, set, rect };
 }
 
-// Shades a disc with a top-left light source: outline ring, highlight
-// facing the light, base mid-tone, shadow facing away.
-function shadedDisc(c, cx, cy, r, tones) {
-  const { outline, hi, base, shadow } = tones;
-  for (let y = cy - r - 1; y <= cy + r + 1; y++) {
-    for (let x = cx - r - 1; x <= cx + r + 1; x++) {
-      const dx = x - cx, dy = y - cy;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist > r + 0.5) continue;
-      if (dist > r - 0.5) { c.set(x, y, outline); continue; }
-      const light = (-dx - dy) / (Math.SQRT2 * Math.max(dist, 0.001));
-      c.set(x, y, light > 0.35 ? hi : light < -0.25 ? shadow : base);
-    }
-  }
-}
-
-function shadedRect(c, x0, y0, w, h, tones) {
-  const { outline, hi, base, shadow } = tones;
-  for (let y = y0; y < y0 + h; y++) {
-    for (let x = x0; x < x0 + w; x++) {
-      const edge = x === x0 || y === y0 || x === x0 + w - 1 || y === y0 + h - 1;
-      const light = (x0 + w - 1 - x) + (y0 + h - 1 - y) > w + h - 4 ? "shadow" : x - x0 + (y - y0) < 2 ? "hi" : "base";
-      c.set(x, y, edge ? outline : tones[light]);
-    }
-  }
-}
-
-// A rounded cloud made of overlapping shaded discs plus a flat base band.
-function shadedCloud(c, cx, cy, scale, tones) {
-  const lobes = [
-    [-9 * scale, 1 * scale, 4.5 * scale],
-    [-4 * scale, -2 * scale, 6 * scale],
-    [3 * scale, -1 * scale, 6.5 * scale],
-    [9 * scale, 1.5 * scale, 4.5 * scale],
-  ];
-  for (const [dx, dy, r] of lobes) shadedDisc(c, cx + dx, cy + dy, r, tones);
-  shadedRect(c, Math.round(cx - 11 * scale), Math.round(cy + 1 * scale), Math.round(22 * scale), Math.round(4 * scale), tones);
-}
-
-// A blocky zigzag bolt built from a hand-placed cell list (in a 12x12
-// reference grid, doubled to 24x24), with a left-facing highlight column
-// and a dark outline ring — matches the crisp look of the other icons.
-function bolt(c, originX, originY, tones) {
-  const cells = new Set([
-    "6,6", "7,6", "5,7", "6,7", "4,8", "5,8", "6,8", "7,8",
-    "6,9", "7,9", "5,10", "6,10", "4,11",
-  ]);
-  const base = new Set();
-  for (const cell of cells) {
-    const [cx, cy] = cell.split(",").map(Number);
-    const x = originX + cx * 2, y = originY + cy * 2;
-    for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) base.add(`${x + dx},${y + dy}`);
-  }
-  for (const key of base) {
+function silhouette(c, rows, x0, y0, tones) {
+  const cells = new Set();
+  rows.forEach((spans, y) => spans.forEach(([a, b]) => {
+    for (let x = a; x <= b; x++) cells.add(`${x0 + x},${y0 + y}`);
+  }));
+  for (const key of cells) {
     const [x, y] = key.split(",").map(Number);
-    const hasNeighbor = (dx, dy) => base.has(`${x + dx},${y + dy}`);
-    const edge = !hasNeighbor(-1, 0) || !hasNeighbor(1, 0) || !hasNeighbor(0, -1) || !hasNeighbor(0, 1);
-    c.set(x, y, edge ? tones.outline : (x - originX) % 2 === 0 ? tones.hi : tones.base);
+    const edge = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => !cells.has(`${x + dx},${y + dy}`));
+    c.set(x, y, edge ? tones.edge : y - y0 < rows.length * .45 && x - x0 < 17 ? tones.hi : y - y0 > rows.length * .72 ? tones.shade : tones.base);
   }
 }
 
-function flakeArm(c, cx, cy, angle, len, tones) {
-  const dx = Math.cos(angle), dy = Math.sin(angle);
-  const nx = -dy, ny = dx;
-  for (let t = 1; t <= len; t++) {
-    const x = cx + dx * t, y = cy + dy * t;
-    c.set(Math.round(x), Math.round(y), t === len ? tones.outline : tones.base);
-    if (t === Math.round(len * 0.45)) {
-      for (const s of [-1, 1]) {
-        for (let b = 1; b <= 2; b++) {
-          c.set(Math.round(x + nx * s * b), Math.round(y + ny * s * b), b === 2 ? tones.outline : tones.hi);
-        }
-      }
+const cloudRows = [
+  [[6, 10], [15, 17]], [[5, 12], [13, 19]], [[4, 20]], [[3, 21]],
+  [[1, 22]], [[0, 23]], [[0, 23]], [[0, 23]], [[0, 23]],
+  [[1, 22]], [[2, 21]], [[4, 19]],
+];
+const whiteCloud = { edge: P.cloudEdge, hi: P.cloudHi, base: P.cloud, shade: P.cloudShade };
+const darkCloud = { edge: P.stormEdge, hi: P.stormHi, base: P.storm, shade: P.stormShade };
+function cloud(c, y, tones) { silhouette(c, cloudRows, 0, y, tones); }
+
+function sun(c, cx = 12, cy = 12, small = false) {
+  const rows = small
+    ? [[[3, 5]], [[2, 6]], [[1, 7]], [[1, 7]], [[0, 8]], [[1, 7]], [[1, 7]], [[2, 6]], [[3, 5]]]
+    : [[[4, 8]], [[2, 10]], [[1, 11]], [[1, 11]], [[0, 12]], [[0, 12]], [[0, 12]], [[1, 11]], [[1, 11]], [[2, 10]], [[4, 8]]];
+  const r = small ? 4 : 6;
+  const rays = small
+    ? [[0, -7], [-6, -6], [6, -6], [-7, 0], [7, 0], [-6, 6], [6, 6]]
+    : [[0, -10], [-8, -8], [8, -8], [-10, 0], [10, 0], [-8, 8], [8, 8], [0, 10]];
+  for (const [dx, dy] of rays) {
+    const horizontal = dy === 0;
+    c.rect(cx + dx - (horizontal ? 1 : 0), cy + dy - (horizontal ? 0 : 1), horizontal ? 3 : 2, horizontal ? 2 : 3, P.sunEdge);
+    c.set(cx + dx, cy + dy, P.sun);
+  }
+  silhouette(c, rows, cx - r, cy - r + (small ? 0 : 1), { edge: P.sunEdge, hi: P.sunHi, base: P.sun, shade: P.sunShade });
+}
+
+function rain(c) {
+  for (const [x, y] of [[5, 15], [12, 16], [19, 15], [8, 20], [16, 20]]) {
+    c.rect(x, y, 2, 2, P.blueEdge);
+    c.set(x, y, P.blueHi);
+    c.rect(x - 1, y + 2, 2, 2, P.blue);
+    c.set(x - 1, y + 3, P.blueEdge);
+  }
+}
+
+function tinyFlake(c, x, y) {
+  c.set(x, y, P.frostHi);
+  for (const [dx, dy] of [[0, -2], [0, 2], [-2, 0], [2, 0]]) c.set(x + dx, y + dy, P.frostEdge);
+  for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) c.set(x + dx, y + dy, P.frost);
+}
+
+function snow(c) {
+  for (const [x, y] of [[5, 16], [12, 18], [19, 16], [7, 22], [17, 22]]) tinyFlake(c, x, y);
+}
+
+function storm(c) {
+  // A two-step zigzag keeps the lightning legible at small display sizes.
+  const rows = [
+    [[12, 15]], [[11, 14]], [[10, 13]], [[9, 12]], [[9, 15]],
+    [[12, 15]], [[11, 14]], [[10, 13]], [[9, 12]], [[8, 11]],
+  ];
+  silhouette(c, rows, 0, 13, { edge: P.sunEdge, hi: P.sunHi, base: P.sun, shade: P.sunShade });
+  c.rect(12, 13, 2, 1, P.sunHi);
+}
+
+function cold(c) {
+  const cx = 12, cy = 12;
+  // Three full axes with paired branches form one clear six-point snowflake.
+  for (let d = -9; d <= 9; d++) {
+    c.set(cx + d, cy, d === -9 || d === 9 ? P.frostEdge : P.frost);
+    c.set(cx, cy + d, d === -9 || d === 9 ? P.frostEdge : P.frost);
+  }
+  for (const s of [-1, 1]) for (const t of [-1, 1]) {
+    for (let d = 1; d <= 6; d++) c.set(cx + s * d, cy + t * d, d === 6 ? P.frostEdge : P.frost);
+    for (let d = 5; d <= 7; d++) {
+      c.set(cx + s * d, cy + t * 3, P.frost);
+      c.set(cx + s * 3, cy + t * d, P.frost);
     }
   }
-  c.set(Math.round(cx + dx), Math.round(cy + dy), tones.hi);
+  c.rect(11, 11, 3, 3, P.frostHi);
+  c.set(12, 12, P.blueHi);
 }
 
-function snowflake(c, cx, cy, r, tones) {
-  for (let i = 0; i < 6; i++) flakeArm(c, cx, cy, (Math.PI / 3) * i - Math.PI / 2, r, tones);
-  c.set(cx, cy, tones.hi);
+function fog(c) {
+  for (const [x, y, w] of [[4, 4, 15], [2, 9, 20], [5, 14, 16], [3, 19, 18]]) {
+    c.rect(x + 1, y, w - 2, 1, P.fogHi);
+    c.rect(x, y + 1, w, 1, P.fog);
+    c.rect(x + 2, y + 2, w - 4, 1, P.fogEdge);
+  }
 }
 
-function rects(c) {
+function svg(c) {
   const rows = new Map();
   for (const [key, color] of c.px) {
     const [x, y] = key.split(",").map(Number);
     if (!rows.has(y)) rows.set(y, []);
     rows.get(y).push([x, color]);
   }
-  const out = [];
-  for (const [y, entries] of [...rows].sort((a, b) => a[0] - b[0])) {
-    entries.sort((a, b) => a[0] - b[0]);
-    let run = null;
-    for (const [x, color] of entries) {
-      if (run && run.color === color && run.x + run.w === x) { run.w++; continue; }
-      if (run) out.push(run);
-      run = { x, y, w: 1, color };
+  const rects = [];
+  for (const [y, pixels] of [...rows].sort((a, b) => a[0] - b[0])) {
+    pixels.sort((a, b) => a[0] - b[0]);
+    let run;
+    for (const [x, color] of pixels) {
+      if (run && run.color === color && run.x + run.w === x) run.w++;
+      else { if (run) rects.push(run); run = { x, y, w: 1, color }; }
     }
-    if (run) out.push(run);
+    if (run) rects.push(run);
   }
-  return out;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" shape-rendering="crispEdges">${rects.map(r => `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="1" fill="${r.color}"/>`).join("")}</svg>`;
 }
 
-function svg(c) {
-  const body = rects(c).map((r) => `<rect x="${r.x}" y="${r.y}" width="${r.w}" height="1" fill="${r.color}"/>`).join("");
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${SIZE} ${SIZE}" shape-rendering="crispEdges">${body}</svg>`;
-}
+const icons = {
+  sun: c => sun(c),
+  partly: c => { sun(c, 8, 8, true); cloud(c, 10, whiteCloud); },
+  cloud: c => cloud(c, 6, whiteCloud),
+  fog,
+  rain: c => { cloud(c, 1, darkCloud); rain(c); },
+  snow: c => { cloud(c, 1, darkCloud); snow(c); },
+  storm: c => { cloud(c, 1, darkCloud); storm(c); },
+  cold,
+};
 
-const sunTones = { outline: "#8a5a12", hi: "#ffe08a", base: "#f2c14e", shadow: "#d19a2e" };
-const cloudTones = { outline: "#7d8792", hi: "#ffffff", base: "#f6f2ea", shadow: "#c9d0d6" };
-const cloudTonesDark = { outline: "#40485a", hi: "#7d8aa8", base: "#5e6a86", shadow: "#454f68" };
-const fogTones = { outline: "#5c6570", hi: "#c3c9d1", base: "#9aa3ad", shadow: "#6b7580" };
-const dropTones = { outline: "#274a68", hi: "#8fc0e8", base: "#4f8fc4", shadow: "#356792" };
-const flakeTones = { outline: "#5c6570", hi: "#ffffff", base: "#e8f0f6" };
-const boltTones = { outline: "#8a5a12", hi: "#ffe08a", base: "#f2c14e" };
-const coldTones = { outline: "#3f7793", hi: "#e6f4fb", base: "#a9d3e6" };
-
-function icon(name, draw) {
+for (const [name, draw] of Object.entries(icons)) {
   const c = canvas();
   draw(c);
-  writeFileSync(`${OUT}${name}.svg`, svg(c));
+  writeFileSync(new URL(`${name}.svg`, OUT), svg(c));
 }
-
-icon("sun", (c) => {
-  const cx = 12, cy = 12, r = 6.5;
-  for (let i = 0; i < 8; i++) {
-    const a = (Math.PI / 4) * i;
-    const dx = Math.cos(a), dy = Math.sin(a);
-    const nx = -dy, ny = dx;
-    for (let t = r + 2; t <= r + 5; t++) {
-      const x = Math.round(cx + dx * t), y = Math.round(cy + dy * t);
-      c.set(x, y, sunTones.base);
-      c.set(Math.round(x + nx), Math.round(y + ny), t < r + 4 ? sunTones.hi : sunTones.outline);
-    }
-    c.set(Math.round(cx + dx * (r + 5.5)), Math.round(cy + dy * (r + 5.5)), sunTones.outline);
-  }
-  shadedDisc(c, cx, cy, r, sunTones);
-});
-
-icon("partly", (c) => {
-  shadedDisc(c, 8, 7, 5, sunTones);
-  for (let i = 0; i < 8; i++) {
-    const a = (Math.PI / 4) * i;
-    if (a > Math.PI * 0.15 && a < Math.PI * 1.1) continue;
-    const dx = Math.cos(a), dy = Math.sin(a);
-    for (let t = 6; t <= 8; t++) c.set(Math.round(8 + dx * t), Math.round(7 + dy * t), t === 8 ? sunTones.outline : sunTones.hi);
-  }
-  shadedCloud(c, 14, 15, 0.85, cloudTones);
-});
-
-icon("cloud", (c) => shadedCloud(c, 12, 12, 1, cloudTones));
-
-icon("fog", (c) => {
-  const bands = [[3, 5], [4, 10], [3, 15], [4, 19]];
-  for (const [x0, y] of bands) {
-    for (let x = x0; x < 24 - x0; x++) {
-      c.set(x, y, fogTones.base);
-      c.set(x, y - 1, fogTones.hi);
-      c.set(x, y + 1, fogTones.shadow);
-    }
-  }
-});
-
-icon("rain", (c) => {
-  shadedCloud(c, 12, 8, 0.9, cloudTonesDark);
-  const drops = [[6, 15], [12, 17], [18, 15], [9, 20], [15, 20]];
-  for (const [x, y] of drops) {
-    c.set(x, y, dropTones.hi);
-    c.set(x, y + 1, dropTones.base);
-    c.set(x, y + 2, dropTones.base);
-    c.set(x - 1, y + 2, dropTones.shadow);
-    c.set(x + 1, y + 3, dropTones.shadow);
-  }
-});
-
-icon("snow", (c) => {
-  shadedCloud(c, 12, 8, 0.9, cloudTonesDark);
-  const flakes = [[6, 16], [12, 18], [18, 16], [9, 21], [15, 21]];
-  for (const [x, y] of flakes) snowflake(c, x, y, 2, flakeTones);
-});
-
-icon("storm", (c) => {
-  shadedCloud(c, 12, 8, 0.9, cloudTonesDark);
-  bolt(c, 0, 0, boltTones);
-});
-
-icon("cold", (c) => snowflake(c, 12, 12, 10, coldTones));
-
-console.log("wrote 8 woodland weather icons to", OUT);
