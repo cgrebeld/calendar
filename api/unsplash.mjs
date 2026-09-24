@@ -12,7 +12,7 @@ const attribution = (value) => {
 
 export function createUnsplash({ accessKey = process.env.UNSPLASH_ACCESS_KEY, fetcher = fetch, now = Date.now,
   statePath = join(dirname(process.env.GOOGLE_PHOTOS_STATE_PATH || ".data/google-photos.json"), "unsplash-cache.json") } = {}) {
-  let items = [], refreshAt = 0, pending, error, loaded = false;
+  let items = [], refreshAt = 0, pending, error, loaded = false, cachedTopics = [], topicsList;
   async function save() {
     if (!statePath) return;
     await mkdir(dirname(statePath), { recursive: true });
@@ -20,9 +20,10 @@ export function createUnsplash({ accessKey = process.env.UNSPLASH_ACCESS_KEY, fe
     await rename(`${statePath}.tmp`, statePath);
   }
   const status = () => ({ enabled: Boolean(accessKey), count: items.length, error });
-  async function refresh() {
+  async function refresh(topics) {
     try {
-      const query = new URLSearchParams({ count: "30", orientation: "landscape", content_filter: "high", query: Math.floor(now() / interval) % 2 ? "travel" : "nature" });
+      const query = new URLSearchParams({ count: "30", orientation: "landscape", content_filter: "high",
+        ...(topics.length ? { topics: topics.join(",") } : { query: Math.floor(now() / interval) % 2 ? "travel" : "nature" }) });
       const response = await fetcher(`https://api.unsplash.com/photos/random?${query}`, {
         headers: { Authorization: `Client-ID ${accessKey}`, "Accept-Version": "v1" },
         signal: AbortSignal.timeout(10000), redirect: "error",
@@ -55,8 +56,10 @@ export function createUnsplash({ accessKey = process.env.UNSPLASH_ACCESS_KEY, fe
     } finally { refreshAt = now() + interval; }
     return { ...status(), items };
   }
-  return { status, async load() {
+  return { status, async load(topics = []) {
     if (!accessKey) return { ...status(), items: [], error: "Online photos need an Unsplash access key on the server. See Photo settings." };
+    // A topic selection change is a deliberate settings change, not a request-limit bypass: force an immediate refresh for it.
+    if (topics.length !== cachedTopics.length || topics.some((topic, index) => topic !== cachedTopics[index])) { cachedTopics = topics; refreshAt = 0; }
     if (pending) return pending;
     if (now() < refreshAt) return { ...status(), items };
     pending = (async () => {
@@ -74,7 +77,7 @@ export function createUnsplash({ accessKey = process.env.UNSPLASH_ACCESS_KEY, fe
         // failed request cannot bypass the two-attempts-per-hour limit.
         refreshAt = now() + interval;
         await save();
-        const result = await refresh();
+        const result = await refresh(topics);
         await save();
         return result;
       } catch {
@@ -83,5 +86,22 @@ export function createUnsplash({ accessKey = process.env.UNSPLASH_ACCESS_KEY, fe
       }
     })();
     try { return await pending; } finally { pending = undefined; }
+  }, async topics() {
+    if (topicsList) return topicsList;
+    if (!accessKey) return { enabled: false, items: [], error: "Topics need an Unsplash access key on the server." };
+    try {
+      const response = await fetcher("https://api.unsplash.com/topics?per_page=20", {
+        headers: { Authorization: `Client-ID ${accessKey}`, "Accept-Version": "v1" },
+        signal: AbortSignal.timeout(10000), redirect: "error",
+      });
+      if (!response.ok) throw new Error(`Unsplash returned ${response.status}`);
+      const data = await response.json();
+      if (!Array.isArray(data)) throw new Error("Invalid Unsplash response");
+      const list = data.flatMap((topic) => typeof topic.slug === "string" && typeof topic.title === "string" ? [{ slug: topic.slug, title: topic.title }] : []);
+      topicsList = { enabled: true, items: list };
+      return topicsList;
+    } catch {
+      return { enabled: true, items: [], error: "Unable to load Unsplash topics; retry later." };
+    }
   } };
 }

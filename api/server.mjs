@@ -276,10 +276,13 @@ function json(request, response, status, body) {
 export const server = createServer(async (request, response) => {
   try {
     const url = new URL(request.url, `http://${request.headers.host}`);
-    if (["/api/photos/ambient", "/api/photos/ambient/status"].includes(url.pathname)) {
+    if (["/api/photos/ambient", "/api/photos/ambient/status", "/api/photos/topics"].includes(url.pathname)) {
       if (request.method !== "GET") return json(request, response, 405, { error: "Unsupported online photos operation" });
       response.setHeader("cache-control", "no-store");
-      return json(request, response, 200, url.pathname.endsWith("/status") ? unsplash.status() : await unsplash.load());
+      if (url.pathname.endsWith("/status")) return json(request, response, 200, unsplash.status());
+      if (url.pathname.endsWith("/topics")) return json(request, response, 200, await unsplash.topics());
+      const topics = (url.searchParams.get("topics") || "").split(",").map((topic) => topic.trim()).filter((topic) => /^[\w-]+$/.test(topic));
+      return json(request, response, 200, await unsplash.load(topics));
     }
     if (url.pathname.startsWith("/api/photos/")) {
       const result = await photosRequest(request, url, appOrigins);

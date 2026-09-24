@@ -395,3 +395,43 @@ test("Unsplash reserves request slots across restarts and fails closed if storag
   assert.match((await createUnsplash({ ...options, statePath: join(statePath, "not-a-directory") }).load()).error, /paused/);
   assert.equal(calls, 2);
 });
+
+test("Unsplash queries by topic when selected and falls back to the default query otherwise", async () => {
+  let time = 0;
+  const source = createUnsplash({ statePath: null, accessKey: "key", now: () => time, fetcher: async (value) => {
+    const url = new URL(value);
+    assert.equal(url.searchParams.get("topics"), "nature,travel");
+    assert.equal(url.searchParams.get("query"), null);
+    return ok([unsplashPhoto("a")]);
+  } });
+  await source.load(["nature", "travel"]);
+  time = 30 * 60000;
+  await createUnsplash({ statePath: null, accessKey: "key", now: () => time, fetcher: async (value) => {
+    const url = new URL(value);
+    assert.equal(url.searchParams.get("topics"), null);
+    assert.ok(["nature", "travel"].includes(url.searchParams.get("query")));
+    return ok([unsplashPhoto("b")]);
+  } }).load();
+});
+
+test("changing the selected topics forces an immediate refresh, ignoring the interval", async () => {
+  let time = 0, calls = 0;
+  const source = createUnsplash({ statePath: null, accessKey: "key", now: () => time, fetcher: async () => { calls++; return ok([unsplashPhoto("a")]); } });
+  await source.load(["nature"]);
+  await source.load(["nature"]);
+  assert.equal(calls, 1, "an unchanged selection should respect the refresh interval");
+  await source.load(["travel"]);
+  assert.equal(calls, 2, "a changed selection should bypass the refresh interval");
+});
+
+test("Unsplash topics() fetches once and caches for the process lifetime", async () => {
+  let calls = 0;
+  const source = createUnsplash({ statePath: null, accessKey: "key", fetcher: async (value) => {
+    calls++;
+    assert.equal(new URL(value).pathname, "/topics");
+    return ok([{ slug: "nature", title: "Nature", extra: "ignored" }, { slug: "travel", title: "Travel" }]);
+  } });
+  assert.deepEqual(await source.topics(), { enabled: true, items: [{ slug: "nature", title: "Nature" }, { slug: "travel", title: "Travel" }] });
+  await source.topics();
+  assert.equal(calls, 1, "a second call should reuse the cached list");
+});

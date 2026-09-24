@@ -4,7 +4,7 @@ import { DateTime } from "./date-time";
 import { weatherDescription, weatherGlyph, weatherIcon, type WeatherReport } from "./weather";
 import { shufflePhotos, photoLabel, adjacentPhoto } from "./photo-order";
 import { swipeDirection } from "./dates";
-import { ambientEnabled, googlePhotosEnabled } from "./photo-preferences";
+import { ambientEnabled, googlePhotosEnabled, ambientTopics, setAmbientTopics } from "./photo-preferences";
 
 type Photo = { id: string; url: string; date?: string; city?: string; external?: boolean };
 
@@ -14,6 +14,9 @@ type PhotoStatus = {
   session?: { url: string; ready: boolean; expiresAt: number; pollUntil: number; pollAfterMs: number };
   items?: Photo[];
 };
+
+type Topic = { slug: string; title: string };
+type TopicsStatus = { enabled: boolean; items: Topic[]; error?: string };
 async function photosJson(apiUrl: string, action: string, method = "GET", signal?: AbortSignal): Promise<PhotoStatus> {
   const response = await fetch(`${apiUrl}/api/photos/${action}`, { method, signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000), cache: "no-store" });
   const data = await response.json();
@@ -43,6 +46,41 @@ export function PhotoIcon({ settings = false }: { settings?: boolean }) {
   );
 }
 
+function TopicsDialog({ apiUrl, onClose }: { apiUrl: string; onClose: () => void }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const [topics, setTopics] = useState<TopicsStatus>();
+  const [selected, setSelected] = useState(() => new Set(ambientTopics()));
+  useEffect(() => {
+    const element = dialog.current!;
+    element.showModal();
+    return () => element.close();
+  }, []);
+  useEffect(() => {
+    const controller = new AbortController();
+    photosJson(apiUrl, "topics", "GET", controller.signal).then((data) => setTopics(data as unknown as TopicsStatus))
+      .catch(() => { if (!controller.signal.aborted) setTopics({ enabled: false, items: [], error: "Unable to load topics." }); });
+    return () => controller.abort();
+  }, [apiUrl]);
+  return (
+    <dialog ref={dialog} className="settings-dialog" aria-labelledby="topics-title" onCancel={(event) => { event.preventDefault(); onClose(); }} onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="settings-heading"><h2 id="topics-title">Photo topics</h2><button className="close" onClick={onClose} aria-label="Close photo topics">×</button></div>
+      <section className="settings-section">
+        <p>Choose which Unsplash topics to mix in. Leave all unchecked for the default nature and travel photos.</p>
+        {!topics && <p role="status">Loading…</p>}
+        {topics?.error && <p role="alert">{topics.error}</p>}
+        {topics?.items.map((topic) => (
+          <label key={topic.slug}><input type="checkbox" checked={selected.has(topic.slug)} onChange={(event) => {
+            const next = new Set(selected);
+            if (event.target.checked) next.add(topic.slug); else next.delete(topic.slug);
+            setSelected(next); setAmbientTopics([...next]);
+          }} /> {topic.title}</label>
+        ))}
+      </section>
+      <div className="settings-footer"><button onClick={onClose}>Close</button></div>
+    </dialog>
+  );
+}
+
 export function PhotoSettings({ apiUrl, open }: { apiUrl: string; open: boolean }) {
   const [ambient, setAmbient] = useState(ambientEnabled);
   const [google, setGoogle] = useState(googlePhotosEnabled);
@@ -51,6 +89,7 @@ export function PhotoSettings({ apiUrl, open }: { apiUrl: string; open: boolean 
   const [error, setError] = useState("");
   const [setupUrl, setSetupUrl] = useState<string>();
   const [busy, setBusy] = useState(false);
+  const [topicsOpen, setTopicsOpen] = useState(false);
   const visible = useVisible();
   useEffect(() => {
     if (!open || !visible) return;
@@ -93,6 +132,8 @@ export function PhotoSettings({ apiUrl, open }: { apiUrl: string; open: boolean 
       <p>Fresh Unsplash images, loaded on demand. Requires internet; saved for this display.</p>
       {onlineStatus && !onlineStatus.enabled && <p>Online photos need a free <a href="https://unsplash.com/developers" target="_blank" rel="noreferrer">Unsplash access key</a>. Set UNSPLASH_ACCESS_KEY on the calendar server and restart it.</p>}
       {onlineStatus?.error && <p role="status">{onlineStatus.error}</p>}
+      <div className="settings-actions"><button onClick={() => setTopicsOpen(true)}>Choose topics…</button></div>
+      {topicsOpen && <TopicsDialog apiUrl={apiUrl} onClose={() => setTopicsOpen(false)} />}
       <h4>Google Photos</h4>
       <label><input type="checkbox" checked={google} onChange={(event) => {
         const enabled = event.target.checked;
@@ -141,9 +182,10 @@ export function PhotoMode({ apiUrl, now, weather, coldThreshold = 0, onExit }: {
     const controller = new AbortController();
     async function refresh() {
       const online = ambientEnabled();
+      const topics = ambientTopics();
       const results = await Promise.allSettled([
         googlePhotosEnabled() ? photosJson(apiUrl, "items", "GET", controller.signal) : Promise.resolve({ enabled: false, items: [] } as PhotoStatus),
-        online ? photosJson(apiUrl, "ambient", "GET", controller.signal) : Promise.resolve({ enabled: false, items: [] } as PhotoStatus),
+        online ? photosJson(apiUrl, `ambient?${new URLSearchParams(topics.length ? { topics: topics.join(",") } : {})}`, "GET", controller.signal) : Promise.resolve({ enabled: false, items: [] } as PhotoStatus),
       ]);
       if (controller.signal.aborted) return;
       const [local, ambient] = results;
