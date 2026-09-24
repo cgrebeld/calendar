@@ -191,13 +191,11 @@ nav .dark { color: var(--on-accent); background: var(--nav-dark-bg); border: 0; 
 .day-heading strong { font-size: 1.35rem; }
 .day-heading.context span, .day-heading.context strong { opacity: .55; }
 .day-heading.focus strong { font-size: 1.6rem; }
-.day-heading.today { color: var(--on-accent); background: var(--accent); }
-.day-heading.today span { color: var(--accent-text); }
+.day-heading.today strong { display: grid; place-items: center; width: 1.8rem; height: 1.8rem; margin: 0 auto; border-radius: 50%; color: var(--text); background: var(--accent); }
 .day-weather { font-size: .8rem; font-weight: 700; color: var(--text-muted); display: inline-flex; gap: .3rem; align-items: center; }
 .day-weather .glyph { font-size: 1rem; line-height: 1; }
 .moon-icon { width: 1.1rem; height: 1.1rem; flex: none; }
 .day-heading.context .day-weather { opacity: .55; }
-.day-heading.today .day-weather { color: var(--accent-text); opacity: 1; }
 .time-labels { position: relative; margin-top: 3rem; }
 .time-labels span { position: absolute; right: .7rem; color: var(--text-faint); font-size: .72rem; transform: translateY(-50%); }
 .time-labels span:last-child { transform: translateY(-100%); }
@@ -231,9 +229,8 @@ nav .dark { color: var(--on-accent); background: var(--nav-dark-bg); border: 0; 
 .mini-day > header span { color: var(--text-muted); font-size: .75rem; font-weight: 800; text-transform: uppercase; }
 .mini-day > header strong { font-size: 1.15rem; }
 .mini-day > header .day-weather { margin-left: auto; }
-.mini-day.today { box-shadow: inset 0 0 0 3px var(--accent); z-index: 1; }
-.mini-day.today > header { color: var(--on-accent); background: var(--accent); }
-.mini-day.today > header span { color: var(--accent-text); }
+.mini-day.today { background: var(--surface-today); z-index: 1; }
+.mini-day.today > header strong { display: grid; place-items: center; width: 1.5rem; height: 1.5rem; border-radius: 50%; color: var(--text); background: var(--accent); }
 .mini-all-day { padding: .15rem .25rem; overflow: hidden; border-bottom: 1px solid var(--border); }
 .mini-all-day button { width: 100%; padding: .1rem .3rem; overflow: hidden; border: 0; border-left: .25rem solid var(--tone); border-radius: .25rem; text-align: left; white-space: nowrap; text-overflow: ellipsis; font-size: .65rem; font-weight: 800; background: var(--tone-bg); color: var(--tone-text); }
 .mini-hours { position: relative; background-image: repeating-linear-gradient(to bottom, transparent 0, transparent calc(100% / var(--schedule-hours, 12) - 1px), var(--grid-line) calc(100% / var(--schedule-hours, 12) - 1px), var(--grid-line) calc(100% / var(--schedule-hours, 12))); }
@@ -247,6 +244,7 @@ nav .dark { color: var(--on-accent); background: var(--nav-dark-bg); border: 0; 
 .month-day { position: relative; min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); padding: .3rem .35rem; border-top: 1px solid var(--border); border-left: 1px solid var(--border); overflow: hidden; cursor: pointer; }
 .month-day .day-weather { position: absolute; top: .3rem; right: .35rem; font-size: .8rem; }
 .month-day > span { display: grid; place-items: center; width: 1.5rem; height: 1.5rem; margin-bottom: .1rem; font-size: .85rem; font-weight: 800; }
+.month-day.today { background: var(--surface-today); }
 .month-day.today > span { border-radius: 50%; color: var(--on-accent); background: var(--accent); }
 .month-day.outside { color: var(--month-outside); background: var(--surface-muted); }
 .month-events { --month-row: 1.2rem; --month-gap: .1rem; min-height: 0; }
