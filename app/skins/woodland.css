@@ -141,6 +141,8 @@
 [data-skin="woodland"] .timeline, [data-skin="woodland"] .two-week-grid, [data-skin="woodland"] .month-grid, [data-skin="woodland"] .notes, [data-skin="woodland"] .weather, [data-skin="woodland"] .day-modal, [data-skin="woodland"] .event-detail { border: 12px solid transparent; border-image: var(--frame-image) 6 / 12px round; border-radius: 0; box-shadow: var(--shadow-md); image-rendering: pixelated; }
 
 [data-skin="woodland"] .glyph, [data-skin="woodland"] .weather-icon { display: inline-block; width: 1em; height: 1em; overflow: hidden; color: transparent; text-indent: 100%; white-space: nowrap; background: var(--icon) center / contain no-repeat; image-rendering: pixelated; }
+[data-skin="woodland"] svg.condition-icon { background: var(--icon) center / contain no-repeat; image-rendering: pixelated; }
+[data-skin="woodland"] svg.condition-icon * { display: none; }
 [data-skin="woodland"] [data-icon="sun"] { --icon: url("/skins/woodland/icons/sun.svg"); }
 [data-skin="woodland"] [data-icon="partly"] { --icon: url("/skins/woodland/icons/partly.svg"); }
 [data-skin="woodland"] [data-icon="cloud"] { --icon: url("/skins/woodland/icons/cloud.svg"); }

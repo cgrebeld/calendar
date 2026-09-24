@@ -293,7 +293,7 @@ function DayModal({ date, today, now, events, range, forecast, onSelect, onClose
 function WeatherConditionIcon({ code }: { code: number }) {
   const icon = weatherIcon({ date: "", code, high: 1, low: 1 }, -Infinity);
   const sunny = icon === "sun" || icon === "partly";
-  return <svg className="condition-icon" viewBox="0 0 80 80" role="img" aria-label={weatherDescription(code)}>
+  return <svg className="condition-icon" data-icon={icon} viewBox="0 0 80 80" role="img" aria-label={weatherDescription(code)}>
     <title>{weatherDescription(code)}</title>
     {sunny && <g transform={icon === "partly" ? "translate(26 28) scale(.8)" : "translate(40 40)"} fill="#edb757" stroke="#edb757" strokeWidth="3" strokeLinecap="round">
       <circle r="13" stroke="none" /><path d="M0-26v7M0 19v7M-26 0h7M19 0h7M-18-18l5 5M13 13l5 5M-18 18l5-5M13-13l5-5" />
