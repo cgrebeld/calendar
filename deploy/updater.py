@@ -65,7 +65,7 @@ class Updater:
         self.lock = threading.RLock()
         self.busy = False
         self.state = json.loads(self.path.read_text()) if self.path.exists() else {
-            "status": "idle", "active": None, "previous": None, "staged": None, "available": None, "images": [],
+            "status": "idle", "active": None, "previous": None, "available": None, "notes": None, "images": [],
         }
 
     def save(self, **values):
@@ -105,10 +105,24 @@ class Updater:
             return {"enabled": True, "status": self.state["status"], "busy": self.busy,
                     "currentVersion": (self.state.get("active") or {}).get("version"),
                     "availableVersion": (self.state.get("available") or {}).get("version"),
-                    "stagedVersion": (self.state.get("staged") or {}).get("version"),
                     "lastChecked": self.state.get("lastChecked"), "message": self.state.get("message"),
                     "progress": self.state.get("progress", []),
-                    "releaseNotesUrl": f"https://github.com/{self.repository}/releases"}
+                    "releaseNotes": self.state.get("notes")}
+
+    def fetch_notes(self):
+        try:
+            url = f"https://api.github.com/repos/{self.repository}/releases/latest"
+            with urlopen(Request(url, headers={"User-Agent": "calendar-updater/1", "Accept": "application/vnd.github+json"}), timeout=20) as response:
+                raw = response.read(65537)
+            if len(raw) > 65536:
+                raise ValueError("Release notes too large")
+            data = json.loads(raw)
+            body, tag = data.get("body"), data.get("tag_name")
+            if not isinstance(body, str) or not isinstance(tag, str):
+                raise ValueError("Invalid release notes response")
+            return {"version": tag.lstrip("v"), "body": body.strip()[:4000]}
+        except Exception:
+            return self.state.get("notes")
 
     def check(self):
         url = f"https://github.com/{self.repository}/releases/latest/download/release.json"
@@ -120,8 +134,9 @@ class Updater:
         candidate = validate_manifest(json.loads(raw), self.repository)
         active = self.state.get("active")
         available = candidate if active and version(candidate["version"]) > version(active["version"]) else None
+        notes = self.fetch_notes() if available else self.state.get("notes")
         self.finish_progress("Check complete")
-        self.save(status="ready" if self.state.get("staged") else "idle", available=available, lastChecked=time.time(),
+        self.save(status="idle", available=available, notes=notes, lastChecked=time.time(),
                   message=f'Version {candidate["version"]} is available.' if available else "No new release available.")
 
     def release_env(self, manifest):
@@ -174,39 +189,25 @@ class Updater:
 
     def install(self, candidate):
         candidate = validate_manifest(candidate, self.repository)
-        active = self.state.get("active")
-        if active and version(candidate["version"]) <= version(active["version"]):
+        previous = self.state.get("active")
+        if previous and version(candidate["version"]) <= version(previous["version"]):
             raise ValueError("Refusing a downgrade or reinstall")
         refs = [candidate["webImage"], candidate["apiImage"]]
         self.start_progress("Downloading web image")
-        self.save(status="installing", staged=None, message="Downloading and checking update…", images=list(dict.fromkeys(self.state.get("images", []) + refs)))
+        self.save(status="installing", message="Downloading and checking update…", images=list(dict.fromkeys(self.state.get("images", []) + refs)))
         try:
             self.run("docker", "pull", "--platform", "linux/amd64", refs[0])
             self.advance_progress("Downloading API image")
             self.run("docker", "pull", "--platform", "linux/amd64", refs[1])
             self.advance_progress("Verifying web image")
             self.smoke(candidate)
-            self.finish_progress("Update ready to restart")
-            self.save(status="ready", staged=candidate, message="Update installed and checked. Restart the app to use it.")
-        except Exception:
-            self.fail_progress()
-            self.save(status="failed", staged=None, message="Installation failed. The current release is unchanged.")
-            raise
-        finally:
-            self.cleanup()
-
-    def activate(self):
-        candidate = self.state.get("staged")
-        if not candidate:
-            raise ValueError("No verified update is ready")
-        previous = self.state.get("active")
-        self.start_progress("Starting containers and waiting for health")
-        self.save(status="activating", message="Restarting app and checking health…")
-        try:
+            # A passing smoke test is the go-ahead to restart immediately; no manual step in between.
+            self.advance_progress("Starting containers and waiting for health")
+            self.save(status="activating", message="Restarting app and checking health…")
             self.launch(candidate)
         except Exception:
             self.fail_progress()
-            if previous:
+            if self.state["status"] == "activating" and previous:
                 try:
                     self.advance_progress("Restoring previous release")
                     self.launch(previous)
@@ -215,19 +216,20 @@ class Updater:
                     self.save(status="rollback_failed", message="Restart and rollback failed. Host administrator attention required.")
                     raise
                 self.finish_progress("Previous release restored")
-                self.save(status="rolled_back", staged=None, message="Update failed. Previous release restored.")
-            else:
+                self.save(status="rolled_back", message="Update failed. Previous release restored.")
+            elif self.state["status"] == "activating":
                 self.save(status="failed", message="Initial startup failed; no previous release exists.")
+            else:
+                self.save(status="failed", message="Installation failed. The current release is unchanged.")
             raise
         else:
             self.finish_progress("Update complete")
-            self.save(status="idle", active=candidate, previous=previous, staged=None, available=None,
-                      message="Update complete.")
+            self.save(status="idle", active=candidate, previous=previous, available=None, message="Update complete.")
         finally:
             self.cleanup()
 
     def cleanup(self):
-        keep = {m[key] for m in (self.state.get(k) for k in ("active", "previous", "staged")) if m for key in ("webImage", "apiImage")}
+        keep = {m[key] for m in (self.state.get(k) for k in ("active", "previous")) if m for key in ("webImage", "apiImage")}
         remaining = []
         for ref in self.state.get("images", []):
             # Only refs recorded by this updater; never prune Docker or delete volumes.
@@ -247,9 +249,9 @@ class Updater:
             self.run("docker", "rm", "-f", container)
         if self.state["status"] in ("activating", "rollback_failed") and self.state.get("active"):
             self.launch(self.state["active"])
-            self.save(status="rolled_back", staged=None, message="Interrupted update recovered to the last confirmed release.")
+            self.save(status="rolled_back", message="Interrupted update recovered to the last confirmed release.")
         elif self.state["status"] == "installing":
-            self.save(status="failed", staged=None, message="Interrupted installation discarded. Current release unchanged.")
+            self.save(status="failed", message="Interrupted installation discarded. Current release unchanged.")
         self.cleanup()
 
     def dispatch(self, action, requested=None):
@@ -262,20 +264,14 @@ class Updater:
                 candidate = self.state.get("available")
                 if not candidate or candidate["version"] != requested:
                     raise ValueError("This release is no longer the offered update")
-                if self.state.get("staged"):
-                    raise ValueError("A verified update is already waiting for restart")
                 work = lambda: self.install(candidate)
-            elif action == "restart":
-                if not self.state.get("staged") or self.state["staged"]["version"] != requested:
-                    raise ValueError("This release is not ready to restart")
-                work = self.activate
             elif action == "check":
                 work = self.check
             else:
                 raise ValueError("Unknown update action")
             self.busy = True
-            first = {"check": "Fetching release manifest", "install": "Downloading web image", "restart": "Starting containers and waiting for health"}[action]
-            self.save(status={"check": "checking", "install": "installing", "restart": "activating"}[action],
+            first = {"check": "Fetching release manifest", "install": "Downloading web image"}[action]
+            self.save(status={"check": "checking", "install": "installing"}[action],
                       message=None, progress=[{"label": first, "state": "running"}])
 
         def worker():
@@ -350,6 +346,5 @@ if __name__ == "__main__":
         if updater.state.get("active"):
             raise SystemExit("Already initialized; use the in-app update flow")
         updater.install(json.loads(Path(args.initialize).read_text()))
-        updater.activate()
     else:
         serve(updater, "/run/calendar-updater/control.sock")

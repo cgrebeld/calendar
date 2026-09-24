@@ -233,8 +233,9 @@ sudo systemctl status getty@tty1 calendar-updater --no-pager
 
 The root-owned host service checks the latest GitHub release at startup and every
 six hours. The app polls its local status and offers **Install**, which pulls and
-smoke-tests the pinned images without interrupting the current app. On success it
-offers **Restart app**. Activation health-checks both containers and the web-to-API
+smoke-tests the pinned images without interrupting the current app, then restarts
+the app containers immediately once the smoke test passes — there is no separate
+manual restart step. Activation health-checks both containers and the web-to-API
 path/version. Failed activation restores the last confirmed release. The browser
 reloads after activation. This restarts the app containers, **not the machine**.
 
@@ -243,11 +244,11 @@ State and active digest references are stored atomically in
 release when the service starts. Download/check failures leave the running app
 alone. Normal boot uses cached images and never waits for GitHub. Old images
 recorded by this updater are removed after installs/activations; the active,
-previous, and pending release are retained. No Docker-wide prune, volume deletion,
+and previous release are retained. No Docker-wide prune, volume deletion,
 or cleanup of unrelated images occurs. Google tokens survive in the Compose volume.
 
 The API has a small Unix-socket interface to the updater, **not the Docker socket**.
-It accepts only check/install/restart operations and validates the browser origin
+It accepts only check/install operations and validates the browser origin
 on mutations. The host only accepts stable newer versions, the supported manifest
 schema/architecture, and digests in this project's fixed GHCR repositories.
 The release channel trusts GitHub/maintainers; separate cryptographic artifact

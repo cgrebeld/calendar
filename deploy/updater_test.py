@@ -25,12 +25,9 @@ class UpdateTest(unittest.TestCase):
             updater.launch = lambda candidate: launched.append(candidate["version"])
             for number in (1, 2, 3):
                 updater.install(manifest(number))
-                self.assertEqual(updater.state["status"], "ready")
-                self.assertEqual(updater.state["progress"][-1], {"label": "Update ready to restart", "state": "complete"})
-                self.assertEqual(updater.state.get("active"), manifest(number - 1) if number > 1 else None)
-                updater.activate()
+                self.assertEqual(updater.state["status"], "idle")
                 self.assertEqual(updater.state["progress"][-1], {"label": "Update complete", "state": "complete"})
-            self.assertEqual(updater.state["active"], manifest(3))
+                self.assertEqual(updater.state["active"], manifest(number))
             self.assertEqual(updater.state["previous"], manifest(2))
             self.assertEqual(len(updater.state["images"]), 4)
             self.assertIn(("docker", "image", "rm", manifest(1)["webImage"]), commands)
@@ -41,22 +38,20 @@ class UpdateTest(unittest.TestCase):
                 with self.assertRaises(RuntimeError):
                     updater.install(manifest(4))
             self.assertEqual(updater.state["progress"][-1]["state"], "failed")
+            self.assertEqual(updater.state["status"], "failed")
             self.assertEqual(updater.state["active"], manifest(3))
-            self.assertIsNone(updater.state["staged"])
-            updater.install(manifest(4))
             with patch.object(updater, "launch", side_effect=[RuntimeError("bad startup"), None]) as launch:
                 with self.assertRaises(RuntimeError):
-                    updater.activate()
+                    updater.install(manifest(4))
                 self.assertEqual([call.args[0] for call in launch.call_args_list], [manifest(4), manifest(3)])
             self.assertEqual(updater.state["status"], "rolled_back")
             self.assertEqual(updater.state["active"], manifest(3))
-            updater.install(manifest(4))
             with patch.object(updater, "launch", side_effect=RuntimeError("Docker down")):
                 with self.assertRaises(RuntimeError):
-                    updater.activate()
+                    updater.install(manifest(4))
             self.assertEqual(updater.state["status"], "rollback_failed")
             with self.assertRaises(ValueError):
-                updater.dispatch("restart", "1.0.4")
+                updater.dispatch("install", "1.0.4")
             updater.recover()
             self.assertEqual(launched[-1], "1.0.3")
             self.assertEqual(updater.state["status"], "rolled_back")
@@ -77,13 +72,19 @@ class UpdateTest(unittest.TestCase):
             updater = Updater("cgrebeld/calendar", directory, "compose", "env", lambda *args, **kw: "")
             updater.save(active=manifest(1))
             with patch("updater.urlopen") as response:
-                response.return_value.__enter__.return_value.read.return_value = json.dumps(manifest(2)).encode()
+                response.return_value.__enter__.return_value.read.side_effect = [
+                    json.dumps(manifest(2)).encode(),
+                    json.dumps({"tag_name": "v1.0.2", "body": "What's new in 1.0.2"}).encode(),
+                ]
                 updater.check()
                 self.assertEqual(updater.state["available"], manifest(2))
                 self.assertEqual(updater.state["progress"][-1], {"label": "Check complete", "state": "complete"})
+                self.assertEqual(updater.state["notes"], {"version": "1.0.2", "body": "What's new in 1.0.2"})
+                response.return_value.__enter__.return_value.read.side_effect = None
                 response.return_value.__enter__.return_value.read.return_value = json.dumps(manifest(1)).encode()
                 updater.check()
                 self.assertIsNone(updater.state["available"])
+                self.assertEqual(updater.state["notes"], {"version": "1.0.2", "body": "What's new in 1.0.2"})
             updater.busy = True
             with self.assertRaises(ValueError):
                 updater.dispatch("check")

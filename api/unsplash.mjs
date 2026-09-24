@@ -23,7 +23,7 @@ export function createUnsplash({ accessKey = process.env.UNSPLASH_ACCESS_KEY, fe
   async function refresh(topics) {
     try {
       const query = new URLSearchParams({ count: "30", orientation: "landscape", content_filter: "high",
-        ...(topics.length ? { topics: topics.join(",") } : { query: Math.floor(now() / interval) % 2 ? "travel" : "nature" }) });
+        ...(topics.length ? { topics: topics.join(",") } : {}) });
       const response = await fetcher(`https://api.unsplash.com/photos/random?${query}`, {
         headers: { Authorization: `Client-ID ${accessKey}`, "Accept-Version": "v1" },
         signal: AbortSignal.timeout(10000), redirect: "error",

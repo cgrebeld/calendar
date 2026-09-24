@@ -15,7 +15,10 @@ import { ApplicationUpdates } from "./updates";
 import { PhotoIcon, PhotoMode, PhotoSettings } from "./photos";
 
 const themeMode = parseThemeMode(new URLSearchParams(location.search).get("theme") ?? import.meta.env.VITE_THEME_MODE);
-const initialSkin = parseSkin(new URLSearchParams(location.search).get("skin") ?? import.meta.env.VITE_SKIN);
+function savedSkin() {
+  try { return localStorage.getItem("skin"); } catch { return null; }
+}
+const initialSkin = parseSkin(new URLSearchParams(location.search).get("skin") ?? savedSkin() ?? import.meta.env.VITE_SKIN);
 document.documentElement.dataset.skin = initialSkin;
 const envThemeSchedule = parseThemeSchedule(import.meta.env.VITE_THEME_LIGHT_START, import.meta.env.VITE_THEME_DARK_START);
 
@@ -737,7 +740,7 @@ function App() {
       </nav>
 
       <dialog ref={settingsDialog} className="settings-dialog" aria-labelledby="settings-title" onClose={() => setSettingsOpen(false)}>
-        <div className="settings-heading"><h2 id="settings-title">Settings</h2><button className="close" onClick={() => settingsDialog.current?.close()} aria-label="Close settings">×</button></div>
+        <div className="settings-heading"><h2 id="settings-title">Settings</h2></div>
         <section className="settings-section">
           <h3>Google Calendar</h3>
           <p className="settings-status" data-state={connected ? syncStatus.state : "error"}>{googleStatus}</p>
@@ -747,11 +750,14 @@ function App() {
         </section>
         <section className="settings-section">
           <h3>Appearance</h3>
-          <label>Skin <select value={skin} onChange={(event) => setSkin(parseSkin(event.target.value))}>
-            <option value="default">Default</option>
+          <label>Skin <select value={skin} onChange={(event) => {
+            const next = parseSkin(event.target.value);
+            setSkin(next);
+            try { localStorage.setItem("skin", next); } catch {}
+          }}>
+            <option value="default">Modern</option>
             <option value="woodland">Woodland</option>
           </select></label>
-          <p>Applies until this page is reloaded.</p>
         </section>
         <PhotoSettings apiUrl={apiUrl} open={settingsOpen} />
         <ApplicationUpdates apiUrl={apiUrl} open={settingsOpen} />

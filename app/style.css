@@ -114,14 +114,11 @@ html, body, main, .timeline, .two-week-grid, .month-grid, .notes, nav button, .s
 body { margin: 0; min-width: 320px; }
 body::before { content: ""; position: fixed; inset: 0; z-index: -1; background: linear-gradient(var(--bg-tint), var(--bg-tint)), var(--bg-image, none) center / cover no-repeat, var(--bg); }
 button { font: inherit; cursor: pointer; }
-main { height: 100dvh; min-height: 40rem; padding: 1.5rem 2.5rem 7.5rem; display: grid; grid-template-rows: auto minmax(0, 1fr); }
-main > header { width: 100%; display: flex; flex-wrap: wrap; gap: 1rem; }
-main > header > div:first-child { flex: 1 0 auto; }
-
-header { max-width: 1800px; margin: 0 auto 1rem; display: grid; grid-template-columns: 1fr auto auto; gap: 2rem; align-items: center; }
+main { height: 100dvh; min-height: 40rem; padding: 1.5rem 2.5rem 7.5rem; display: grid; grid-template-rows: auto minmax(0, 1fr); overflow-x: auto; }
+header { width: max-content; min-width: 100%; max-width: 1800px; margin: 0 auto 1rem; display: grid; grid-template-columns: minmax(12rem, 1fr) auto auto auto; gap: 1.25rem; align-items: center; }
 .eyebrow { margin: 0; color: var(--text-muted); font-size: .95rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 header > div:first-child { min-width: 0; }
-h1 { margin: .15rem 0 0; font-size: clamp(2.3rem, 3vw, 3.8rem); line-height: 1; white-space: nowrap; }
+h1 { margin: .15rem 0 0; font-size: clamp(2rem, 2.6vw, 3.2rem); line-height: 1; white-space: nowrap; }
 .eyebrow, h1 { text-shadow: var(--title-shadow); }
 .weather { display: flex; align-items: center; gap: 1rem; padding: .6rem 1.1rem; border-radius: var(--glass-radius); box-shadow: var(--shadow-sm); }
 .weather-icon { font-size: 2.5rem; }
@@ -226,12 +223,12 @@ nav .dark { color: var(--on-accent); background: var(--nav-dark-bg); border: 0; 
 .mini-day { min-width: 0; display: grid; grid-template-rows: 2.8rem 1.8rem 1fr; overflow: hidden; background: var(--surface); cursor: pointer; }
 .mini-day:not(:nth-child(7n)) { border-right: 1px solid var(--border); }
 .mini-day:nth-child(-n + 7) { border-bottom: 1px solid var(--border); }
-.mini-day > header { display: flex; flex-direction: row; justify-content: space-between; gap: 0; padding: 0 .75rem; margin: 0; border-bottom: 1px solid var(--border); background: var(--surface-muted); }
+.mini-day > header { display: flex; flex-direction: row; justify-content: space-between; gap: .35rem; padding: 0 .75rem; margin: 0; border-bottom: 1px solid var(--border); background: var(--surface-muted); }
 .mini-day > header span { color: var(--text-muted); font-size: .75rem; font-weight: 800; text-transform: uppercase; }
 .mini-day > header strong { font-size: 1.15rem; }
 .mini-day > header .day-weather { margin-left: auto; }
 .mini-day.today { background: var(--surface-today); z-index: 1; }
-.mini-day.today > header strong { display: grid; place-items: center; width: 1.5rem; height: 1.5rem; border-radius: 50%; color: var(--text); background: var(--accent); }
+.mini-day.today > header strong { display: grid; place-items: center; width: 1.5rem; height: 1.5rem; border-radius: 50%; color: var(--on-accent); background: var(--accent); }
 .mini-all-day { padding: .15rem .25rem; overflow: hidden; border-bottom: 1px solid var(--border); }
 .mini-all-day button { width: 100%; padding: .1rem .3rem; overflow: hidden; border: 0; border-left: .25rem solid var(--tone); border-radius: .25rem; text-align: left; white-space: nowrap; text-overflow: ellipsis; font-size: .65rem; font-weight: 800; background: var(--tone-bg); color: var(--tone-text); }
 .mini-hours { position: relative; background-image: repeating-linear-gradient(to bottom, transparent 0, transparent calc(100% / var(--schedule-hours, 12) - 1px), var(--grid-line) calc(100% / var(--schedule-hours, 12) - 1px), var(--grid-line) calc(100% / var(--schedule-hours, 12))); }
@@ -329,9 +326,8 @@ nav .dark { color: var(--on-accent); background: var(--nav-dark-bg); border: 0; 
 
 .settings-dialog { width: min(42rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; border: 1px solid var(--border); border-radius: 1rem; padding: 1rem; color: var(--text); background: var(--surface); font-size: .82rem; }
 .settings-dialog::backdrop { background: #0009; }
-.settings-heading { position: relative; display: flex; align-items: center; min-height: 2.25rem; padding-right: 2.5rem; }
+.settings-heading { position: relative; display: flex; align-items: center; min-height: 2.25rem; }
 .settings-heading h2 { margin: 0; font-size: 1.35rem; }
-.settings-heading .close { top: 0; right: 0; }
 .settings-section { margin-top: .75rem; padding: .8rem 1rem; border: 1px solid var(--border); border-radius: .7rem; background: color-mix(in srgb, var(--surface) 88%, var(--text) 12%); }
 .settings-section h3 { margin: 0 0 .55rem; font-size: 1rem; }
 .settings-section h4 { margin: .75rem 0 .35rem; color: var(--text-subtle); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; }
@@ -341,6 +337,7 @@ nav .dark { color: var(--on-accent); background: var(--nav-dark-bg); border: 0; 
 .settings-actions { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .65rem; }
 .settings-dialog button { padding: .45rem .7rem; font-size: .8rem; }
 .settings-footer { display: flex; justify-content: flex-end; margin-top: .75rem; }
+.release-notes { white-space: pre-wrap; }
 .settings-status::before { content: ""; display: inline-block; width: .55rem; height: .55rem; margin-right: .4rem; border-radius: 50%; background: var(--error); }
 .settings-status[data-state="idle"]::before, .settings-status[data-state="ok"]::before { background: var(--ok); }
 .settings-status[data-state="syncing"]::before { background: var(--accent); }
@@ -351,11 +348,8 @@ nav .dark { color: var(--on-accent); background: var(--nav-dark-bg); border: 0; 
 .update-progress li[data-state="failed"] { color: var(--error); font-weight: 750; }
 
 @media (max-width: 900px) {
-  main { padding: 1rem; overflow-x: auto; }
-  header { grid-template-columns: 1fr auto; min-width: 700px; }
+  main { padding: 1rem; }
   .weather { gap: .5rem; }
-  nav { grid-column: 1 / 3; }
-  .mode-picker { margin-left: 0; min-width: max-content; }
 }
 
 .date-time { display: grid; gap: .2rem; white-space: nowrap; font-variant-numeric: tabular-nums; }

@@ -2,14 +2,31 @@ import { useEffect, useRef, useState } from "react";
 
 type UpdateStatus = {
   enabled: boolean; busy: boolean; status: string; currentVersion?: string;
-  availableVersion?: string; stagedVersion?: string; message?: string; releaseNotesUrl: string;
+  availableVersion?: string; message?: string; releaseNotes?: { version: string; body: string };
   progress?: { label: string; state: "running" | "complete" | "failed" }[];
 };
+
+function ReleaseNotesDialog({ notes, onClose }: { notes?: { version: string; body: string }; onClose: () => void }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const element = dialog.current!;
+    element.showModal();
+    return () => element.close();
+  }, []);
+  return (
+    <dialog ref={dialog} className="settings-dialog" aria-labelledby="notes-title" onCancel={(event) => { event.preventDefault(); onClose(); }} onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="settings-heading"><h2 id="notes-title">Release notes{notes ? ` — ${notes.version}` : ""}</h2></div>
+      <section className="settings-section"><p className="release-notes">{notes?.body || "No release notes available."}</p></section>
+      <div className="settings-footer"><button onClick={onClose}>Close</button></div>
+    </dialog>
+  );
+}
 
 export function ApplicationUpdates({ apiUrl, open }: { apiUrl: string; open: boolean }) {
   const [status, setStatus] = useState<UpdateStatus>();
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
   const loadedVersion = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!open) return;
@@ -35,25 +52,18 @@ export function ApplicationUpdates({ apiUrl, open }: { apiUrl: string; open: boo
     try {
       const response = await fetch(`${apiUrl}/api/updates/${action}`, { method: "POST",
         headers: { "content-type": "application/json" }, signal: AbortSignal.timeout(8000),
-        body: JSON.stringify({ version: action === "restart" ? status?.stagedVersion : status?.availableVersion }) });
+        body: JSON.stringify({ version: status?.availableVersion }) });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "Update request failed");
       setStatus(body);
-      if (action === "restart") {
-        // A fresh document must load the newly activated frontend, including after rollback.
-        sessionStorage.setItem("calendar-update-reload", "yes");
-      }
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Update request failed"); }
     finally { setPending(false); }
   }
   useEffect(() => {
+    // A fresh document must load the newly activated frontend once installation restarts the app.
     if (status?.currentVersion) {
       if (loadedVersion.current && loadedVersion.current !== status.currentVersion) location.reload();
       loadedVersion.current = status.currentVersion;
-    }
-    if (status && !status.busy && !["activating", "ready"].includes(status.status) && sessionStorage.getItem("calendar-update-reload")) {
-      sessionStorage.removeItem("calendar-update-reload");
-      location.reload();
     }
   }, [status]);
 
@@ -71,11 +81,11 @@ export function ApplicationUpdates({ apiUrl, open }: { apiUrl: string; open: boo
           <span aria-hidden="true">{step.state === "complete" ? "✓" : step.state === "failed" ? "!" : "•"}</span>{step.label}
         </li>)}
       </ol>}
-      <p><a href={status.releaseNotesUrl} target="_blank" rel="noreferrer">Release notes</a></p>
       <div className="settings-actions">
-        {status.stagedVersion ? <button disabled={busy || status.status === "rollback_failed"} onClick={() => void act("restart")}>Restart app — {status.stagedVersion}</button>
-          : status.availableVersion && <button disabled={busy || status.status === "rollback_failed"} onClick={() => void act("install")}>Install {status.availableVersion}</button>}
+        <button onClick={() => setNotesOpen(true)}>Release notes</button>
+        {status.availableVersion && <button disabled={busy || status.status === "rollback_failed"} onClick={() => void act("install")}>Install {status.availableVersion}</button>}
         <button disabled={busy || status.status === "installing"} onClick={() => void act("check")}>Check now</button>
       </div>
+      {notesOpen && <ReleaseNotesDialog notes={status.releaseNotes} onClose={() => setNotesOpen(false)} />}
     </section>;
 }

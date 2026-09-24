@@ -396,20 +396,15 @@ test("Unsplash reserves request slots across restarts and fails closed if storag
   assert.equal(calls, 2);
 });
 
-test("Unsplash queries by topic when selected and falls back to the default query otherwise", async () => {
-  let time = 0;
-  const source = createUnsplash({ statePath: null, accessKey: "key", now: () => time, fetcher: async (value) => {
+test("Unsplash queries by the selected topics, or leaves the topic unrestricted when none are selected", async () => {
+  const source = createUnsplash({ statePath: null, accessKey: "key", fetcher: async (value) => {
     const url = new URL(value);
     assert.equal(url.searchParams.get("topics"), "nature,travel");
-    assert.equal(url.searchParams.get("query"), null);
     return ok([unsplashPhoto("a")]);
   } });
   await source.load(["nature", "travel"]);
-  time = 30 * 60000;
-  await createUnsplash({ statePath: null, accessKey: "key", now: () => time, fetcher: async (value) => {
-    const url = new URL(value);
-    assert.equal(url.searchParams.get("topics"), null);
-    assert.ok(["nature", "travel"].includes(url.searchParams.get("query")));
+  await createUnsplash({ statePath: null, accessKey: "key", fetcher: async (value) => {
+    assert.equal(new URL(value).searchParams.get("topics"), null);
     return ok([unsplashPhoto("b")]);
   } }).load();
 });

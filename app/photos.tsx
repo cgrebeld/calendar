@@ -63,9 +63,9 @@ function TopicsDialog({ apiUrl, onClose }: { apiUrl: string; onClose: () => void
   }, [apiUrl]);
   return (
     <dialog ref={dialog} className="settings-dialog" aria-labelledby="topics-title" onCancel={(event) => { event.preventDefault(); onClose(); }} onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <div className="settings-heading"><h2 id="topics-title">Photo topics</h2><button className="close" onClick={onClose} aria-label="Close photo topics">×</button></div>
+      <div className="settings-heading"><h2 id="topics-title">Photo topics</h2></div>
       <section className="settings-section">
-        <p>Choose which Unsplash topics to mix in. Leave all unchecked for the default nature and travel photos.</p>
+        <p>Choose which Unsplash topics to mix in. Leave all unchecked to mix in photos from any topic.</p>
         {!topics && <p role="status">Loading…</p>}
         {topics?.error && <p role="alert">{topics.error}</p>}
         {topics?.items.map((topic) => (
@@ -128,7 +128,7 @@ export function PhotoSettings({ apiUrl, open }: { apiUrl: string; open: boolean 
         const enabled = event.target.checked;
         try { localStorage.setItem("ambient-photos", String(enabled)); setAmbient(enabled); }
         catch { setError("Unable to save photo preference in this browser."); }
-      }} /> Mix in online nature and travel photos</label>
+      }} /> Mix in online photos</label>
       <p>Fresh Unsplash images, loaded on demand. Requires internet; saved for this display.</p>
       {onlineStatus && !onlineStatus.enabled && <p>Online photos need a free <a href="https://unsplash.com/developers" target="_blank" rel="noreferrer">Unsplash access key</a>. Set UNSPLASH_ACCESS_KEY on the calendar server and restart it.</p>}
       {onlineStatus?.error && <p role="status">{onlineStatus.error}</p>}
@@ -155,8 +155,8 @@ export function PhotoSettings({ apiUrl, open }: { apiUrl: string; open: boolean 
         {status?.enabled && status.connected && <button disabled={busy || importing} onClick={() => void act("pick")}>{status.session ? "Start new selection" : "Choose photos"}</button>}
         {status?.session && !status.session.ready && <button disabled={busy || importing} onClick={() => void act("poll")}>Check selection</button>}
         {status?.session?.ready && <button disabled={busy || importing} onClick={() => void act("import")}>Import selected photos</button>}
-        {!!status?.count && <button disabled={busy || importing} onClick={() => void act("clear")}>Remove local photos</button>}
-        {(status?.connected || importing) && <button disabled={busy} onClick={() => void act("disconnect")}>Reset Photos and remove copies</button>}
+        {!!status?.count && <button disabled={busy || importing} onClick={() => void act("clear")}>Remove imported photos</button>}
+        {(status?.connected || importing) && <button disabled={busy} onClick={() => void act("disconnect")}>Disconnect Google (also removes imported photos)</button>}
       </div>
     </section>;
 }

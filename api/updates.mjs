@@ -3,7 +3,7 @@ import { request as httpRequest } from "node:http";
 export async function updateRequest(request, path, origins, socketPath = process.env.UPDATER_SOCKET) {
   if (!socketPath) return { status: 200, body: { enabled: false } };
   const action = path.slice("/api/updates/".length);
-  if (!((request.method === "GET" && action === "status") || (request.method === "POST" && ["check", "install", "restart"].includes(action)))) {
+  if (!((request.method === "GET" && action === "status") || (request.method === "POST" && ["check", "install"].includes(action)))) {
     return { status: 405, body: { error: "Unsupported update operation" } };
   }
   let payload = "";
