@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { addDays, moveAnchor, swipeDirection, viewDates, viewTitle, type ViewMode } from "./dates";
 import { moonPhaseOn } from "./moon";
-import { agendaColumns, dayDifference, layoutEvents, loadGoogleEvents, orderEvents, type CalendarEvent } from "./google-calendar";
+import { agendaColumns, dayDifference, layoutEvents, loadGoogleAgenda, loadGoogleEvents, orderEvents, upcomingEvents, type AgendaCalendar, type CalendarEvent } from "./google-calendar";
 import { formatHour, hourLabels, hourOf, hourOffset, placeRows, scheduleHours, scheduleRangeFromEnv, timeMarkerOffset, titleLines, type ScheduleRange } from "./schedule";
 import { dateKey, fakeForecast, loadWeather, upcomingHours, weatherChartScale, weatherDescription, weatherGlyph, weatherIcon, windStrength, type DayWeather, type WeatherReport } from "./weather";
 import { backgroundFor, parseSkin, parseThemeMode, parseThemeSchedule, resolveTheme, scheduleFromSolar, type ThemeMode, type ThemeName } from "./theme";
@@ -81,6 +81,7 @@ const noteLists: NoteList[] = [
 ];
 const dayName = new Intl.DateTimeFormat(undefined, { weekday: "short" });
 const longDate = new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric" });
+const agendaDate = new Intl.DateTimeFormat(undefined, { weekday: "short", month: "short", day: "numeric" });
 
 let uiAudioContext: AudioContext | undefined;
 
@@ -149,20 +150,27 @@ function eventsFor(events: CalendarEvent[], date: Date, today: Date) {
   return orderEvents(events.filter((event) => sameDay(date, addDays(today, event.day))));
 }
 
-function WhatsNext({ events, now, onSelect }: { events: CalendarEvent[]; now: Date; onSelect: (event: CalendarEvent) => void }) {
-  const calendars = agendaColumns(events, hourOf(now));
+function AgendaColumn({ calendar, now, onSelect }: { calendar: AgendaCalendar; now: Date; onSelect: (event: CalendarEvent) => void }) {
+  const [capacityRef, capacity] = useRowCapacity("--agenda-row", "--agenda-gap");
+  const items = upcomingEvents(calendar.events, hourOf(now)).slice(0, capacity);
+  const days = [...new Set(items.map((event) => event.day))];
+  return <article className={`agenda-person ${calendar.tone}`}>
+    <h3><span className="agenda-avatar" aria-hidden="true">{calendar.name.slice(0, 1).toUpperCase()}</span>{calendar.name}</h3>
+    <div className="agenda-events" ref={capacityRef}>
+      {items.length ? items.map((event, index) => <button className={`agenda-event ${days.indexOf(event.day) % 2 ? "alternate-day" : ""}`} onClick={() => onSelect(event)} key={`${event.day}-${event.start}-${event.title}-${index}`}>
+        <span className="agenda-when">{event.day === 0 ? "Today" : event.day === 1 ? "Tomorrow" : agendaDate.format(addDays(now, event.day))} · {eventTime(event)}</span>
+        <strong>{eventTitle(event)}</strong>
+        {event.detail && <small>{event.detail}</small>}
+      </button>) : <p className="agenda-empty">A clear trail ahead</p>}
+    </div>
+  </article>;
+}
+
+function WhatsNext({ calendars, now, onSelect }: { calendars: AgendaCalendar[]; now: Date; onSelect: (event: CalendarEvent) => void }) {
   return <section className="whats-next" aria-label="What's next by calendar">
-    <div className="agenda-intro"><p className="eyebrow">The next seven days</p><h2>Everyone’s trail</h2></div>
-    <div className="agenda-grid">{calendars.map(({ id, name, tone, events: items }) => {
-      return <article className={`agenda-person ${tone}`} key={id}>
-        <h3><span className="agenda-avatar" aria-hidden="true">{name.slice(0, 1).toUpperCase()}</span>{name}</h3>
-        {items.length ? items.map((event) => <button className="agenda-event" onClick={() => onSelect(event)} key={`${event.day}-${event.start}-${event.title}`}>
-          <span className="agenda-when">{event.day === 0 ? "Today" : event.day === 1 ? "Tomorrow" : dayName.format(addDays(now, event.day))} · {eventTime(event)}</span>
-          <strong>{eventTitle(event)}</strong>
-          {event.detail && <small>{event.detail}</small>}
-        </button>) : <p className="agenda-empty">A clear trail ahead</p>}
-      </article>;
-    })}</div>
+    <div className="agenda-grid" style={{ "--agenda-columns": Math.max(1, calendars.length) } as React.CSSProperties}>
+      {calendars.map((calendar) => <AgendaColumn calendar={calendar} now={now} onSelect={onSelect} key={calendar.id} />)}
+    </div>
   </section>;
 }
 
@@ -222,7 +230,7 @@ function Timeline({ dates, today, now, events, range, focus, forecast, onSelect,
   );
 }
 
-function useRowCapacity() {
+function useRowCapacity(rowProperty = "--month-row", gapProperty = "--month-gap") {
   const [element, setElement] = useState<HTMLDivElement | null>(null);
   const [capacity, setCapacity] = useState(3);
   useEffect(() => {
@@ -230,15 +238,15 @@ function useRowCapacity() {
     const measure = () => {
       const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
       const styles = getComputedStyle(element);
-      const row = (parseFloat(styles.getPropertyValue("--month-row")) || 1.4) * rem;
-      const gap = (parseFloat(styles.getPropertyValue("--month-gap")) || 0.15) * rem;
+      const row = (parseFloat(styles.getPropertyValue(rowProperty)) || 1.4) * rem;
+      const gap = (parseFloat(styles.getPropertyValue(gapProperty)) || 0.15) * rem;
       setCapacity(Math.max(1, Math.floor((element.clientHeight + gap) / (row + gap))));
     };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(element);
     return () => observer.disconnect();
-  }, [element]);
+  }, [element, rowProperty, gapProperty]);
   return [setElement, capacity] as const;
 }
 
@@ -566,6 +574,7 @@ function App() {
   const [tasksError, setTasksError] = useState<string>();
   const [countdownRefresh, setCountdownRefresh] = useState(0);
   const [calendarEvents, setCalendarEvents] = useState(fakeEvents);
+  const [agendaCalendars, setAgendaCalendars] = useState<AgendaCalendar[]>();
   const [collectionDates, setCollectionDates] = useState<{ date: string; kind: "garbage" | "recycling" }[]>([]);
   const [forecast, setForecast] = useState(() => fakeForecast(new Date()));
   const [weatherNow, setWeatherNow] = useState<WeatherReport>();
@@ -661,9 +670,12 @@ function App() {
     const loadId = ++calendarLoadId.current;
     const range = viewDates(anchor, mode);
     const syncingTimer = window.setTimeout(() => calendarLoadId.current === loadId && setSyncStatus({ state: "syncing" }), 300);
-    loadGoogleEvents(range[0], addDays(range.at(-1)!, 1), new Date(), scheduleRange, force).then((loaded) => {
+    const agenda = agendaOpen && skin === "woodland";
+    const load = agenda ? loadGoogleAgenda(new Date(), scheduleRange, force) : loadGoogleEvents(range[0], addDays(range.at(-1)!, 1), new Date(), scheduleRange, force);
+    load.then((loaded) => {
       if (calendarLoadId.current === loadId) {
-        setCalendarEvents(loaded);
+        if (agenda) setAgendaCalendars(loaded as AgendaCalendar[]);
+        else setCalendarEvents(loaded as CalendarEvent[]);
         setSyncStatus({ state: "ok" });
       }
     }).catch((error: Error) => calendarLoadId.current === loadId && setSyncStatus({ state: "error", message: error.message })).finally(() => window.clearTimeout(syncingTimer));
@@ -676,7 +688,7 @@ function App() {
   useEffect(() => {
     if (!connected) return;
     return loadCalendar();
-  }, [connected, anchor, mode]);
+  }, [connected, anchor, mode, agendaOpen, skin, dayKey]);
 
   const connectGoogle = () => {
     window.location.assign(`${apiUrl}/api/auth/start?returnTo=${encodeURIComponent(location.origin)}`);
@@ -759,7 +771,7 @@ function App() {
 
       <div className={`workspace ${notesOpen ? "" : "notes-hidden"}`}>
         <div className="calendar-pane" onTouchStart={startSwipe} onTouchEnd={finishSwipe} onTouchCancel={() => { swipeStart.current = undefined; }}>
-          {agendaOpen && skin === "woodland" ? <WhatsNext events={displayEvents} now={now} onSelect={setSelected} /> : mode === "month" ? <Month dates={dates} anchor={anchor} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : mode === "twoWeek" ? <TwoWeek dates={dates} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : <Timeline dates={dates} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} focus={mode === "day" ? anchor : undefined} onSelect={setSelected} onOpenDay={setOpenDay} />}
+          {agendaOpen && skin === "woodland" ? <WhatsNext calendars={agendaCalendars ?? (connected ? [] : agendaColumns(fakeEvents, hourOf(now)))} now={now} onSelect={setSelected} /> : mode === "month" ? <Month dates={dates} anchor={anchor} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : mode === "twoWeek" ? <TwoWeek dates={dates} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : <Timeline dates={dates} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} focus={mode === "day" ? anchor : undefined} onSelect={setSelected} onOpenDay={setOpenDay} />}
         </div>
         {notesOpen && <Notes onClose={() => setNotesOpen(false)} onToggle={(listId, taskId, completed) => setTaskLists((lists) => lists.map((list) => list.id === listId ? { ...list, items: list.items.map((task) => task.id === taskId ? { ...task, completed } : task) } : list))} lists={taskLists} error={tasksError} reconnect={connectGoogle} apiUrl={apiUrl} connected={connected} refresh={countdownRefresh} />}
       </div>

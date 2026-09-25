@@ -5,6 +5,39 @@ import { Readable } from "node:stream";
 import { createServer } from "node:http";
 import { once } from "node:events";
 import { mkdtemp, rm } from "node:fs/promises";
+import { agendaCalendars } from "./server.mjs";
+
+test("agenda uses configured calendar order, includes empty calendars and has no date cutoff", async () => {
+  const previous = process.env.AGENDA_CALENDARS;
+  process.env.AGENDA_CALENDARS = " ada, CLIO, chris, vikky, ada ";
+  const queried = [];
+  const load = async (address) => {
+    const url = new URL(address);
+    if (url.pathname.endsWith("calendarList")) return { items: [
+      { id: "holidays", summary: "Holidays in Canada", selected: true },
+      { id: "vikky", summary: "Vikky", selected: true },
+      { id: "ada", summary: "Ada", selected: true },
+      { id: "chris", summary: "Chris", selected: true },
+      { id: "clio", summary: "Clio", selected: false },
+    ] };
+    assert.equal(url.searchParams.has("timeMax"), false);
+    assert.equal(url.searchParams.get("timeMin"), "2026-09-25T07:00:00.000Z");
+    assert.equal(url.searchParams.get("orderBy"), "startTime");
+    const id = url.pathname.split("/").at(-2);
+    queried.push(id);
+    return { items: id === "clio" ? [] : [{ summary: "Future event", start: { date: "2027-03-01" }, end: { date: "2027-03-02" } }] };
+  };
+  try {
+    const calendars = await agendaCalendars("2026-09-25T07:00:00.000Z", true, load);
+    assert.deepEqual(calendars.map(({ summary }) => summary), ["Ada", "Clio", "Chris", "Vikky"]);
+    assert.deepEqual(queried, ["ada", "clio", "chris", "vikky"]);
+    assert.equal(calendars[1].events.length, 0);
+    assert.equal(calendars[0].tone, 2);
+  } finally {
+    if (previous === undefined) delete process.env.AGENDA_CALENDARS;
+    else process.env.AGENDA_CALENDARS = previous;
+  }
+});
 
 test("update proxy forwards only the approved operation through its Unix socket", async () => {
   const directory = await mkdtemp("/tmp/calendar-update-");

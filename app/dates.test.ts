@@ -76,15 +76,17 @@ test("agenda columns use calendar names and keep calendars with the same color o
   ]);
 });
 
-test("upcoming agenda skips finished events and orders the next seven days", () => {
+test("upcoming agenda skips finished events without a date or event-count cutoff", () => {
   const event = (start: number, day: number, title: string): CalendarEvent => ({ day, person: "Alex", tone: "alex", start, duration: 1, title, detail: "" });
   const events = [
     event(8, 0, "past"),
     event(11, 0, "today"),
     event(9, 1, "tomorrow"),
-    event(9, 7, "too late"),
+    event(9, 7, "next week"),
+    event(9, 90, "later"),
   ];
-  assert.deepEqual(upcomingEvents(events, 10).map((event) => event.title), ["today", "tomorrow"]);
+  assert.deepEqual(upcomingEvents(events, 10).map((event) => event.title), ["today", "tomorrow", "next week", "later"]);
+  assert.equal(agendaColumns(events, 10)[0].events.length, 4);
 });
 
 test("pickup events come before other all-day events in crowded views", () => {

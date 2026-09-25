@@ -19,19 +19,21 @@ export function orderEvents(events: CalendarEvent[]) {
 }
 
 export function upcomingEvents(events: CalendarEvent[], nowHour: number) {
-  return events.filter((event) => event.day >= 0 && event.day < 7 && (event.day > 0 || event.allDay || event.start + event.duration > nowHour))
-    .sort((a, b) => a.day - b.day || Number(b.allDay) - Number(a.allDay) || a.start - b.start);
+  return events.filter((event) => event.day >= 0 && (event.day > 0 || event.allDay || event.start + event.duration > nowHour))
+    .sort((a, b) => a.day - b.day || Number(Boolean(b.allDay)) - Number(Boolean(a.allDay)) || a.start - b.start);
 }
 
+export type AgendaCalendar = { id: string; name: string; tone: CalendarEvent["tone"]; events: CalendarEvent[] };
+
 export function agendaColumns(events: CalendarEvent[], nowHour: number) {
-  const calendars = new Map<string, { id: string; name: string; tone: CalendarEvent["tone"]; events: CalendarEvent[] }>();
+  const calendars = new Map<string, AgendaCalendar>();
   for (const event of events) {
     if (event.collection) continue;
     const id = event.calendarId ?? event.person;
     if (!calendars.has(id)) calendars.set(id, { id, name: event.person, tone: event.tone, events: [] });
     calendars.get(id)!.events.push(event);
   }
-  return [...calendars.values()].map((calendar) => ({ ...calendar, events: upcomingEvents(calendar.events, nowHour).slice(0, 3) }));
+  return [...calendars.values()].map((calendar) => ({ ...calendar, events: upcomingEvents(calendar.events, nowHour) }));
 }
 
 export function layoutEvents(events: CalendarEvent[], minimumDuration = 1, range: ScheduleRange = defaultScheduleRange) {
@@ -108,4 +110,18 @@ export async function loadGoogleEvents(from: Date, to: Date, today: Date, range:
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || `Calendar API returned ${response.status}`);
   return (data as { event: GoogleEvent; calendar: Calendar; tone: number }[]).map(({ event, calendar, tone }) => convertGoogleEvent(event, calendar, tones[tone % tones.length], today, range));
+}
+
+export async function loadGoogleAgenda(today: Date, range: ScheduleRange = defaultScheduleRange, force = false): Promise<AgendaCalendar[]> {
+  const start = new Date(today);
+  start.setHours(0, 0, 0, 0);
+  const query = new URLSearchParams({ timeMin: start.toISOString() });
+  if (force) query.set("force", "true");
+  const response = await fetch(`${import.meta.env.VITE_API_URL ?? "http://localhost:3000"}/api/calendar/agenda?${query}`);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || `Calendar API returned ${response.status}`);
+  return (data as (Calendar & { tone: number; events: GoogleEvent[] })[]).map((calendar) => ({
+    id: calendar.id, name: calendar.summary, tone: tones[calendar.tone % tones.length],
+    events: calendar.events.map((event) => convertGoogleEvent(event, calendar, tones[calendar.tone % tones.length], today, range)),
+  }));
 }

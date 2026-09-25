@@ -260,6 +260,24 @@ async function calendarEvents(timeMin, timeMax, force = false) {
   }, 300000, Date.now(), force);
 }
 
+export async function agendaCalendars(timeMin, force = false, load = googleJson) {
+  const names = (process.env.AGENDA_CALENDARS || "").split(",").map((name) => name.trim().toLowerCase()).filter(Boolean);
+  return cached(`agenda:${timeMin}:${names.join(",")}`, async () => {
+    const list = await googleItems("https://www.googleapis.com/calendar/v3/users/me/calendarList", {}, load);
+    const displayed = list.filter((calendar) => calendar.selected || calendar.primary);
+    const calendars = [...displayed, ...list.filter((calendar) => !calendar.selected && !calendar.primary)].map((calendar, tone) => ({ ...calendar, tone }));
+    const selected = names.length
+      ? [...new Set(names)].flatMap((name) => calendars.filter((calendar) => calendar.summary.toLowerCase() === name))
+      : calendars.filter((calendar) => calendar.selected || calendar.primary);
+    return Promise.all(selected.map(async ({ id, summary, tone }) => {
+      // ponytail: 100 cards exceed a kiosk column; paginate if taller displays need more.
+      const query = new URLSearchParams({ timeMin, singleEvents: "true", orderBy: "startTime", maxResults: "100" });
+      const data = await load(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(id)}/events?${query}`);
+      return { id, summary, tone, events: data.items || [] };
+    }));
+  }, 300000, Date.now(), force);
+}
+
 export function countdownEvents(items) {
   const tag = /(^|\s)#countdown(?=\s|$|[.,;:!?])/i;
   return items.filter(({ event, calendar }) => event.status !== "cancelled" && (
@@ -327,6 +345,11 @@ export const server = createServer(async (request, response) => {
     if (url.pathname === "/api/weather") {
       if (!process.env.WEATHER_LATITUDE || !process.env.WEATHER_LONGITUDE) return json(request, response, 503, { error: "Weather location is not configured" });
       return json(request, response, 200, await cachedWithStale("weather", loadWeather, 3600000));
+    }
+    if (request.method === "GET" && url.pathname === "/api/calendar/agenda") {
+      const timeMin = new Date(url.searchParams.get("timeMin") || "");
+      if (!Number.isFinite(timeMin.getTime())) return json(request, response, 400, { error: "Invalid agenda start" });
+      return json(request, response, 200, await agendaCalendars(timeMin.toISOString(), url.searchParams.get("force") === "true"));
     }
     if (url.pathname === "/api/calendar/events" || url.pathname === "/api/calendar/countdowns") {
       const countdowns = url.pathname === "/api/calendar/countdowns";

@@ -12,6 +12,8 @@ Copy `.env.example` to `.env`, then set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SE
 
 Settings → Appearance lets you switch between Default and Woodland for the current page session. Reloading restores the configured skin (`VITE_SKIN` or the `?skin=` URL override).
 
+Woodland’s agenda shows upcoming events in columns that fill the available screen height, with alternating day shades. Set `AGENDA_CALENDARS=ada,clio,chris,vikky` in `.env` (or `/etc/calendar/calendar.env` on the kiosk) to choose calendars and their order by case-insensitive name; other calendars, such as Holidays in Canada, are excluded. Unset uses selected calendars. Restart the API after changing this setting. The agenda fetches the next 100 events per calendar with no date cutoff and keeps empty calendars visible.
+
 Family Notes includes open and completed Google Tasks. Each sync refreshes the checkmarks from Google; on-screen toggles are local and are replaced on the next sync.
 
 Set `VITE_SCHEDULE_START` and `VITE_SCHEDULE_END` to change the visible schedule range; they default to `07:00`–`22:00`. `VITE_THEME_MODE` (`auto`/`light`/`dark`, or `?theme=dark` in the URL) and `VITE_THEME_LIGHT_START`/`VITE_THEME_DARK_START` (default `07:00`/`20:00`) control the dark theme schedule. Set `WEATHER_LATITUDE`/`WEATHER_LONGITUDE` for real Open-Meteo forecasts (`/api/weather`, 1 h cache); `WEATHER_UNITS` and `WEATHER_WIND_UNIT` are optional. The background image rotates daily from `app/public/backgrounds/` (see SOURCES.md); set `VITE_BACKGROUND=none` for a flat color or `VITE_BACKGROUND_LIGHT`/`VITE_BACKGROUND_DARK` to override per theme. `APP_ORIGIN` accepts a comma-separated list of allowed CORS and OAuth return origins.
