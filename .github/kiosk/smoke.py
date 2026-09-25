@@ -60,10 +60,10 @@ with subprocess.Popen(["labwc", "-s", "true"]) as compositor:
             browser.get("http://calendar-web/")
             wait.until(lambda driver: driver.find_element(By.TAG_NAME, "h1").text)
             for label, layout in (("Month", ".month-grid"), ("2 weeks", ".two-week-grid"), ("Week", ".timeline"), ("Day", ".timeline")):
-                browser.find_element(By.XPATH, f'//div[@aria-label="Calendar view"]/button[text()="{label}"]').click()
-                wait.until(lambda driver: driver.find_element(By.CSS_SELECTOR, ".mode-picker .active").text == label)
+                browser.find_element(By.XPATH, f'//div[@aria-label="Calendar view"]/button[@aria-label="{label}"]').click()
+                wait.until(lambda driver: driver.find_element(By.CSS_SELECTOR, ".mode-picker .active").get_attribute("aria-label") == label)
                 wait.until(lambda driver: driver.find_element(By.CSS_SELECTOR, layout).is_displayed())
-            browser.find_element(By.XPATH, '//div[@aria-label="Calendar view"]/button[text()="Month"]').click()
+            browser.find_element(By.XPATH, '//div[@aria-label="Calendar view"]/button[@aria-label="Month"]').click()
             for direction in (None, "Next", "Next", "Previous"):
                 if direction:
                     first = browser.find_element(By.CSS_SELECTOR, ".month-day").get_attribute("aria-label")
