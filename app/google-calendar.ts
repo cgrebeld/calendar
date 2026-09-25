@@ -17,6 +17,11 @@ export function orderEvents(events: CalendarEvent[]) {
   return [...events].sort((left, right) => Number(Boolean(right.collection)) - Number(Boolean(left.collection)) || Number(Boolean(right.allDay)) - Number(Boolean(left.allDay)) || left.start - right.start);
 }
 
+export function upcomingEvents(events: CalendarEvent[], nowHour: number) {
+  return events.filter((event) => event.day >= 0 && event.day < 7 && (event.day > 0 || event.allDay || event.start + event.duration > nowHour))
+    .sort((a, b) => a.day - b.day || Number(b.allDay) - Number(a.allDay) || a.start - b.start);
+}
+
 export function layoutEvents(events: CalendarEvent[], minimumDuration = 1, range: ScheduleRange = defaultScheduleRange) {
   const sorted = [...events].sort((left, right) => left.start - right.start || right.duration - left.duration || left.title.localeCompare(right.title));
   const place = (heightLimit = Infinity) => {

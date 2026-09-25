@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { addDays, moveAnchor, swipeDirection, viewDates, viewTitle, type ViewMode } from "./dates";
 import { moonPhaseOn } from "./moon";
-import { dayDifference, layoutEvents, loadGoogleEvents, orderEvents, type CalendarEvent } from "./google-calendar";
+import { dayDifference, layoutEvents, loadGoogleEvents, orderEvents, upcomingEvents, type CalendarEvent } from "./google-calendar";
 import { formatHour, hourLabels, hourOf, hourOffset, placeRows, scheduleHours, scheduleRangeFromEnv, timeMarkerOffset, titleLines, type ScheduleRange } from "./schedule";
 import { dateKey, fakeForecast, loadWeather, upcomingHours, weatherChartScale, weatherDescription, weatherGlyph, weatherIcon, windStrength, type DayWeather, type WeatherReport } from "./weather";
 import { backgroundFor, parseSkin, parseThemeMode, parseThemeSchedule, resolveTheme, scheduleFromSolar, type ThemeMode, type ThemeName } from "./theme";
@@ -130,6 +130,25 @@ function eventTitle(event: CalendarEvent) {
 
 function eventsFor(events: CalendarEvent[], date: Date, today: Date) {
   return orderEvents(events.filter((event) => sameDay(date, addDays(today, event.day))));
+}
+
+function WhatsNext({ events, now, onSelect }: { events: CalendarEvent[]; now: Date; onSelect: (event: CalendarEvent) => void }) {
+  const people: CalendarEvent["tone"][] = ["alex", "sam", "maya", "family"];
+  const upcoming = upcomingEvents(events, hourOf(now));
+  return <section className="whats-next" aria-label="What's next by person">
+    <div className="agenda-intro"><p className="eyebrow">The next seven days</p><h2>Everyone’s trail</h2></div>
+    <div className="agenda-grid">{people.map((tone) => {
+      const items = upcoming.filter((event) => event.tone === tone).slice(0, 3);
+      return <article className={`agenda-person ${tone}`} key={tone}>
+        <h3><span className="agenda-avatar" aria-hidden="true">{tone === "family" ? "⌂" : tone[0].toUpperCase()}</span>{tone === "family" ? "Family" : tone[0].toUpperCase() + tone.slice(1)}</h3>
+        {items.length ? items.map((event) => <button className="agenda-event" onClick={() => onSelect(event)} key={`${event.day}-${event.start}-${event.title}`}>
+          <span className="agenda-when">{event.day === 0 ? "Today" : event.day === 1 ? "Tomorrow" : dayName.format(addDays(now, event.day))} · {eventTime(event)}</span>
+          <strong>{eventTitle(event)}</strong>
+          {event.detail && <small>{event.detail}</small>}
+        </button>) : <p className="agenda-empty">A clear trail ahead</p>}
+      </article>;
+    })}</div>
+  </section>;
 }
 
 function DayWeatherBadge({ date, day, compact }: { date: Date; day?: DayWeather; compact?: boolean }) {
@@ -520,6 +539,7 @@ function App() {
   const [skin, setSkin] = useState(initialSkin);
   useEffect(() => { document.documentElement.dataset.skin = skin; }, [skin]);
   const [mode, setMode] = useState<ViewMode>("week");
+  const [agendaOpen, setAgendaOpen] = useState(false);
   const [anchor, setAnchor] = useState(() => new Date());
   const [selected, setSelected] = useState<CalendarEvent>();
   const [openDay, setOpenDay] = useState<Date>();
@@ -679,6 +699,7 @@ function App() {
     const direction = swipeDirection(event.changedTouches[0].clientX - start[0], event.changedTouches[0].clientY - start[1]);
     if (!direction) return;
     event.preventDefault();
+    setAgendaOpen(false);
     setAnchor((date) => moveAnchor(date, mode, direction));
   };
 
@@ -695,9 +716,10 @@ function App() {
   return (
     <main>
       <header>
-        <div><p className="eyebrow">Family calendar</p><h1>{title}</h1></div>
+        <div><p className="eyebrow">Family calendar</p><h1>{agendaOpen && skin === "woodland" ? "What’s next" : title}</h1></div>
         <div className="mode-picker" role="group" aria-label="Calendar view">
-          {modes.map((item) => <button className={mode === item.id ? "active" : ""} onClick={() => setMode(item.id)} key={item.id}>{item.label}</button>)}
+          {modes.map((item) => <button className={!agendaOpen && mode === item.id ? "active" : ""} onClick={() => { setAgendaOpen(false); setMode(item.id); }} key={item.id}>{item.label}</button>)}
+          {skin === "woodland" && <button className={agendaOpen ? "active" : ""} onClick={() => setAgendaOpen(true)}>What’s next</button>}
         </div>
         <button className="weather" aria-label="Open weather details" aria-haspopup="dialog" onClick={() => setWeatherOpen(true)}>
           <DateTime now={now} />
@@ -707,9 +729,9 @@ function App() {
           <span className="weather-stat"><small>Wind</small><strong>{Math.round(weatherNow?.current.windSpeed ?? forecast.get(dateKey(today))?.windMax ?? 13)} <em>{weatherNow?.units.windSpeed ?? "kt"}</em></strong></span>
         </button>
         <nav aria-label="Calendar navigation">
-          <button onClick={() => setAnchor((date) => moveAnchor(date, mode, -1))} aria-label="Previous" data-sound="boop">‹</button>
-          <button className="word-button" onClick={() => setAnchor(new Date())}>Today</button>
-          <button onClick={() => setAnchor((date) => moveAnchor(date, mode, 1))} aria-label="Next">›</button>
+          <button onClick={() => { setAgendaOpen(false); setAnchor((date) => moveAnchor(date, mode, -1)); }} aria-label="Previous" data-sound="boop">‹</button>
+          <button className="word-button" onClick={() => { setAgendaOpen(false); setAnchor(new Date()); }}>Today</button>
+          <button onClick={() => { setAgendaOpen(false); setAnchor((date) => moveAnchor(date, mode, 1)); }} aria-label="Next">›</button>
           <button className="icon-button dark" aria-label="Photos" title="Photos" onClick={() => setIdle(true)}><PhotoIcon /></button>
           {!notesOpen && <button className="icon-button" aria-label="Notes" title="Notes" onClick={() => setNotesOpen(true)}>
             <svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
@@ -722,7 +744,7 @@ function App() {
 
       <div className={`workspace ${notesOpen ? "" : "notes-hidden"}`}>
         <div className="calendar-pane" onTouchStart={startSwipe} onTouchEnd={finishSwipe} onTouchCancel={() => { swipeStart.current = undefined; }}>
-          {mode === "month" ? <Month dates={dates} anchor={anchor} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : mode === "twoWeek" ? <TwoWeek dates={dates} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : <Timeline dates={dates} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} focus={mode === "day" ? anchor : undefined} onSelect={setSelected} onOpenDay={setOpenDay} />}
+          {agendaOpen && skin === "woodland" ? <WhatsNext events={displayEvents} now={now} onSelect={setSelected} /> : mode === "month" ? <Month dates={dates} anchor={anchor} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : mode === "twoWeek" ? <TwoWeek dates={dates} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : <Timeline dates={dates} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} focus={mode === "day" ? anchor : undefined} onSelect={setSelected} onOpenDay={setOpenDay} />}
         </div>
         {notesOpen && <Notes onClose={() => setNotesOpen(false)} onToggle={(listId, taskId, completed) => setTaskLists((lists) => lists.map((list) => list.id === listId ? { ...list, items: list.items.map((task) => task.id === taskId ? { ...task, completed } : task) } : list))} lists={taskLists} error={tasksError} reconnect={connectGoogle} apiUrl={apiUrl} connected={connected} refresh={countdownRefresh} />}
       </div>

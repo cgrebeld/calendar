@@ -57,7 +57,18 @@ import { countdownItems, countdownRange } from "./countdowns.ts";
 import { execFileSync } from "node:child_process";
 import { moonPhaseInstant, moonPhaseOn, type MoonPhase } from "./moon.ts";
 import { addDays, moveAnchor, swipeDirection, viewDates, viewTitle } from "./dates.ts";
-import { convertGoogleEvent, layoutEvents, orderEvents, type CalendarEvent } from "./google-calendar.ts";
+import { convertGoogleEvent, layoutEvents, orderEvents, upcomingEvents, type CalendarEvent } from "./google-calendar.ts";
+
+test("upcoming agenda skips finished events and orders the next seven days", () => {
+  const event = (start: number, day: number, title: string): CalendarEvent => ({ day, person: "Alex", tone: "alex", start, duration: 1, title, detail: "" });
+  const events = [
+    event(8, 0, "past"),
+    event(11, 0, "today"),
+    event(9, 1, "tomorrow"),
+    event(9, 7, "too late"),
+  ];
+  assert.deepEqual(upcomingEvents(events, 10).map((event) => event.title), ["today", "tomorrow"]);
+});
 
 test("pickup events come before other all-day events in crowded views", () => {
   const regular: CalendarEvent = { day: 0, person: "Family", tone: "family", start: 7, duration: 1, title: "Trip", detail: "", allDay: true };
