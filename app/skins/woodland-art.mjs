@@ -132,7 +132,7 @@ function flip(c, horizontal, vertical) {
 }
 
 function skyLayers(night) {
-  const clouds = canvas(480, 270);
+  const clouds = canvas(960, 540);
   const stars = night && Array.from({ length: 3 }, () => canvas(480, 270));
   const random = rng(2);
   if (night) for (let i = 0; i < 70; i++) {
@@ -144,17 +144,20 @@ function skyLayers(night) {
       stars[i % 3].rect(x, y - 1, 1, 3, color);
     }
   }
-  const body = hex(night ? "#566488" : "#fff1ce");
-  const shade = hex(night ? "#3b476b" : "#cddbe0");
-  const highlight = hex(night ? "#7182a0" : "#fff8e4");
-  const silhouette = [[0, 8], [3, 8], [3, 5], [7, 5], [7, 2], [11, 2], [11, 0], [15, 0], [15, 3], [18, 3], [18, 5], [23, 5], [23, 7], [28, 7], [28, 10], [25, 10], [25, 12], [6, 12], [6, 11], [0, 11]];
-  for (const [x, y] of [[4, 9], [147, 16], [202, 10], [310, 14], [386, 8], [449, 18]]) {
-    clouds.poly(silhouette.map(([dx, dy]) => [x + dx, y + dy]), body);
-    clouds.rect(x + 6, y + 11, 19, 1, shade);
-    clouds.rect(x + 19, y + 9, 9, 1, shade);
-    clouds.rect(x + 7, y + 4, 8, 2, highlight);
-    clouds.rect(x + 11, y + 1, 4, 3, highlight);
-    clouds.rect(x + 2, y + 8, 6, 1, highlight);
+  const colors = (night
+    ? ["#8999b5", "#7284a3", "#596e91", "#425879"]
+    : ["#fff9e8", "#f6edda", "#d5dce0", "#aebfce"]).map(hex);
+  // Overlapping rounded puffs, with broad cool undersides and fine pixel steps.
+  for (const [x, y, stretch] of [[4, 9, 1], [147, 16, 1.15], [202, 10, 0.9], [310, 14, 1.1], [386, 8, 1], [449, 18, 0.85]]) {
+    const puffs = [[15, 18, 14, 7], [36, 18, 18, 8], [49, 16, 10, 7], [12, 13, 9, 8], [37, 11, 12, 10], [24, 10, 12, 11]];
+    for (const [cx, cy, rx, ry] of puffs) {
+      for (let dy = -ry; dy <= ry; dy++) for (let dx = Math.ceil(-rx * stretch); dx <= rx * stretch; dx++) {
+        if ((dx / (rx * stretch)) ** 2 + (dy / ry) ** 2 > 1) continue;
+        const light = dy / ry + dx / (rx * stretch) * 0.2;
+        const color = colors[light > 0.65 ? 3 : light > 0.25 ? 2 : light > -0.35 ? 1 : 0];
+        clouds.px(x * 2 + cx * stretch + dx, y * 2 + cy + dy, color);
+      }
+    }
   }
   return { stars, clouds };
 }
