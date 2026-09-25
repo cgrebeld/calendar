@@ -1,4 +1,4 @@
-.dog-companion { position: fixed; right: 0; bottom: 0; max-width: min(40rem, 100%); display: flex; align-items: flex-start; justify-content: flex-end; gap: .75rem; pointer-events: none; }
+.dog-companion { position: fixed; z-index: 10; right: 0; bottom: 0; max-width: min(40rem, 100%); display: flex; align-items: flex-start; justify-content: flex-end; gap: .75rem; pointer-events: none; }
 .dog-companion > * { pointer-events: auto; }
 .companion-dog { width: 9rem; margin-top: -3rem; padding: 0; border: 0; background: none; flex: none; cursor: pointer; }
 .companion-dog img { display: block; width: 100%; height: auto; image-rendering: pixelated; }
