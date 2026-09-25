@@ -38,9 +38,6 @@
   --bevel-lo: rgb(0 0 0 / .15);
   --scene: url("/skins/woodland/day.png");
   --scene-clouds: url("/skins/woodland/day-clouds.png");
-  --scene-reflections: url("/skins/woodland/day-reflections.png");
-  --scene-reflections1: url("/skins/woodland/day-reflections1.png");
-  --scene-reflections2: url("/skins/woodland/day-reflections2.png");
   --frame-image: url("/skins/woodland/frame.png");
   --wood-image: url("/skins/woodland/wood.png");
   --paper-wash: rgb(250 238 206 / .92);
@@ -86,9 +83,6 @@
   --bevel-lo: rgb(0 0 0 / .35);
   --scene: url("/skins/woodland/night.png");
   --scene-clouds: url("/skins/woodland/night-clouds.png");
-  --scene-reflections: url("/skins/woodland/night-reflections.png");
-  --scene-reflections1: url("/skins/woodland/night-reflections1.png");
-  --scene-reflections2: url("/skins/woodland/night-reflections2.png");
   --frame-image: url("/skins/woodland/frame-night.png");
   --wood-image: url("/skins/woodland/wood-night.png");
   --paper-wash: rgb(51 43 30 / .94);
@@ -138,12 +132,8 @@
 [data-skin="woodland"][data-theme="dark"] .woodland-animation i:nth-child(1)::before { background-image: url("/skins/woodland/night-stars1.png"); animation: woodland-stars 4s -1s steps(4) infinite alternate; }
 [data-skin="woodland"][data-theme="dark"] .woodland-animation i:nth-child(1)::after { background-image: url("/skins/woodland/night-stars2.png"); animation: woodland-stars 4s -3s steps(4) infinite alternate; }
 [data-skin="woodland"] .woodland-animation i:nth-child(2) { background-image: var(--scene-clouds); background-size: max(100vw, 177.78vh) auto; background-repeat: repeat-x; animation: woodland-clouds 1600s steps(1600) infinite; }
-[data-skin="woodland"] .woodland-animation i:nth-child(3) { background-image: var(--scene-reflections); animation: woodland-reflections 12s steps(12) infinite; }
-[data-skin="woodland"] .woodland-animation i:nth-child(3)::before { background-image: var(--scene-reflections1); animation: woodland-reflections 12s -1s steps(12) infinite; }
-[data-skin="woodland"] .woodland-animation i:nth-child(3)::after { background-image: var(--scene-reflections2); animation: woodland-reflections 12s -3s steps(12) infinite; }
 @keyframes woodland-stars { to { opacity: .45; } }
 @keyframes woodland-clouds { to { background-position-x: calc(50% + max(100vw, 177.78vh)); } }
-@keyframes woodland-reflections { 50% { transform: translateX(4px); } }
 @media (prefers-reduced-motion: reduce) { :root[data-skin="woodland"] .woodland-animation i, :root[data-skin="woodland"] .woodland-animation i::before, :root[data-skin="woodland"] .woodland-animation i::after { animation: none; } }
 
 [data-skin="woodland"] :is(main > header > div:first-child, .mode-picker, .timeline, .two-week-grid, .month-grid, .whats-next, .notes, .weather, .day-modal, .event-detail) {
