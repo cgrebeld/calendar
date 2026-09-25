@@ -142,13 +142,17 @@ class Updater:
         if len(raw) > 16384:
             raise ValueError("Release manifest too large")
         self.advance_progress("Validating release manifest")
-        candidate = validate_manifest(json.loads(raw), self.repository)
+        release = json.loads(raw)
         active = self.state.get("active")
-        available = candidate if active and version(candidate["version"]) > version(active["version"]) else None
+        if active and version(release.get("version")) <= version(active["version"]):
+            available = None  # Older releases may use a previous manifest format.
+        else:
+            candidate = validate_manifest(release, self.repository)
+            available = candidate if active else None
         notes = self.fetch_notes() if available else self.state.get("notes")
         self.finish_progress("Check complete")
         self.save(status="idle", available=available, notes=notes, lastChecked=time.time(),
-                  message=f'Version {candidate["version"]} is available.' if available else "No new release available.")
+                  message=f'Version {available["version"]} is available.' if available else "No new release available.")
 
     def release_env(self, manifest):
         target = self.directory / "release.env"

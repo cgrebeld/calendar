@@ -121,10 +121,14 @@ class UpdateTest(unittest.TestCase):
                 self.assertEqual(updater.state["progress"][-1], {"label": "Check complete", "state": "complete"})
                 self.assertEqual(updater.state["notes"], {"version": "1.0.2", "body": "What's new in 1.0.2"})
                 response.return_value.__enter__.return_value.read.side_effect = None
-                response.return_value.__enter__.return_value.read.return_value = json.dumps(manifest(1)).encode()
+                response.return_value.__enter__.return_value.read.return_value = json.dumps(manifest(1) | {"minimumUpdaterVersion": 1}).encode()
                 updater.check()
                 self.assertIsNone(updater.state["available"])
+                self.assertEqual(updater.state["status"], "idle")
                 self.assertEqual(updater.state["notes"], {"version": "1.0.2", "body": "What's new in 1.0.2"})
+                response.return_value.__enter__.return_value.read.return_value = json.dumps(manifest(3) | {"minimumUpdaterVersion": 1}).encode()
+                with self.assertRaises(ValueError):
+                    updater.check()
             updater.busy = True
             with self.assertRaises(ValueError):
                 updater.dispatch("check")
