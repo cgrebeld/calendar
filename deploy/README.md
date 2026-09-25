@@ -41,7 +41,9 @@ Debian kernel, systemd boot, Intel GPU, physical touch or monitor power behavior
 Publishing is opt-in: push a stable tag such as `v1.0.0` on a reviewed commit.
 The workflow publishes `ghcr.io/cgrebeld/calendar-web:1.0.0` and
 `ghcr.io/cgrebeld/calendar-api:1.0.0`, then creates the GitHub release with a
-`release.json` asset containing their immutable digests. Use a new version for
+`release.json` asset containing their immutable digests and the SHA-256 digest
+of `host-files.tar`. The archive contains the Compose file, updater, systemd
+unit, and kiosk support scripts. Use a new version for
 every release; do not move tags or replace published releases.
 
 The repository is public. After the first publish, make **both GHCR packages
@@ -114,7 +116,7 @@ Create the dedicated account (skip `adduser` if `kiosk` already exists):
 sudo adduser --disabled-password --gecos "" kiosk
 sudo install -d -o kiosk -g kiosk /home/kiosk/.config
 sudo install -d -o kiosk -g kiosk /home/kiosk/.config/labwc
-sudo install -o kiosk -g kiosk -m 755 deploy/kiosk-autostart /home/kiosk/.config/labwc/autostart
+sudo install -o kiosk -g kiosk -m 755 /opt/calendar/kiosk-autostart /home/kiosk/.config/labwc/autostart
 sudo chown -R kiosk:kiosk /home/kiosk/.config
 ```
 
@@ -165,8 +167,7 @@ working. It does not change the web app's cursor on other computers.
 Copy the helper somewhere the kiosk account can read, then run it **as kiosk**:
 
 ```sh
-sudo install -m 644 deploy/hide-cursor.py /var/tmp/calendar-hide-cursor.py
-sudo -H -u kiosk python3 /var/tmp/calendar-hide-cursor.py
+sudo -H -u kiosk python3 /opt/calendar/hide-cursor.py
 sudo reboot
 ```
 
@@ -183,7 +184,7 @@ The setup helper installs the audio service and selects the connected HDMI outpu
 With the kiosk session running and the monitor awake:
 
 ```sh
-sudo bash deploy/setup-audio.sh
+sudo bash /opt/calendar/setup-audio.sh
 ```
 
 [setup-audio.sh](setup-audio.sh) installs Debian's `pipewire-audio`,
@@ -271,11 +272,24 @@ sudo docker compose --project-name calendar-wall \
   -f /opt/calendar/compose.yaml up -d --wait --pull never
 ```
 
-The updater/Compose host files are deliberately not self-updating. Releases with
-`minimumUpdaterVersion` other than `1` are rejected. A future host-interface change
-needs an administrator to update `/opt/calendar` and the systemd unit from reviewed
-source first. Release code must keep persistent token data backward-compatible so
-image rollback remains safe.
+The updater installs the release's digest-checked host files after image smoke
+tests, then restarts the app and the updater service. Activation failure restores
+the previous host files and images. Kiosk autostart is copied into the kiosk
+account when present; its running session still needs a reboot to use changes.
+When the cursor theme is installed, the updater regenerates it as `kiosk`;
+its running session still needs a reboot to use changes. Audio setup is a hardware-dependent task;
+rerun `/opt/calendar/setup-audio.sh` only when needed.
+
+Existing installations with the v1 updater need a one-time bootstrap from a
+reviewed checkout before installing a release with `minimumUpdaterVersion: 2`:
+
+```sh
+sudo install -m 755 deploy/updater.py /opt/calendar/updater.py
+sudo systemctl restart calendar-updater.service
+```
+
+Release code must keep persistent token data backward-compatible so image
+rollback remains safe.
 
 Routine target smoke tests remain minimal: briefly start each candidate image
 in isolation, check its health, then check the web/API version on activation.

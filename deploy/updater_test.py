@@ -1,18 +1,52 @@
+import hashlib
+import io
 import json
 from pathlib import Path
+import tarfile
 import tempfile
 import unittest
 from unittest.mock import patch
-from updater import Updater, validate_manifest, version
+from updater import HOST_FILES, Updater, validate_manifest, version
 
 
 def manifest(number):
-    return dict(schemaVersion=1, platform="linux/amd64", minimumUpdaterVersion=1, version=f"1.0.{number}",
+    return dict(schemaVersion=1, platform="linux/amd64", minimumUpdaterVersion=2, version=f"1.0.{number}",
+                hostFilesSha256="a" * 64,
                 webImage=f"ghcr.io/cgrebeld/calendar-web@sha256:{number:064x}",
                 apiImage=f"ghcr.io/cgrebeld/calendar-api@sha256:{number:064x}")
 
 
 class UpdateTest(unittest.TestCase):
+    def test_host_files_are_verified_and_restored(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            contents = {name: f"new {name}".encode() for name in HOST_FILES}
+            stream = io.BytesIO()
+            with tarfile.open(fileobj=stream, mode="w") as archive:
+                for name, data in contents.items():
+                    info = tarfile.TarInfo(name)
+                    info.size = len(data)
+                    archive.addfile(info, io.BytesIO(data))
+            updater = Updater("cgrebeld/calendar", root, "compose", "env", lambda *args: "")
+            candidate = manifest(2) | {"hostFilesSha256": hashlib.sha256(stream.getvalue()).hexdigest()}
+            with patch("updater.urlopen") as response:
+                response.return_value.__enter__.return_value.read.return_value = stream.getvalue()
+                self.assertEqual(updater.host_files(candidate), contents)
+                with self.assertRaises(ValueError):
+                    updater.host_files(candidate | {"hostFilesSha256": "0" * 64})
+            paths = {name: root / name for name in HOST_FILES}
+            for path in paths.values():
+                path.write_bytes(b"old")
+            backup = root / "backup"
+            backup.mkdir()
+            for name, path in paths.items():
+                (backup / name).write_bytes(path.read_bytes())
+            with patch("updater.HOST_PATHS", paths), patch("updater.KIOSK_AUTOSTART", root / "absent"):
+                updater.replace_host_files(contents)
+                self.assertEqual(paths["compose.yaml"].read_bytes(), contents["compose.yaml"])
+                updater.restore_host_files(backup)
+                self.assertEqual(paths["compose.yaml"].read_bytes(), b"old")
+
     def test_lifecycle_and_failures(self):
         with tempfile.TemporaryDirectory() as directory:
             commands = []
@@ -21,6 +55,9 @@ class UpdateTest(unittest.TestCase):
                 return ""
             updater = Updater("cgrebeld/calendar", directory, "compose.yaml", "calendar.env", run)
             updater.smoke = lambda candidate: None
+            updater.host_files = lambda candidate: {name: b"new" for name in HOST_FILES}
+            updater.replace_host_files = lambda files: None
+            updater.restart_service = lambda: None
             launched = []
             updater.launch = lambda candidate: launched.append(candidate["version"])
             for number in (1, 2, 3):
@@ -65,7 +102,7 @@ class UpdateTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 version(invalid)
         self.assertGreater(version("1.10.0"), version("1.9.0"))
-        for changed in ({"webImage": "ghcr.io/evil/web:latest"}, {"platform": "linux/arm64"}, {"minimumUpdaterVersion": 2}):
+        for changed in ({"webImage": "ghcr.io/evil/web:latest"}, {"platform": "linux/arm64"}, {"minimumUpdaterVersion": 3}):
             with self.assertRaises(ValueError):
                 validate_manifest(manifest(1) | changed, "cgrebeld/calendar")
         with tempfile.TemporaryDirectory() as directory:
@@ -104,6 +141,9 @@ class UpdateTest(unittest.TestCase):
             updater = Updater("cgrebeld/calendar", directory, "compose.yaml", "calendar.env", lambda *a, **k: "")
             updater.save(active=manifest(1))
             updater.smoke = lambda candidate: None
+            updater.host_files = lambda candidate: {name: b"new" for name in HOST_FILES}
+            updater.replace_host_files = lambda files: None
+            updater.restart_service = lambda: None
             installed = []
             updater.launch = lambda candidate: installed.append(candidate["version"])
             with patch("updater.urlopen") as response:

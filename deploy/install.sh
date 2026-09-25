@@ -11,6 +11,9 @@ install -d -m 0755 /opt/calendar /etc/calendar /run/calendar-updater
 install -m 0600 "$1" /etc/calendar/calendar.env
 install -m 0644 "$source_dir/compose.yaml" /opt/calendar/compose.yaml
 install -m 0755 "$source_dir/updater.py" /opt/calendar/updater.py
+install -m 0755 "$source_dir/kiosk-autostart" /opt/calendar/kiosk-autostart
+install -m 0755 "$source_dir/hide-cursor.py" /opt/calendar/hide-cursor.py
+install -m 0755 "$source_dir/setup-audio.sh" /opt/calendar/setup-audio.sh
 install -m 0644 "$source_dir/calendar-updater.service" /etc/systemd/system/calendar-updater.service
 python3 /opt/calendar/updater.py --initialize "$(realpath -- "$2")"
 systemctl daemon-reload

@@ -1,18 +1,27 @@
 #!/usr/bin/env python3
 """Debian host updater. Only this root-owned service has access to Docker."""
 import argparse
+import hashlib
+import io
 import json
 import os
 from pathlib import Path
 import re
+import shutil
 import socketserver
 import subprocess
+import tarfile
 import threading
 import time
 from http.server import BaseHTTPRequestHandler
 from urllib.request import Request, urlopen
 
 VERSION = re.compile(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\Z")
+HOST_FILES = ("compose.yaml", "updater.py", "calendar-updater.service", "kiosk-autostart", "hide-cursor.py", "setup-audio.sh")
+HOST_PATHS = {name: Path("/opt/calendar") / name for name in HOST_FILES}
+HOST_PATHS["calendar-updater.service"] = Path("/etc/systemd/system/calendar-updater.service")
+KIOSK_AUTOSTART = Path("/home/kiosk/.config/labwc/autostart")
+CURSOR_ENV = Path("/home/kiosk/.config/labwc/environment.d/99-calendar-cursor.env")
 
 
 def version(value):
@@ -22,15 +31,17 @@ def version(value):
 
 
 def validate_manifest(data, repository):
-    if not isinstance(data, dict) or data.get("schemaVersion") != 1 or data.get("platform") != "linux/amd64" or data.get("minimumUpdaterVersion") != 1:
+    if not isinstance(data, dict) or data.get("schemaVersion") != 1 or data.get("platform") != "linux/amd64" or data.get("minimumUpdaterVersion") != 2:
         raise ValueError("Unsupported release manifest")
     version(data.get("version"))
+    if not isinstance(data.get("hostFilesSha256"), str) or not re.fullmatch(r"[a-f0-9]{64}", data["hostFilesSha256"]):
+        raise ValueError("Invalid host files digest")
     for component in ("web", "api"):
         prefix = f"ghcr.io/{repository}-{component}@sha256:"
         image = data.get(f"{component}Image", "")
         if not isinstance(image, str) or not re.fullmatch(re.escape(prefix) + r"[a-f0-9]{64}", image):
             raise ValueError("Release image is not a pinned digest in the configured repository")
-    return {key: data[key] for key in ("schemaVersion", "platform", "minimumUpdaterVersion", "version", "webImage", "apiImage")}
+    return {key: data[key] for key in ("schemaVersion", "platform", "minimumUpdaterVersion", "version", "webImage", "apiImage", "hostFilesSha256")}
 
 
 def atomic_json(path, value):
@@ -150,7 +161,6 @@ class Updater:
                 print(f"Auto-install: {error}", flush=True)
 
     def release_env(self, manifest):
-        manifest = validate_manifest(manifest, self.repository)
         target = self.directory / "release.env"
         temporary = target.with_suffix(".tmp")
         with temporary.open("w") as output:
@@ -197,12 +207,43 @@ class Updater:
             if component == "web":
                 self.advance_progress("Verifying API image")
 
+    def host_files(self, manifest):
+        url = f'https://github.com/{self.repository}/releases/download/v{manifest["version"]}/host-files.tar'
+        with urlopen(Request(url, headers={"User-Agent": "calendar-updater/2"}), timeout=30) as response:
+            archive = response.read(1048577)
+        if len(archive) > 1048576 or hashlib.sha256(archive).hexdigest() != manifest["hostFilesSha256"]:
+            raise ValueError("Host files archive failed validation")
+        with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
+            members = tar.getmembers()
+            if {m.name for m in members} != set(HOST_FILES) or len(members) != len(HOST_FILES) or any(not m.isfile() or m.size > 262144 for m in members):
+                raise ValueError("Unexpected host files archive contents")
+            return {m.name: tar.extractfile(m).read() for m in members}
+
+    def replace_host_files(self, files):
+        for name, data in files.items():
+            target = HOST_PATHS[name]
+            target.parent.mkdir(parents=True, exist_ok=True)
+            temporary = target.with_name(target.name + ".tmp")
+            temporary.write_bytes(data)
+            temporary.chmod(0o755 if name.endswith((".py", ".sh")) or name == "kiosk-autostart" else 0o644)
+            os.replace(temporary, target)
+        if "kiosk-autostart" in files and KIOSK_AUTOSTART.exists():
+            KIOSK_AUTOSTART.write_bytes(files["kiosk-autostart"])
+        if "hide-cursor.py" in files and CURSOR_ENV.exists():
+            self.run("runuser", "-u", "kiosk", "--", "python3", str(HOST_PATHS["hide-cursor.py"]))
+        self.run("systemctl", "daemon-reload")
+
+    def restart_service(self):
+        if subprocess.run(["systemctl", "is-active", "--quiet", "calendar-updater.service"], capture_output=True).returncode == 0:
+            self.run("systemd-run", "--on-active=2s", "/usr/bin/systemctl", "restart", "calendar-updater.service")
+
     def install(self, candidate):
         candidate = validate_manifest(candidate, self.repository)
         previous = self.state.get("active")
         if previous and version(candidate["version"]) <= version(previous["version"]):
             raise ValueError("Refusing a downgrade or reinstall")
         refs = [candidate["webImage"], candidate["apiImage"]]
+        backup = self.directory / "host-backup"
         self.start_progress("Downloading web image")
         self.save(status="installing", message="Downloading and checking update…", images=list(dict.fromkeys(self.state.get("images", []) + refs)))
         try:
@@ -211,15 +252,31 @@ class Updater:
             self.run("docker", "pull", "--platform", "linux/amd64", refs[1])
             self.advance_progress("Verifying web image")
             self.smoke(candidate)
+            files = self.host_files(candidate)
+            backup.mkdir(exist_ok=True)
+            for name in HOST_FILES:
+                target = HOST_PATHS[name]
+                if target.exists():
+                    shutil.copy2(target, backup / name)
+            (backup / "absent.json").write_text(json.dumps([name for name in HOST_FILES if not (backup / name).exists()]))
+            if KIOSK_AUTOSTART.exists():
+                shutil.copy2(KIOSK_AUTOSTART, backup / "active-kiosk-autostart")
+            self.advance_progress("Installing host files")
+            self.save(status="activating", message="Installing host files and restarting app…")
+            self.replace_host_files(files)
             # A passing smoke test is the go-ahead to restart immediately; no manual step in between.
             self.advance_progress("Starting containers and waiting for health")
-            self.save(status="activating", message="Restarting app and checking health…")
+            self.save(message="Restarting app and checking health…")
             self.launch(candidate)
+            self.restart_service()
         except Exception:
             self.fail_progress()
+            if backup.exists() and self.state["status"] != "activating":
+                shutil.rmtree(backup)
             if self.state["status"] == "activating" and previous:
                 try:
                     self.advance_progress("Restoring previous release")
+                    self.restore_host_files(backup)
                     self.launch(previous)
                 except Exception:
                     self.fail_progress()
@@ -228,6 +285,7 @@ class Updater:
                 self.finish_progress("Previous release restored")
                 self.save(status="rolled_back", message="Update failed. Previous release restored.")
             elif self.state["status"] == "activating":
+                self.restore_host_files(backup)
                 self.save(status="failed", message="Initial startup failed; no previous release exists.")
             else:
                 self.save(status="failed", message="Installation failed. The current release is unchanged.")
@@ -235,6 +293,7 @@ class Updater:
         else:
             self.finish_progress("Update complete")
             self.save(status="idle", active=candidate, previous=previous, available=None, message="Update complete.")
+            shutil.rmtree(backup, ignore_errors=True)
         finally:
             self.cleanup()
 
@@ -252,15 +311,30 @@ class Updater:
                 remaining.append(ref)  # In-use images are retained and retried later.
         self.save(images=remaining)
 
+    def restore_host_files(self, backup):
+        if backup.exists():
+            self.replace_host_files({name: (backup / name).read_bytes() for name in HOST_FILES if (backup / name).exists()})
+            if (backup / "absent.json").exists():
+                for name in json.loads((backup / "absent.json").read_text()):
+                    HOST_PATHS[name].unlink(missing_ok=True)
+            if (backup / "active-kiosk-autostart").exists():
+                KIOSK_AUTOSTART.write_bytes((backup / "active-kiosk-autostart").read_bytes())
+            shutil.rmtree(backup)
+
     def recover(self):
         # Only remove our labelled temporary containers left by an interrupted test.
         ids = self.run("docker", "ps", "-aq", "--filter", "label=io.calendar.update-test=true").split()
         for container in ids:
             self.run("docker", "rm", "-f", container)
         if self.state["status"] in ("activating", "rollback_failed") and self.state.get("active"):
+            self.restore_host_files(self.directory / "host-backup")
             self.launch(self.state["active"])
             self.save(status="rolled_back", message="Interrupted update recovered to the last confirmed release.")
+        elif self.state["status"] == "activating":
+            self.restore_host_files(self.directory / "host-backup")
+            self.save(status="failed", message="Interrupted initial activation discarded.")
         elif self.state["status"] == "installing":
+            shutil.rmtree(self.directory / "host-backup", ignore_errors=True)
             self.save(status="failed", message="Interrupted installation discarded. Current release unchanged.")
         self.cleanup()
 

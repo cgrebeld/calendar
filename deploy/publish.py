@@ -3,6 +3,12 @@ import json
 import os
 import subprocess
 import time
+import hashlib
+import io
+import tarfile
+from pathlib import Path
+
+HOST_FILES = ("compose.yaml", "updater.py", "calendar-updater.service", "kiosk-autostart", "hide-cursor.py", "setup-audio.sh")
 
 
 def run(*args):
@@ -31,7 +37,15 @@ def main():
     published = run("gh", "api", "--paginate", f"repos/{repository}/releases", "--jq", ".[].tag_name").splitlines()
     if f"v{version}" in published:
         raise RuntimeError("Release already exists; publish a new version instead")
-    manifest = {"schemaVersion": 1, "version": version, "platform": "linux/amd64", "minimumUpdaterVersion": 1}
+    manifest = {"schemaVersion": 1, "version": version, "platform": "linux/amd64", "minimumUpdaterVersion": 2}
+    with tarfile.open("host-files.tar", "w") as archive:
+        for name in HOST_FILES:
+            data = Path("deploy", name).read_bytes()
+            info = tarfile.TarInfo(name)
+            info.size = len(data)
+            info.mode = 0o755 if name.endswith((".py", ".sh")) or name == "kiosk-autostart" else 0o644
+            archive.addfile(info, io.BytesIO(data))
+    manifest["hostFilesSha256"] = hashlib.sha256(Path("host-files.tar").read_bytes()).hexdigest()
     for component in ("web", "api"):
         repo = f"ghcr.io/{repository}-{component}"
         tag = f"{repo}:{version}"
@@ -42,7 +56,7 @@ def main():
     with open("release.json", "w") as output:
         json.dump(manifest, output, indent=2)
     # Refuse to silently replace an existing release or its manifest.
-    run("gh", "release", "create", f"v{version}", "release.json", "--verify-tag", "--generate-notes", "--repo", repository)
+    run("gh", "release", "create", f"v{version}", "release.json", "host-files.tar", "--verify-tag", "--generate-notes", "--repo", repository)
 
 
 if __name__ == "__main__":
