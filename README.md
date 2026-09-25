@@ -12,7 +12,7 @@ Copy `.env.example` to `.env`, then set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SE
 
 Settings → Appearance lets you switch between Default and Woodland for the current page session. Reloading restores the configured skin (`VITE_SKIN` or the `?skin=` URL override).
 
-Woodland’s agenda shows upcoming events in columns that fill the available screen height, with alternating day shades. Set `AGENDA_CALENDARS=ada,clio,chris,vikky` in `.env` (or `/etc/calendar/calendar.env` on the kiosk) to choose calendars and their order by case-insensitive name; other calendars, such as Holidays in Canada, are excluded. Unset uses selected calendars. Restart the API after changing this setting. The agenda fetches the next 100 events per calendar with no date cutoff and keeps empty calendars visible.
+The agenda in both Modern and Woodland shows upcoming events in columns that fill the available screen height, with alternating day shades. Set `AGENDA_CALENDARS=ada,clio,chris,vikky` in `.env` (or `/etc/calendar/calendar.env` on the kiosk) to choose calendars and their order by case-insensitive name; other calendars, such as Holidays in Canada, are excluded. Unset uses selected calendars. Restart the API after changing this setting. The agenda fetches the next 100 events per calendar with no date cutoff and keeps empty calendars visible.
 
 Family Notes includes open and completed Google Tasks. Each sync refreshes the checkmarks from Google; on-screen toggles are local and are replaced on the next sync.
 

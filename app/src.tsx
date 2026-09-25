@@ -670,11 +670,10 @@ function App() {
     const loadId = ++calendarLoadId.current;
     const range = viewDates(anchor, mode);
     const syncingTimer = window.setTimeout(() => calendarLoadId.current === loadId && setSyncStatus({ state: "syncing" }), 300);
-    const agenda = agendaOpen && skin === "woodland";
-    const load = agenda ? loadGoogleAgenda(new Date(), scheduleRange, force) : loadGoogleEvents(range[0], addDays(range.at(-1)!, 1), new Date(), scheduleRange, force);
+    const load = agendaOpen ? loadGoogleAgenda(new Date(), scheduleRange, force) : loadGoogleEvents(range[0], addDays(range.at(-1)!, 1), new Date(), scheduleRange, force);
     load.then((loaded) => {
       if (calendarLoadId.current === loadId) {
-        if (agenda) setAgendaCalendars(loaded as AgendaCalendar[]);
+        if (agendaOpen) setAgendaCalendars(loaded as AgendaCalendar[]);
         else setCalendarEvents(loaded as CalendarEvent[]);
         setSyncStatus({ state: "ok" });
       }
@@ -688,7 +687,7 @@ function App() {
   useEffect(() => {
     if (!connected) return;
     return loadCalendar();
-  }, [connected, anchor, mode, agendaOpen, skin, dayKey]);
+  }, [connected, anchor, mode, agendaOpen, dayKey]);
 
   const connectGoogle = () => {
     window.location.assign(`${apiUrl}/api/auth/start?returnTo=${encodeURIComponent(location.origin)}`);
@@ -743,10 +742,10 @@ function App() {
   return (
     <main>
       <header>
-        <div><p className="eyebrow">Family calendar</p><h1>{agendaOpen && skin === "woodland" ? "What’s next" : title}</h1></div>
+        <div><p className="eyebrow">Family calendar</p><h1>{agendaOpen ? "What’s next" : title}</h1></div>
         <div className="mode-picker" role="group" aria-label="Calendar view">
-          {modes.map((item) => <button className={!(agendaOpen && skin === "woodland") && mode === item.id ? "active" : ""} aria-label={item.label} title={item.label} aria-pressed={!(agendaOpen && skin === "woodland") && mode === item.id} onClick={() => { setAgendaOpen(false); setMode(item.id); }} key={item.id}><CalendarModeIcon mode={item.id} /></button>)}
-          {skin === "woodland" && <button className={agendaOpen ? "active" : ""} aria-label="Agenda" title="Agenda — What’s next" aria-pressed={agendaOpen} onClick={() => setAgendaOpen(true)}><CalendarModeIcon mode="agenda" /></button>}
+          {modes.map((item) => <button className={!agendaOpen && mode === item.id ? "active" : ""} aria-label={item.label} title={item.label} aria-pressed={!agendaOpen && mode === item.id} onClick={() => { setAgendaOpen(false); setMode(item.id); }} key={item.id}><CalendarModeIcon mode={item.id} /></button>)}
+          <button className={agendaOpen ? "active" : ""} aria-label="Agenda" title="Agenda — What’s next" aria-pressed={agendaOpen} onClick={() => setAgendaOpen(true)}><CalendarModeIcon mode="agenda" /></button>
         </div>
         <button className="weather" aria-label="Open weather details" aria-haspopup="dialog" onClick={() => setWeatherOpen(true)}>
           <DateTime now={now} />
@@ -771,7 +770,7 @@ function App() {
 
       <div className={`workspace ${notesOpen ? "" : "notes-hidden"}`}>
         <div className="calendar-pane" onTouchStart={startSwipe} onTouchEnd={finishSwipe} onTouchCancel={() => { swipeStart.current = undefined; }}>
-          {agendaOpen && skin === "woodland" ? <WhatsNext calendars={agendaCalendars ?? (connected ? [] : agendaColumns(fakeEvents, hourOf(now)))} now={now} onSelect={setSelected} /> : mode === "month" ? <Month dates={dates} anchor={anchor} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : mode === "twoWeek" ? <TwoWeek dates={dates} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : <Timeline dates={dates} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} focus={mode === "day" ? anchor : undefined} onSelect={setSelected} onOpenDay={setOpenDay} />}
+          {agendaOpen ? <WhatsNext calendars={agendaCalendars ?? (connected ? [] : agendaColumns(fakeEvents, hourOf(now)))} now={now} onSelect={setSelected} /> : mode === "month" ? <Month dates={dates} anchor={anchor} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : mode === "twoWeek" ? <TwoWeek dates={dates} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : <Timeline dates={dates} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} focus={mode === "day" ? anchor : undefined} onSelect={setSelected} onOpenDay={setOpenDay} />}
         </div>
         {notesOpen && <Notes onClose={() => setNotesOpen(false)} onToggle={(listId, taskId, completed) => setTaskLists((lists) => lists.map((list) => list.id === listId ? { ...list, items: list.items.map((task) => task.id === taskId ? { ...task, completed } : task) } : list))} lists={taskLists} error={tasksError} reconnect={connectGoogle} apiUrl={apiUrl} connected={connected} refresh={countdownRefresh} />}
       </div>
