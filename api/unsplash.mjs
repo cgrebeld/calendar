@@ -59,7 +59,7 @@ export function createUnsplash({ accessKey = process.env.UNSPLASH_ACCESS_KEY, fe
   return { status, async load(topics = []) {
     if (!accessKey) return { ...status(), items: [], error: "Online photos need an Unsplash access key on the server. See Photo settings." };
     // A topic selection change is a deliberate settings change, not a request-limit bypass: force an immediate refresh for it.
-    if (topics.length !== cachedTopics.length || topics.some((topic, index) => topic !== cachedTopics[index])) { cachedTopics = topics; refreshAt = 0; }
+    if (topics.length !== cachedTopics.length || topics.some((topic, index) => topic !== cachedTopics[index])) { cachedTopics = topics; refreshAt = 0; items = []; }
     if (pending) return pending;
     if (now() < refreshAt) return { ...status(), items };
     pending = (async () => {
