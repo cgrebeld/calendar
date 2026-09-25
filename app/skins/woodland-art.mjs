@@ -62,23 +62,82 @@ function canvas(w, h) {
 const rng = (seed) => () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
 
 function frame(night) {
-  const p = night
-    ? { outline: hex("#1d140b"), hi: hex("#8b6a3e"), wood: hex("#5a4328"), grain: hex("#4e3a22"), shade: hex("#3f2e19"), inner: hex("#2b2015"), nail: hex("#c9a86a") }
-    : { outline: hex("#3a2a17"), hi: hex("#c9a86a"), wood: hex("#8b6a3e"), grain: hex("#7d5e35"), shade: hex("#6e522f"), inner: hex("#5b4327"), nail: hex("#e8d5a0") };
-  const c = canvas(18, 18);
-  for (let y = 0; y < 18; y++) for (let x = 0; x < 18; x++) {
-    const d = Math.min(x, y, 17 - x, 17 - y);
-    if (d >= 6) continue;
-    const along = y === d || 17 - y === d ? x : y;
-    c.px(x, y, d === 0 ? p.outline : d === 1 ? p.hi : d <= 3 ? (along % 3 === 0 ? p.grain : p.wood) : d === 4 ? p.shade : p.inner);
+  const palette = (night
+    ? ["#1c160e", "#604025", "#a17a42", "#79532e", "#614327", "#8c6437", "#402d1c", "#241b12"]
+    : ["#352315", "#704526", "#c38b47", "#ab7338", "#8b552d", "#b97d3c", "#704421", "#4b301b"]).map(hex);
+  const c = canvas(96, 96);
+  const random = rng(37);
+  for (let y = 0; y < c.h; y++) for (let x = 0; x < c.w; x++) {
+    const depth = Math.min(x, y, c.w - 1 - x, c.h - 1 - y);
+    if (depth < 8) c.px(x, y, palette[depth]);
   }
-  for (const [cx, cy] of [[0, 0], [17, 0], [0, 17], [17, 17]]) {
-    const nx = cx + (cx === 0 ? 2 : -2), ny = cy + (cy === 0 ? 2 : -2);
-    const sx = cx + (cx === 0 ? 3 : -3), sy = cy + (cy === 0 ? 3 : -3);
-    c.px(sx, sy, p.outline);
-    c.px(nx, ny, p.nail);
+  // Long, irregular fibres keep the repeating rails from looking like checkerboards.
+  for (let i = 0; i < 65; i++) {
+    const along = 8 + Math.floor(random() * 79);
+    const depth = 3 + Math.floor(random() * 3);
+    const length = Math.min(2 + Math.floor(random() * 11), 88 - along);
+    const color = palette[3 + Math.floor(random() * 3)];
+    c.rect(along, depth, length, 1, color);
+    c.rect(95 - depth, along, 1, length, color);
+    c.rect(along, 95 - depth, length, 1, color);
+    c.rect(depth, along, 1, length, color);
+  }
+  for (const [x, y] of [[3, 3], [90, 3], [3, 90], [90, 90]]) {
+    c.rect(x, y, 3, 3, palette[0]);
+    c.rect(x, y, 2, 2, palette[2]);
   }
   return c;
+}
+
+function wood(night) {
+  const colors = (night
+    ? ["#574027", "#5b4329", "#62492d", "#684e31", "#523b24"]
+    : ["#efbf75", "#eab96e", "#f2c780", "#f5ca82", "#e6b469"]).map(hex);
+  const c = canvas(128, 64);
+  const random = rng(71);
+  c.rect(0, 0, c.w, c.h, colors[0]);
+  for (let i = 0; i < 130; i++) {
+    const x = Math.floor(random() * c.w), y = Math.floor(random() * c.h);
+    const width = 10 + Math.floor(random() * 36), height = 1 + Math.floor(random() * 2);
+    const color = colors[1 + Math.floor(random() * 4)];
+    c.rect(x, y, width, height, color);
+    c.rect(x - c.w, y, width, height, color);
+    c.rect(x, y - c.h, width, height, color);
+  }
+  return c;
+}
+
+function vines() {
+  const c = canvas(48, 48);
+  const outline = hex("#233c1c"), stem = hex("#587832");
+  const leaf = (x, y, right = false) => {
+    const points = [[0, 3], [2, 3], [2, 1], [5, 1], [5, 0], [8, 0], [8, 4], [6, 4], [6, 6], [3, 6], [3, 7], [0, 7]];
+    c.poly(points.map(([px, py]) => [x + (right ? 8 - px : px), y + py]), outline);
+    c.rect(x + 2, y + 3, 4, 3, hex("#477832"));
+    c.rect(x + 3, y + 2, 3, 2, hex("#83aa3f"));
+    c.rect(x + (right ? 2 : 5), y + 1, 2, 2, hex("#bcc75b"));
+    c.px(x + 3, y + 4, hex("#a5bc4c"));
+  };
+  for (const [x, y, w, h] of [[7, 10, 4, 34], [9, 7, 7, 6], [14, 6, 30, 4]]) {
+    c.rect(x, y, w, h, outline);
+    c.rect(x + 1, y + 1, Math.max(1, w - 2), Math.max(1, h - 2), stem);
+  }
+  for (const [x, y, flip] of [[0, 31, 0], [8, 36, 1], [3, 22, 0], [11, 23, 1], [0, 15, 0], [7, 10, 1], [10, 1, 0], [18, 7, 1], [23, 0, 0], [29, 6, 1], [36, 2, 0]]) leaf(x, y, Boolean(flip));
+  const sprig = canvas(32, 16);
+  for (let y = 0; y < sprig.h; y++) for (let x = 0; x < sprig.w; x++) {
+    const i = (y * c.w + x + 14) * 4;
+    sprig.px(x, y, c.data.subarray(i, i + 4));
+  }
+  return { corner: c, sprig };
+}
+
+function flip(c, horizontal, vertical) {
+  const result = canvas(c.w, c.h);
+  for (let y = 0; y < c.h; y++) for (let x = 0; x < c.w; x++) {
+    const i = (y * c.w + x) * 4;
+    result.px(horizontal ? c.w - 1 - x : x, vertical ? c.h - 1 - y : y, c.data.subarray(i, i + 4));
+  }
+  return result;
 }
 
 function scene(night) {
@@ -185,8 +244,12 @@ function scene(night) {
 }
 
 mkdirSync(OUT, { recursive: true });
-const day = scene(false), night = scene(true);
-const files = [["frame.png", frame(false)], ["frame-night.png", frame(true)], ["day.png", day.base], ["night.png", night.base], ["night-clouds.png", night.clouds],
+const day = scene(false), night = scene(true), { corner: vine, sprig } = vines();
+const files = [["wood.png", wood(false)], ["wood-night.png", wood(true)],
+  ["vines-nw.png", vine], ["vines-ne.png", flip(vine, true, false)],
+  ["vines-sw.png", flip(vine, false, true)], ["vines-se.png", flip(vine, true, true)],
+  ["vines-sprig.png", sprig],
+  ["frame.png", frame(false)], ["frame-night.png", frame(true)], ["day.png", day.base], ["night.png", night.base], ["night-clouds.png", night.clouds],
   ["day-clouds.png", day.clouds], ...day.reflections.map((c, i) => [`day-reflections${i || ""}.png`, c]),
   ...night.stars.map((c, i) => [`night-stars${i || ""}.png`, c]), ...night.reflections.map((c, i) => [`night-reflections${i || ""}.png`, c])];
 for (const [name, c] of files) {

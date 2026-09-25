@@ -1,15 +1,15 @@
 :root[data-skin="woodland"] {
   --bg: #d9c7a3;
-  --surface: #f6ecd6;
-  --surface-muted: #ecdfc0;
-  --surface-today: #f3e6c2;
-  --surface-context: #efe4c9;
-  --notes-bg: #f0e2c4;
-  --border: #b89b6a;
-  --grid-line: #e0cfa8;
-  --border-strong: #c9ad7c;
-  --text: #3b2e1e;
-  --text-muted: #6f5a3e;
+  --surface: #f8ebc9;
+  --surface-muted: #f0cb88;
+  --surface-today: #f8e8bb;
+  --surface-context: #f1e2bf;
+  --notes-bg: #efc078;
+  --border: #b58a4c;
+  --grid-line: #ddc292;
+  --border-strong: #b88b49;
+  --text: #302113;
+  --text-muted: #604323;
   --text-subtle: #5e4a30;
   --text-faint: #8a7455;
   --note-checked: #9c8a6b;
@@ -42,6 +42,9 @@
   --scene-reflections1: url("/skins/woodland/day-reflections1.png");
   --scene-reflections2: url("/skins/woodland/day-reflections2.png");
   --frame-image: url("/skins/woodland/frame.png");
+  --wood-image: url("/skins/woodland/wood.png");
+  --paper-wash: rgb(250 238 206 / .92);
+  --leaf-light: 1;
 }
 
 :root[data-skin="woodland"][data-theme="dark"] {
@@ -87,6 +90,9 @@
   --scene-reflections1: url("/skins/woodland/night-reflections1.png");
   --scene-reflections2: url("/skins/woodland/night-reflections2.png");
   --frame-image: url("/skins/woodland/frame-night.png");
+  --wood-image: url("/skins/woodland/wood-night.png");
+  --paper-wash: rgb(51 43 30 / .94);
+  --leaf-light: .75;
 }
 
 @font-face { font-family: "Galmuri11"; src: url("/skins/woodland/galmuri11.woff2") format("woff2"); font-weight: 400; font-display: swap; }
@@ -97,7 +103,7 @@
 [data-skin="woodland"] h1, [data-skin="woodland"] h2 {
   font-weight: 700;
   line-height: 1.2;
-  text-shadow: 0 1px 0 var(--bevel-hi), 0 -1px 0 rgb(0 0 0 / .3), 3px 3px 0 var(--border-strong), 3px 3px 2px rgb(0 0 0 / .45);
+  text-shadow: 1px 1px 0 var(--bevel-hi);
 }
 [data-skin="woodland"] h1 { font-size: 45px; }
 [data-skin="woodland"] .eyebrow,
@@ -111,7 +117,6 @@
 [data-skin="woodland"] .weather strong { text-shadow: 1px 1px 0 rgb(0 0 0 / .35); }
 
 [data-skin="woodland"] nav button, [data-skin="woodland"] .close, [data-skin="woodland"] .sync-status, [data-skin="woodland"] .notes-actions button, [data-skin="woodland"] .mode-picker { border: 2px solid var(--border); border-radius: .35rem; box-shadow: inset 0 2px 0 var(--bevel-hi), inset 0 -3px 0 var(--bevel-lo); backdrop-filter: none; -webkit-backdrop-filter: none; }
-[data-skin="woodland"] nav .dark { border-color: #3a2a17; }
 [data-skin="woodland"] .mode-picker { padding: .25rem; background: var(--surface-muted); }
 [data-skin="woodland"] .mode-picker button { border-radius: .25rem; }
 [data-skin="woodland"] .calendar-mode-icon { stroke-linecap: square; stroke-linejoin: miter; shape-rendering: crispEdges; filter: drop-shadow(1px 1px 0 var(--bevel-hi)); }
@@ -120,7 +125,6 @@
 [data-skin="woodland"] .mode-picker .active .calendar-icon-header { fill: currentColor; }
 [data-skin="woodland"] .mode-picker .active { color: var(--on-accent); background: var(--accent); box-shadow: inset 0 2px 0 rgb(255 255 255 / .25), inset 0 -3px 0 rgb(0 0 0 / .25); }
 [data-skin="woodland"] nav button:active, [data-skin="woodland"] .close:active, [data-skin="woodland"] .notes-actions button:active, [data-skin="woodland"] .mode-picker button:active { box-shadow: inset 0 3px 0 var(--bevel-lo); transform: translateY(1px); }
-[data-skin="woodland"] .notes-actions button { border-radius: .35rem; }
 
 [data-skin="woodland"] body::before { background: linear-gradient(var(--bg-tint), var(--bg-tint)), var(--bg-image, var(--scene)) center / cover no-repeat, var(--bg); image-rendering: pixelated; }
 .woodland-animation { display: none; }
@@ -142,7 +146,61 @@
 @keyframes woodland-reflections { 50% { transform: translateX(4px); } }
 @media (prefers-reduced-motion: reduce) { :root[data-skin="woodland"] .woodland-animation i, :root[data-skin="woodland"] .woodland-animation i::before, :root[data-skin="woodland"] .woodland-animation i::after { animation: none; } }
 
-[data-skin="woodland"] .timeline, [data-skin="woodland"] .two-week-grid, [data-skin="woodland"] .month-grid, [data-skin="woodland"] .whats-next, [data-skin="woodland"] .notes, [data-skin="woodland"] .weather, [data-skin="woodland"] .day-modal, [data-skin="woodland"] .event-detail { border: 12px solid transparent; border-image: var(--frame-image) 6 / 12px round; border-radius: 0; box-shadow: var(--shadow-md); image-rendering: pixelated; }
+[data-skin="woodland"] :is(main > header > div:first-child, .mode-picker, .timeline, .two-week-grid, .month-grid, .whats-next, .notes, .weather, .day-modal, .event-detail) {
+  border: var(--wood-frame-width, 16px) solid transparent;
+  border-image: var(--frame-image) 8 / var(--wood-frame-width, 16px) round;
+  border-radius: 0;
+  background-clip: padding-box;
+  box-shadow: 0 3px 0 rgb(40 25 12 / .45), 0 5px 12px rgb(40 25 12 / .2);
+  image-rendering: pixelated;
+}
+[data-skin="woodland"] :is(main > header > div:first-child, .mode-picker, .weather) { --wood-frame-width: 12px; }
+[data-skin="woodland"] main > header > div:first-child { width: fit-content; padding: .35rem 1.25rem .55rem; }
+[data-skin="woodland"] :is(main > header > div:first-child, .mode-picker, .weather, .notes, .day-heading, .corner, .month-heading, .mini-day > header) {
+  background-color: var(--surface-muted);
+  background-image: var(--wood-image);
+  background-size: 256px 128px;
+}
+[data-skin="woodland"] :is(.timeline, .two-week-grid, .month-grid, .whats-next, .day-modal, .event-detail) {
+  background-image: linear-gradient(var(--paper-wash), var(--paper-wash)), var(--wood-image);
+  background-size: auto, 256px 128px;
+}
+[data-skin="woodland"] :is(.calendar-pane, .notes-frame, main > header > div:first-child, .mode-picker, .weather) { position: relative; }
+[data-skin="woodland"] :is(.calendar-pane, .notes-frame, main > header > div:first-child, .mode-picker, .weather)::after {
+  content: "";
+  position: absolute;
+  inset: -16px;
+  z-index: 3;
+  pointer-events: none;
+  background:
+    url("/skins/woodland/vines-nw.png") left top / 96px 96px no-repeat,
+    url("/skins/woodland/vines-ne.png") right top / 80px 80px no-repeat,
+    url("/skins/woodland/vines-sw.png") left bottom / 80px 80px no-repeat,
+    url("/skins/woodland/vines-se.png") right bottom / 96px 96px no-repeat,
+    url("/skins/woodland/vines-sprig.png") 22% top / 64px 32px no-repeat,
+    url("/skins/woodland/vines-sprig.png") 78% bottom / 48px 24px no-repeat;
+  image-rendering: pixelated;
+  filter: brightness(var(--leaf-light));
+}
+[data-skin="woodland"] :is(main > header > div:first-child, .mode-picker, .weather)::after { inset: -24px; background-size: 64px 64px, 56px 56px, 56px 56px, 64px 64px, 44px 22px, 36px 18px; }
+[data-skin="woodland"] :is(nav button, .close, .notes-actions button) {
+  border: 6px solid transparent;
+  border-image: var(--frame-image) 8 / 6px round;
+  border-radius: 0;
+  background: var(--wood-image) center / 256px 128px;
+  image-rendering: pixelated;
+}
+[data-skin="woodland"] nav .dark { background-image: linear-gradient(rgb(61 38 20 / .72), rgb(61 38 20 / .72)), var(--wood-image); }
+[data-skin="woodland"] .corner-controls > button { width: 2.6rem; height: 2.6rem; }
+[data-skin="woodland"] :is(.day-heading.today, .mini-day.today > header) { background-image: linear-gradient(rgb(65 105 41 / .91), rgb(65 105 41 / .91)), var(--wood-image); }
+[data-skin="woodland"] :is(.day-heading.today, .mini-day.today > header) :is(span, strong, .day-weather) { color: #fff2d1; }
+[data-skin="woodland"] :is(.day-heading.today, .mini-day.today > header) strong { width: auto; border-radius: 0; background: none; }
+[data-skin="woodland"] .note-list label, [data-skin="woodland"] .countdown-note { border: 2px solid var(--border); border-radius: .2rem; box-shadow: inset 0 2px var(--bevel-hi), 0 2px var(--bevel-lo); }
+[data-skin="woodland"] .notes-header > div:first-child { min-width: 0; }
+[data-skin="woodland"] .notes-header h2 { font-size: 1.35rem; overflow-wrap: anywhere; }
+[data-skin="woodland"] .notes-actions { flex-shrink: 0; }
+[data-skin="woodland"] .notes-actions button { width: 2.25rem; height: 2.25rem; }
+[data-skin="woodland"] :is(.timed-event, .all-day, .mini-hours > button, .mini-all-day > button, .month-events > button) { border-radius: .15rem; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 60%, transparent); }
 
 [data-skin="woodland"] .agenda-person { border: 2px solid var(--border); border-radius: 0; box-shadow: inset 0 2px var(--bevel-hi), inset 0 -3px var(--bevel-lo); }
 [data-skin="woodland"] .agenda-person h3, [data-skin="woodland"] .agenda-when { font-family: "Galmuri11", sans-serif; }
