@@ -173,11 +173,11 @@ function Timeline({ dates, today, now, events, range, focus, forecast, onSelect,
               {laidOut.map(({ event, start, duration }) => (
                 <button
                   className={`timed-event ${event.tone} ${isPastEvent(date, now, event.start, event.duration) ? "past" : ""}`}
-                  style={{ top: `${hourOffset(range, start) * 100}%`, height: `calc(${(duration / scheduleHours(range)) * 100}% - 1px)`, "--title-lines": titleLines(duration, 0.5 * scheduleHours(range) / 12, 3) } as React.CSSProperties}
+                  style={{ top: `${hourOffset(range, start) * 100}%`, height: `calc(${(duration / scheduleHours(range)) * 100}% - 1px)`, "--title-lines": titleLines(duration, 0.75 * scheduleHours(range) / 12, 3) } as React.CSSProperties}
                   onClick={() => onSelect(event)}
                   key={`${event.start}-${event.title}`}
                 >
-                  <span>{eventTime(event)}</span><strong>{event.title}</strong>
+                  <span className="event-body"><span>{eventTime(event)}</span><strong>{event.title}</strong></span>
                 </button>
               ))}
             </div>
