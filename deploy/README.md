@@ -286,10 +286,8 @@ shell, and one real update with Google token persistence and browser reload.
 
 ## Optional: self-hosted photos (Immich)
 
-For a third photo source with real date/GPS metadata (Google's Photos Picker
-API exposes neither), see
-[immich-setup.md](immich-setup.md) for standing up Immich and a Google
-Takeout ingestion pipeline on this host, and
+For a proposed third photo source with GPS metadata (Google Photos Picker
+provides capture dates but not locations), see
+[immich-setup.md](immich-setup.md) for host setup and
 [../docs/immich-photo-backend-plan.md](../docs/immich-photo-backend-plan.md)
-for the app-side integration this depends on. Entirely optional; the app
-runs fine without it.
+for the app integration plan. Immich is not currently an app photo source.

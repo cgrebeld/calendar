@@ -2,13 +2,13 @@
 
 ## Google Calendar and Tasks setup
 
-Create a Google OAuth web client, enable the Calendar API, Tasks API, and Google Photos Picker API, and add this authorized redirect URI:
+Create a Google OAuth web client, enable the Calendar API, Tasks API, and Google Photos Picker API, and authorize this local-development redirect URI:
 
 ```text
 http://localhost:3000/api/auth/callback
 ```
 
-Copy `.env.example` to `.env`, then set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. `TASK_LISTS` optionally limits Family Notes to comma-separated list titles; unset shows every list. The API stores the refresh token in the `calendar-data` Docker volume and caches Google reads for five minutes. Existing Calendar users must press “Reconnect Google” in Family Notes once to grant read-only Tasks access.
+Copy `.env.example` to `.env`, then set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. Set `APP_ORIGIN` to the URLs used to open the app. The API stores the refresh token in the `calendar-data` Docker volume and caches Google reads for five minutes. Use **Reconnect Google** after adding Tasks or Photos permissions.
 
 Settings → Appearance lets you switch between Default and Woodland for the current page session. Reloading restores the configured skin (`VITE_SKIN` or the `?skin=` URL override).
 
@@ -20,12 +20,7 @@ Set `COLLECTION_ADDRESS` to a Victoria street address such as `1500 Fairfield Rd
 
 ## Photo mode (Google Photos Picker)
 
-Photo mode displays a local collection of still photos, changes photos once a minute,
-and starts after five minutes of inactivity or when **Photos** is pressed. Photos play in a shuffled order that stays fixed while photo mode is open, so swiping
-left advances and swiping right goes back (including across the ends of the gallery).
-Routine collection checks preserve the current order. It uses
-Google Photos **Picker**, which does not require the Ambient partner program.
-It imports an explicit selection; it does not automatically sync albums.
+Photo mode shows locally imported still photos, changing once a minute. It starts after five minutes of inactivity or when **Photos** is pressed. Swipe left or right through a shuffled order. Google Photos **Picker** imports only photos you select; albums do not sync automatically.
 
 Tap the photo to return to the calendar. The subtle × at bottom left removes just
 that local copy; the original in Google Photos is untouched. Capture dates from
@@ -56,10 +51,7 @@ To enable the source:
    locally; use the deployment Compose files/environment on the wall box), then
    enable **Mix in online nature and travel photos** under **Settings → Photos**.
 
-The initial Unsplash demo quota is 50 requests/hour; normal operation here uses
-at most two per hour, regardless of the number of displays. Each batch of 30 photos
-is **one API request**, so 60 photos/hour is only **two requests/hour**, well below
-our 40-request ceiling. Failed attempts count too. The server saves its next allowed
+The app makes at most two Unsplash requests per hour, regardless of the number of displays. Failed attempts count too. The server saves its next allowed
 request time before contacting Unsplash, so restarts cannot reset the limit; if
 that state cannot be read or saved, online requests pause. This assumes the single
 API service in the supplied Compose configuration and its persistent data volume;
@@ -84,14 +76,7 @@ imported photos continue to play without Google authorization or internet access
 See [Google's setup guide](https://developers.google.com/photos/overview/configure-your-app)
 and [Picker session lifecycle](https://developers.google.com/photos/picker/guides/sessions).
 
-Conservative defaults: at most 100 selected items, still photos only, display copies
-bounded to 1920×1080, 16 MiB per file and 256 MiB total across all imports; exceeding the limit rejects the import without deleting photos. Downloads are sequential.
-Google selection polling is at least 10 seconds apart, respects Google's longer
-interval and timeout, and stops when settings close or the browser is hidden. Failed
-Google control requests back off for 15 minutes, except a disabled Picker API: the app
-links to its activation page and allows retry after enabling it. Imports retry only on user action.
-After importing, the Google session is deleted. Playback makes **zero Google API calls**;
-the browser checks the local collection every five minutes while photo mode is visible.
+Imports allow at most 100 still photos, 16 MiB each and 256 MiB total; display copies are bounded to 1920×1080. Exceeding a limit preserves existing photos. Playback uses local files and makes no Google API calls.
 
 The API reuses Calendar’s Google credentials. Photo selection and collection metadata
 are stored in `GOOGLE_PHOTOS_STATE_PATH` (default `.data/google-photos.json`, `/data/google-photos.json`
@@ -109,8 +94,7 @@ To revoke the shared Google grant itself, remove the calendar app in your Google
 Account's connections (this also removes Calendar/Tasks access). Keep this household app on a trusted network as described in
 the deployment guide.
 
-Older separate Photos credentials are discarded on first access; imported images are
-preserved. A changed shared Google connection requires a new Picker selection.
+A changed Google connection requires a new Picker selection; imported images remain.
 
 ## Run with Docker
 
