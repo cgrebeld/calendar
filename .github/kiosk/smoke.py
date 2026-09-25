@@ -72,7 +72,7 @@ with subprocess.Popen(["labwc", "-s", "true"]) as compositor:
                 browser.execute_async_script("const done = arguments[0]; requestAnimationFrame(() => requestAnimationFrame(done));")
                 wait.until(lambda driver: len(driver.find_elements(By.CSS_SELECTOR, ".month-day:first-of-type .month-events button:not(.more)")) > 0)
                 assert browser.find_elements(By.CSS_SELECTOR, ".month-events .more"), "Expected overflow alongside visible events"
-            browser.find_element(By.XPATH, '//div[@aria-label="Calendar view"]/button[text()="Day"]').click()
+            browser.find_element(By.XPATH, '//div[@aria-label="Calendar view"]/button[@aria-label="Day"]').click()
             date = browser.find_element(By.CSS_SELECTOR, ".day-heading").get_attribute("aria-label")
             browser.find_element(By.CSS_SELECTOR, 'button[aria-label="Next"]').click()
             wait.until(lambda driver: driver.find_element(By.CSS_SELECTOR, ".day-heading").get_attribute("aria-label") != date)
