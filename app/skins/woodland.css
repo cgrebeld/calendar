@@ -114,6 +114,10 @@
 [data-skin="woodland"] nav .dark { border-color: #3a2a17; }
 [data-skin="woodland"] .mode-picker { padding: .25rem; background: var(--surface-muted); }
 [data-skin="woodland"] .mode-picker button { border-radius: .25rem; }
+[data-skin="woodland"] .calendar-mode-icon { stroke-linecap: square; stroke-linejoin: miter; shape-rendering: crispEdges; filter: drop-shadow(1px 1px 0 var(--bevel-hi)); }
+[data-skin="woodland"] .calendar-icon-shell { rx: 0; }
+[data-skin="woodland"] .mode-picker .active .calendar-icon-marks { stroke: currentColor; }
+[data-skin="woodland"] .mode-picker .active .calendar-icon-header { fill: currentColor; }
 [data-skin="woodland"] .mode-picker .active { color: var(--on-accent); background: var(--accent); box-shadow: inset 0 2px 0 rgb(255 255 255 / .25), inset 0 -3px 0 rgb(0 0 0 / .25); }
 [data-skin="woodland"] nav button:active, [data-skin="woodland"] .close:active, [data-skin="woodland"] .notes-actions button:active, [data-skin="woodland"] .mode-picker button:active { box-shadow: inset 0 3px 0 var(--bevel-lo); transform: translateY(1px); }
 [data-skin="woodland"] .notes-actions button { border-radius: .35rem; }

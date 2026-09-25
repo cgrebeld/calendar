@@ -57,6 +57,23 @@ const modes: { id: ViewMode; label: string }[] = [
   { id: "twoWeek", label: "2 weeks" },
   { id: "month", label: "Month" },
 ];
+
+function CalendarModeIcon({ mode }: { mode: ViewMode | "agenda" }) {
+  const marks = {
+    day: "M13 17l3-2v11m-3 0h6",
+    week: "M7 16v10m4-10v10m4-10v10m4-10v10m4-10v10",
+    twoWeek: "M7 16v3m4-3v3m4-3v3m4-3v3m4-3v3M7 23v3m4-3v3m4-3v3m4-3v3m4-3v3",
+    month: "M7 16h1m5 0h1m5 0h1m5 0h1M7 21h1m5 0h1m5 0h1m5 0h1M7 26h1m5 0h1m5 0h1m5 0h1",
+    agenda: "M7 16h1m-1 5h1m-1 5h1M13 16h12m-12 5h12m-12 5h12",
+  };
+  return <svg className="calendar-mode-icon" viewBox="0 0 32 32" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" focusable="false">
+    <rect className="calendar-icon-shell" x="3" y="6" width="26" height="24" rx="4" />
+    <path className="calendar-icon-header" d="M4 7h24v5H4z" stroke="none" />
+    <path d="M3 12h26M9 3v5M23 3v5" />
+    <path className="calendar-icon-marks" d={marks[mode]} />
+  </svg>;
+}
+
 type NoteList = { id: string; label: string; items: { id: string; title: string; completed?: boolean }[] };
 const noteLists: NoteList[] = [
   { id: "reminders", label: "Reminders", items: ["Pick up dry cleaning", "Order Maya’s school photos", "Replace hallway light bulb", "Call Grandma this weekend"].map((title, id) => ({ id: `reminder-${id}`, title })) },
@@ -718,8 +735,8 @@ function App() {
       <header>
         <div><p className="eyebrow">Family calendar</p><h1>{agendaOpen && skin === "woodland" ? "What’s next" : title}</h1></div>
         <div className="mode-picker" role="group" aria-label="Calendar view">
-          {modes.map((item) => <button className={!agendaOpen && mode === item.id ? "active" : ""} onClick={() => { setAgendaOpen(false); setMode(item.id); }} key={item.id}>{item.label}</button>)}
-          {skin === "woodland" && <button className={agendaOpen ? "active" : ""} onClick={() => setAgendaOpen(true)}>What’s next</button>}
+          {modes.map((item) => <button className={!(agendaOpen && skin === "woodland") && mode === item.id ? "active" : ""} aria-label={item.label} title={item.label} aria-pressed={!(agendaOpen && skin === "woodland") && mode === item.id} onClick={() => { setAgendaOpen(false); setMode(item.id); }} key={item.id}><CalendarModeIcon mode={item.id} /></button>)}
+          {skin === "woodland" && <button className={agendaOpen ? "active" : ""} aria-label="Agenda" title="Agenda — What’s next" aria-pressed={agendaOpen} onClick={() => setAgendaOpen(true)}><CalendarModeIcon mode="agenda" /></button>}
         </div>
         <button className="weather" aria-label="Open weather details" aria-haspopup="dialog" onClick={() => setWeatherOpen(true)}>
           <DateTime now={now} />
