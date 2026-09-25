@@ -22,15 +22,14 @@ function ReleaseNotesDialog({ notes, onClose }: { notes?: { version: string; bod
   );
 }
 
-export function ApplicationUpdates({ apiUrl }: { apiUrl: string }) {
+export function ApplicationUpdates({ apiUrl, onAvailableChange }: { apiUrl: string; onAvailableChange: (version?: string) => void }) {
   const [status, setStatus] = useState<UpdateStatus>();
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const loadedVersion = useRef<string | undefined>(undefined);
   useEffect(() => {
-    // Polls in the background (not gated on the settings dialog being open) so an
-    // idle kiosk picks up and reloads for an auto-installed release unattended.
+    // Keep checking while settings are closed so the calendar can show an update.
     let stopped = false;
     const load = async () => {
       try {
@@ -46,6 +45,9 @@ export function ApplicationUpdates({ apiUrl }: { apiUrl: string }) {
     const timer = window.setInterval(() => void load(), status?.busy ? 2000 : 30000);
     return () => { stopped = true; clearInterval(timer); };
   }, [apiUrl, status?.busy]);
+  useEffect(() => {
+    onAvailableChange(status?.busy || status?.status === "rollback_failed" ? undefined : status?.availableVersion);
+  }, [onAvailableChange, status?.availableVersion, status?.busy, status?.status]);
 
   async function act(action: string) {
     setPending(true);

@@ -569,6 +569,7 @@ function App() {
   const [idle, setIdle] = useState(false);
   const [sleeping, setSleeping] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [availableUpdate, setAvailableUpdate] = useState<string>();
   const [notesOpen, setNotesOpen] = useState(false);
   const [taskLists, setTaskLists] = useState(noteLists);
   const [tasksError, setTasksError] = useState<string>();
@@ -776,6 +777,7 @@ function App() {
       </div>
 
       <nav className="corner-controls" aria-label="Calendar settings">
+        {availableUpdate && <button className="update-available" onClick={openSettings} aria-label={`Update ${availableUpdate} available. Open settings to install.`}>Update {availableUpdate}</button>}
         <button aria-label="Sleep display" title="Sleep display" onClick={() => setSleeping(true)}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5Z" /></svg>
         </button>
@@ -808,7 +810,7 @@ function App() {
           </select></label>
         </section>
         <PhotoSettings apiUrl={apiUrl} open={settingsOpen} />
-        <ApplicationUpdates apiUrl={apiUrl} />
+        <ApplicationUpdates apiUrl={apiUrl} onAvailableChange={setAvailableUpdate} />
         <div className="settings-footer"><button onClick={() => settingsDialog.current?.close()}>Close</button></div>
       </dialog>
 

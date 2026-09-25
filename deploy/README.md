@@ -233,15 +233,14 @@ sudo systemctl status getty@tty1 calendar-updater --no-pager
 ## Updates and recovery
 
 The root-owned host service checks the latest GitHub release at startup and every
-six hours. A newer stable release installs unattended: the service pulls and
-smoke-tests the pinned images without interrupting the current app, then restarts
-the app containers immediately once the smoke test passes — there is no manual
-install or restart step. Activation health-checks both containers and the web-to-API
-path/version. Failed activation restores the last confirmed release. The app polls
-its local status and shows the installed version and progress; the browser reloads
-on its own once activation completes. The settings dialog's **Install** button is
-a manual fallback (e.g. to retry sooner after a failed auto-install). This restarts
-the app containers, **not the machine**.
+six hours. The calendar shows **Update** when a newer stable release is available.
+Open Settings and press **Install** to start it; there is no confirmation or other
+required interaction. The service pulls and smoke-tests the pinned images without
+interrupting the current app, then restarts the app containers once the smoke test
+passes. Activation health-checks both containers and the web-to-API path/version.
+Failed activation restores the last confirmed release and leaves the update
+available to retry. The app shows progress and reloads on its own once activation
+completes. This restarts the app containers, **not the machine**.
 
 State and active digest references are stored atomically in
 `/var/lib/calendar-updater/`. Interrupted activation recovers the last confirmed

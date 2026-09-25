@@ -150,16 +150,6 @@ class Updater:
         self.save(status="idle", available=available, notes=notes, lastChecked=time.time(),
                   message=f'Version {candidate["version"]} is available.' if available else "No new release available.")
 
-    def check_and_install(self):
-        # Unattended: a discovered update installs and restarts immediately, no button click required.
-        self.check()
-        candidate = self.state.get("available")
-        if candidate:
-            try:
-                self.install(candidate)
-            except Exception as error:
-                print(f"Auto-install: {error}", flush=True)
-
     def release_env(self, manifest):
         target = self.directory / "release.env"
         temporary = target.with_suffix(".tmp")
@@ -350,7 +340,7 @@ class Updater:
                     raise ValueError("This release is no longer the offered update")
                 work = lambda: self.install(candidate)
             elif action == "check":
-                work = self.check_and_install
+                work = self.check
             else:
                 raise ValueError("Unknown update action")
             self.busy = True

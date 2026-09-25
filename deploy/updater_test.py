@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import tarfile
 import tempfile
+import time
 import unittest
 from unittest.mock import patch
 from updater import HOST_FILES, Updater, validate_manifest, version
@@ -71,12 +72,14 @@ class UpdateTest(unittest.TestCase):
             self.assertNotIn(("docker", "image", "rm", manifest(2)["webImage"]), commands)
             with self.assertRaises(ValueError):
                 updater.install(manifest(2))
+            updater.save(available=manifest(4))
             with patch.object(updater, "smoke", side_effect=RuntimeError("bad image")):
                 with self.assertRaises(RuntimeError):
                     updater.install(manifest(4))
             self.assertEqual(updater.state["progress"][-1]["state"], "failed")
             self.assertEqual(updater.state["status"], "failed")
             self.assertEqual(updater.state["active"], manifest(3))
+            self.assertEqual(updater.state["available"], manifest(4))
             with patch.object(updater, "launch", side_effect=[RuntimeError("bad startup"), None]) as launch:
                 with self.assertRaises(RuntimeError):
                     updater.install(manifest(4))
@@ -136,7 +139,7 @@ class UpdateTest(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 updater.launch(manifest(2))  # A stale API must fail activation.
 
-    def test_check_and_install_installs_unattended(self):
+    def test_check_offers_update_until_install_is_requested(self):
         with tempfile.TemporaryDirectory() as directory:
             updater = Updater("cgrebeld/calendar", directory, "compose.yaml", "calendar.env", lambda *a, **k: "")
             updater.save(active=manifest(1))
@@ -151,7 +154,19 @@ class UpdateTest(unittest.TestCase):
                     json.dumps(manifest(2)).encode(),
                     json.dumps({"tag_name": "v1.0.2", "body": ""}).encode(),
                 ]
-                updater.check_and_install()
+                updater.dispatch("check")
+                for _ in range(100):
+                    if not updater.busy:
+                        break
+                    time.sleep(.01)
+            self.assertEqual(installed, [])
+            self.assertEqual(updater.state["active"], manifest(1))
+            self.assertEqual(updater.state["available"], manifest(2))
+            updater.dispatch("install", "1.0.2")
+            for _ in range(100):
+                if not updater.busy:
+                    break
+                time.sleep(.01)
             self.assertEqual(installed, ["1.0.2"])
             self.assertEqual(updater.state["active"], manifest(2))
             self.assertIsNone(updater.state["available"])
