@@ -2,6 +2,7 @@ import { defaultScheduleRange, type ScheduleRange } from "./schedule.ts";
 
 export type CalendarEvent = {
   day: number;
+  calendarId?: string;
   person: string;
   tone: "alex" | "sam" | "maya" | "family" | "collection";
   start: number;
@@ -20,6 +21,17 @@ export function orderEvents(events: CalendarEvent[]) {
 export function upcomingEvents(events: CalendarEvent[], nowHour: number) {
   return events.filter((event) => event.day >= 0 && event.day < 7 && (event.day > 0 || event.allDay || event.start + event.duration > nowHour))
     .sort((a, b) => a.day - b.day || Number(b.allDay) - Number(a.allDay) || a.start - b.start);
+}
+
+export function agendaColumns(events: CalendarEvent[], nowHour: number) {
+  const calendars = new Map<string, { id: string; name: string; tone: CalendarEvent["tone"]; events: CalendarEvent[] }>();
+  for (const event of events) {
+    if (event.collection) continue;
+    const id = event.calendarId ?? event.person;
+    if (!calendars.has(id)) calendars.set(id, { id, name: event.person, tone: event.tone, events: [] });
+    calendars.get(id)!.events.push(event);
+  }
+  return [...calendars.values()].map((calendar) => ({ ...calendar, events: upcomingEvents(calendar.events, nowHour).slice(0, 3) }));
 }
 
 export function layoutEvents(events: CalendarEvent[], minimumDuration = 1, range: ScheduleRange = defaultScheduleRange) {
@@ -77,6 +89,7 @@ export function convertGoogleEvent(event: GoogleEvent, calendar: Calendar, tone:
   const start = Math.max(range.startHour, Math.min(range.endHour - 0.5, actualStart));
   return {
     day: dayDifference(startDate, today),
+    calendarId: calendar.id,
     person: calendar.summary,
     tone,
     start,

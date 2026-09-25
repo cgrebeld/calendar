@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { addDays, moveAnchor, swipeDirection, viewDates, viewTitle, type ViewMode } from "./dates";
 import { moonPhaseOn } from "./moon";
-import { dayDifference, layoutEvents, loadGoogleEvents, orderEvents, upcomingEvents, type CalendarEvent } from "./google-calendar";
+import { agendaColumns, dayDifference, layoutEvents, loadGoogleEvents, orderEvents, type CalendarEvent } from "./google-calendar";
 import { formatHour, hourLabels, hourOf, hourOffset, placeRows, scheduleHours, scheduleRangeFromEnv, timeMarkerOffset, titleLines, type ScheduleRange } from "./schedule";
 import { dateKey, fakeForecast, loadWeather, upcomingHours, weatherChartScale, weatherDescription, weatherGlyph, weatherIcon, windStrength, type DayWeather, type WeatherReport } from "./weather";
 import { backgroundFor, parseSkin, parseThemeMode, parseThemeSchedule, resolveTheme, scheduleFromSolar, type ThemeMode, type ThemeName } from "./theme";
@@ -150,14 +150,12 @@ function eventsFor(events: CalendarEvent[], date: Date, today: Date) {
 }
 
 function WhatsNext({ events, now, onSelect }: { events: CalendarEvent[]; now: Date; onSelect: (event: CalendarEvent) => void }) {
-  const people: CalendarEvent["tone"][] = ["alex", "sam", "maya", "family"];
-  const upcoming = upcomingEvents(events, hourOf(now));
-  return <section className="whats-next" aria-label="What's next by person">
+  const calendars = agendaColumns(events, hourOf(now));
+  return <section className="whats-next" aria-label="What's next by calendar">
     <div className="agenda-intro"><p className="eyebrow">The next seven days</p><h2>Everyone’s trail</h2></div>
-    <div className="agenda-grid">{people.map((tone) => {
-      const items = upcoming.filter((event) => event.tone === tone).slice(0, 3);
-      return <article className={`agenda-person ${tone}`} key={tone}>
-        <h3><span className="agenda-avatar" aria-hidden="true">{tone === "family" ? "⌂" : tone[0].toUpperCase()}</span>{tone === "family" ? "Family" : tone[0].toUpperCase() + tone.slice(1)}</h3>
+    <div className="agenda-grid">{calendars.map(({ id, name, tone, events: items }) => {
+      return <article className={`agenda-person ${tone}`} key={id}>
+        <h3><span className="agenda-avatar" aria-hidden="true">{name.slice(0, 1).toUpperCase()}</span>{name}</h3>
         {items.length ? items.map((event) => <button className="agenda-event" onClick={() => onSelect(event)} key={`${event.day}-${event.start}-${event.title}`}>
           <span className="agenda-when">{event.day === 0 ? "Today" : event.day === 1 ? "Tomorrow" : dayName.format(addDays(now, event.day))} · {eventTime(event)}</span>
           <strong>{eventTitle(event)}</strong>

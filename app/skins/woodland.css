@@ -149,7 +149,7 @@
 .agenda-intro h2 { margin: .1rem 0 0; font-size: 1.5rem; }
 .agenda-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
 .agenda-person { min-width: 0; padding: .75rem; background: var(--surface-muted); border: 2px solid var(--border); box-shadow: inset 0 2px var(--bevel-hi), inset 0 -3px var(--bevel-lo); }
-.agenda-person h3 { display: flex; align-items: center; gap: .5rem; margin: 0 0 .75rem; font-family: "Galmuri11", sans-serif; font-size: 1.1rem; }
+.agenda-person h3 { display: flex; align-items: center; gap: .5rem; margin: 0 0 .75rem; font-family: "Galmuri11", sans-serif; font-size: 1.1rem; overflow-wrap: anywhere; }
 .agenda-avatar { display: grid; place-items: center; width: 2.25rem; height: 2.25rem; flex: none; background: var(--tone); border: 2px solid var(--tone-text); color: var(--tone-text); }
 .agenda-event { display: block; width: 100%; margin: 0 0 .6rem; padding: .7rem; border: 2px solid var(--tone); background: var(--tone-bg); color: var(--tone-text); text-align: left; box-shadow: 2px 2px 0 var(--border-strong); }
 .agenda-event:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }

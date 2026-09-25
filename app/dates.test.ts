@@ -57,7 +57,24 @@ import { countdownItems, countdownRange } from "./countdowns.ts";
 import { execFileSync } from "node:child_process";
 import { moonPhaseInstant, moonPhaseOn, type MoonPhase } from "./moon.ts";
 import { addDays, moveAnchor, swipeDirection, viewDates, viewTitle } from "./dates.ts";
-import { convertGoogleEvent, layoutEvents, orderEvents, upcomingEvents, type CalendarEvent } from "./google-calendar.ts";
+import { agendaColumns, convertGoogleEvent, layoutEvents, orderEvents, upcomingEvents, type CalendarEvent } from "./google-calendar.ts";
+
+test("agenda columns use calendar names and keep calendars with the same color or name separate", () => {
+  const today = new Date(2026, 8, 25);
+  const makeEvent = (id: string, name: string, date: string) => convertGoogleEvent(
+    { summary: id, start: { date }, end: { date } },
+    { id, summary: name }, "alex", today,
+  );
+  const columns = agendaColumns([
+    makeEvent("work", "Work", "2026-09-25"),
+    makeEvent("school-a", "School", "2026-09-26"),
+    makeEvent("school-b", "School", "2026-09-24"),
+    makeEvent("work", "Work", "2026-09-26"),
+  ], 12);
+  assert.deepEqual(columns.map(({ id, name, events }) => [id, name, events.length]), [
+    ["work", "Work", 2], ["school-a", "School", 1], ["school-b", "School", 0],
+  ]);
+});
 
 test("upcoming agenda skips finished events and orders the next seven days", () => {
   const event = (start: number, day: number, title: string): CalendarEvent => ({ day, person: "Alex", tone: "alex", start, duration: 1, title, detail: "" });
