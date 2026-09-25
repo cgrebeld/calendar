@@ -760,7 +760,7 @@ function App() {
           </select></label>
         </section>
         <PhotoSettings apiUrl={apiUrl} open={settingsOpen} />
-        <ApplicationUpdates apiUrl={apiUrl} open={settingsOpen} />
+        <ApplicationUpdates apiUrl={apiUrl} />
         <div className="settings-footer"><button onClick={() => settingsDialog.current?.close()}>Close</button></div>
       </dialog>
 

@@ -99,6 +99,23 @@ class UpdateTest(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 updater.launch(manifest(2))  # A stale API must fail activation.
 
+    def test_check_and_install_installs_unattended(self):
+        with tempfile.TemporaryDirectory() as directory:
+            updater = Updater("cgrebeld/calendar", directory, "compose.yaml", "calendar.env", lambda *a, **k: "")
+            updater.save(active=manifest(1))
+            updater.smoke = lambda candidate: None
+            installed = []
+            updater.launch = lambda candidate: installed.append(candidate["version"])
+            with patch("updater.urlopen") as response:
+                response.return_value.__enter__.return_value.read.side_effect = [
+                    json.dumps(manifest(2)).encode(),
+                    json.dumps({"tag_name": "v1.0.2", "body": ""}).encode(),
+                ]
+                updater.check_and_install()
+            self.assertEqual(installed, ["1.0.2"])
+            self.assertEqual(updater.state["active"], manifest(2))
+            self.assertIsNone(updater.state["available"])
+
     def test_smoke_checks_architecture_labels_and_health(self):
         with tempfile.TemporaryDirectory() as directory:
             def run(*args, **kw):

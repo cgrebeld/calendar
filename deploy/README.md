@@ -232,12 +232,15 @@ sudo systemctl status getty@tty1 calendar-updater --no-pager
 ## Updates and recovery
 
 The root-owned host service checks the latest GitHub release at startup and every
-six hours. The app polls its local status and offers **Install**, which pulls and
+six hours. A newer stable release installs unattended: the service pulls and
 smoke-tests the pinned images without interrupting the current app, then restarts
-the app containers immediately once the smoke test passes — there is no separate
-manual restart step. Activation health-checks both containers and the web-to-API
-path/version. Failed activation restores the last confirmed release. The browser
-reloads after activation. This restarts the app containers, **not the machine**.
+the app containers immediately once the smoke test passes — there is no manual
+install or restart step. Activation health-checks both containers and the web-to-API
+path/version. Failed activation restores the last confirmed release. The app polls
+its local status and shows the installed version and progress; the browser reloads
+on its own once activation completes. The settings dialog's **Install** button is
+a manual fallback (e.g. to retry sooner after a failed auto-install). This restarts
+the app containers, **not the machine**.
 
 State and active digest references are stored atomically in
 `/var/lib/calendar-updater/`. Interrupted activation recovers the last confirmed
@@ -252,7 +255,7 @@ It accepts only check/install operations and validates the browser origin
 on mutations. The host only accepts stable newer versions, the supported manifest
 schema/architecture, and digests in this project's fixed GHCR repositories.
 The release channel trusts GitHub/maintainers; separate cryptographic artifact
-signatures and unattended updates are not implemented.
+signatures are not implemented.
 
 Inspect failures with `sudo journalctl -u calendar-updater -n 100` and
 `sudo cat /var/lib/calendar-updater/state.json`. If rollback itself fails, fix
@@ -280,3 +283,13 @@ No test suite or browser automation runs on the wall box. Keep failure injection
 in CI or a disposable development VM. One-time hardware acceptance still checks
 touch, GPU acceleration, screen standby/wake, offline boot of the installed app
 shell, and one real update with Google token persistence and browser reload.
+
+## Optional: self-hosted photos (Immich)
+
+For a third photo source with real date/GPS metadata (Google's Photos Picker
+API exposes neither), see
+[immich-setup.md](immich-setup.md) for standing up Immich and a Google
+Takeout ingestion pipeline on this host, and
+[../docs/immich-photo-backend-plan.md](../docs/immich-photo-backend-plan.md)
+for the app-side integration this depends on. Entirely optional; the app
+runs fine without it.

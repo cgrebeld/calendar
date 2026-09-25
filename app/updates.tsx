@@ -22,14 +22,15 @@ function ReleaseNotesDialog({ notes, onClose }: { notes?: { version: string; bod
   );
 }
 
-export function ApplicationUpdates({ apiUrl, open }: { apiUrl: string; open: boolean }) {
+export function ApplicationUpdates({ apiUrl }: { apiUrl: string }) {
   const [status, setStatus] = useState<UpdateStatus>();
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const loadedVersion = useRef<string | undefined>(undefined);
   useEffect(() => {
-    if (!open) return;
+    // Polls in the background (not gated on the settings dialog being open) so an
+    // idle kiosk picks up and reloads for an auto-installed release unattended.
     let stopped = false;
     const load = async () => {
       try {
@@ -44,7 +45,7 @@ export function ApplicationUpdates({ apiUrl, open }: { apiUrl: string; open: boo
     void load();
     const timer = window.setInterval(() => void load(), status?.busy ? 2000 : 30000);
     return () => { stopped = true; clearInterval(timer); };
-  }, [apiUrl, open, status?.busy]);
+  }, [apiUrl, status?.busy]);
 
   async function act(action: string) {
     setPending(true);
