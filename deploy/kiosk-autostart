@@ -1,6 +1,8 @@
 #!/bin/sh
 # Blank after 30 idle minutes, except 07:00-11:59 when the display stays on.
 swayidle -w timeout 1800 'h=$(date +%H); [ "$h" -ge 07 ] && [ "$h" -lt 12 ] && exit 0; date +"%F %T off" >> /home/kiosk/.config/idle.log; wlopm --off "*"' resume 'date +"%F %T on" >> /home/kiosk/.config/idle.log; wlopm --on "*"' &
+# Wake the display at 07:00 even without a touch.
+while true; do [ "$(date +%H%M)" = 0700 ] && wlopm --on "*"; sleep 30; done &
 (
   until curl -fsS --max-time 5 http://localhost:8080/ >/dev/null; do
     sleep 2
