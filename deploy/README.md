@@ -69,6 +69,17 @@ and publish another version; runtime Google/weather settings remain on the box.
 
    Without this, Docker can capture an unusable DNS configuration during boot;
    Google API calls then fail with `getaddrinfo EAI_AGAIN` until Docker restarts.
+
+   If requests intermittently time out (ping the gateway and see bursty loss),
+   the 5 GHz link may be stalling; the wall box's Intel 7260 did this even at
+   -54 dBm. When the router shares one SSID across bands, pin the box to
+   2.4 GHz (channels 1–11) under the `wlp2s0` stanza in
+   `/etc/network/interfaces`, then reboot:
+
+   ```sh
+   sudo sed -i '/wpa-ssid/a\    wpa-freq-list 2412 2417 2422 2427 2432 2437 2442 2447 2452 2457 2462' \
+     /etc/network/interfaces
+   ```
 2. Copy this `deploy/` directory from the release's source checkout to the box.
 3. Copy `calendar.env.example` to a private `calendar.env` and fill in Google
    credentials. `APP_ORIGIN` must list every URL used to open the app, separated
