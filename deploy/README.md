@@ -99,6 +99,22 @@ Open `http://calendar-wall:8080` (or your configured origin), then connect Googl
 This is a separate production installation: it does not migrate an existing
 development container's OAuth volume. Reauthorize Google on the wall box.
 
+### Connecting Google and picking photos from another computer
+
+Google connection, picker sessions, and imported photos are stored on the wall
+box's server, so you can do these steps from a laptop instead of the kiosk screen.
+Tunnel the laptop's port 8080 to the wall box so the OAuth callback stays on
+`localhost` (stop anything else using 8080 on the laptop first):
+
+```sh
+ssh -N -L 8080:localhost:8080 YOUR_ADMIN_USER@calendar-wall
+```
+
+Open `http://localhost:8080` on the laptop, then use Settings → Photos to connect
+Google, choose photos, and import them. The wall box downloads the photos itself;
+the kiosk still needs **Display imported Google Photos** enabled, because that
+setting is saved separately for each display.
+
 ## Graphical kiosk setup
 
 Run these commands on the Debian PC as an administrator with `sudo`, from the
