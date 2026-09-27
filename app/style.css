@@ -201,6 +201,27 @@ nav .dark { color: var(--on-accent); background: var(--nav-dark-bg); border: 0; 
 .countdown-note { display: block; }
 .note-list input { width: 1.35rem; height: 1.35rem; margin: .05rem 0 0; accent-color: var(--accent); }
 .note-list input:checked + span { color: var(--note-checked); text-decoration: line-through; }
+.quest-progress { margin: 0 0 1rem; padding: .8rem; border: 1px solid var(--border); border-radius: .8rem; background: var(--surface); }
+.quest-progress-text { display: flex; align-items: center; gap: .4rem; font-size: .8rem; }
+.quest-progress-text > span:first-child { color: #d99b2b; font-size: 1.2rem; }
+.quest-progress-text > span:last-child { margin-left: auto; white-space: nowrap; font-weight: 800; }
+.quest-progress progress { display: block; width: 100%; height: .7rem; margin: .65rem 0 .35rem; overflow: hidden; border: 0; border-radius: 1rem; background: var(--surface-muted); accent-color: var(--accent); }
+.quest-progress progress::-webkit-progress-bar { background: var(--surface-muted); }
+.quest-progress progress::-webkit-progress-value { background: var(--accent); border-radius: 1rem; }
+.quest-progress progress::-moz-progress-bar { background: var(--accent); border-radius: 1rem; }
+.quest-progress small { color: var(--text-muted); font-size: .72rem; }
+.note-list .quest-card { grid-template-columns: 2rem minmax(0, 1fr); align-items: center; min-height: 4.3rem; gap: .65rem; padding: .75rem; cursor: pointer; }
+.quest-card input { appearance: none; display: grid; place-items: center; width: 2rem; height: 2rem; margin: 0; border: 2px solid var(--accent); border-radius: .5rem; background: var(--surface-muted); cursor: pointer; }
+.quest-card input::before { content: "★"; color: var(--accent); font-size: 1.35rem; line-height: 1; opacity: .4; }
+.quest-card input:checked { background: var(--accent); }
+.quest-card input:checked::before { color: var(--accent-text); opacity: 1; }
+.quest-card input:focus-visible { outline: 3px solid var(--accent-strong); outline-offset: 3px; }
+.quest-copy { min-width: 0; overflow-wrap: anywhere; }
+.quest-copy small, .quest-copy strong { display: block; }
+.quest-copy small { margin-bottom: .2rem; color: var(--accent-strong); font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
+.quest-copy strong { font-size: .95rem; line-height: 1.25; }
+.quest-card input:checked + .quest-copy { text-decoration: none; }
+.quest-card input:checked + .quest-copy strong { color: var(--note-checked); text-decoration: line-through; }
 .tasks-warning { padding: .75rem; border-left: 3px solid var(--error); background: var(--surface); font-size: .8rem; }
 .tasks-warning button { padding: 0; border: 0; color: var(--accent-strong); background: none; font: inherit; font-weight: 750; text-decoration: underline; }
 

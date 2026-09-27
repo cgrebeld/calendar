@@ -473,6 +473,8 @@ function Notes({ onClose, onToggle, lists, error, reconnect, apiUrl, connected, 
   const [listId, setListId] = useState(tabs[0].id);
   const list = lists.find((entry) => entry.id === listId) ?? lists[0];
   const activeId = listId === "countdowns" ? listId : list.id;
+  const chores = listId !== "countdowns" && list.label.toLowerCase() === "chores";
+  const completedChores = chores ? list.items.filter((item) => item.completed).length : 0;
   const swipe = useRef<[number, number] | undefined>(undefined);
   const swiped = useRef(false);
 
@@ -497,7 +499,7 @@ function Notes({ onClose, onToggle, lists, error, reconnect, apiUrl, connected, 
       }
     }}>
       <div className="notes-header">
-        <div><p className="eyebrow">Family Notes</p><h2>{listId === "countdowns" ? "Countdowns" : list.label}</h2></div>
+        <div><p className="eyebrow">{chores ? "Family Adventures" : "Family Notes"}</p><h2>{chores ? "Quest Board" : listId === "countdowns" ? "Countdowns" : list.label}</h2></div>
         <div className="notes-actions">
           <button onClick={onClose} aria-label="Hide Family Notes" data-sound="boop">×</button>
         </div>
@@ -510,9 +512,22 @@ function Notes({ onClose, onToggle, lists, error, reconnect, apiUrl, connected, 
       </div>
       {listId === "countdowns" ? <Countdowns apiUrl={apiUrl} connected={connected} refresh={refresh} /> : <>
       {error && <p className="tasks-warning" role="status" title={error}>Live tasks unavailable. <button onClick={reconnect}>Reconnect Google</button></p>}
-      <div className="note-list" key={list.id}>
-        {list.items.map((note) => <label key={note.id}><input type="checkbox" checked={note.completed ?? false} onChange={(event) => onToggle(list.id, note.id, event.target.checked)} /><span>{note.title}</span></label>)}
-        {!list.items.length && <p>No tasks.</p>}
+      <div className={chores ? "chores-board" : undefined}>
+        {chores && <div className="quest-progress">
+          <div className="quest-progress-text"><span aria-hidden="true">✦</span><strong>{list.items.length && completedChores === list.items.length ? "All quests complete!" : "Your quest progress"}</strong><span>{completedChores} / {list.items.length}</span></div>
+          <progress value={completedChores} max={list.items.length || 1} aria-label="Chores completed" />
+          <small>{completedChores === list.items.length && list.items.length ? "Amazing work, team!" : "Every little quest counts!"}</small>
+        </div>}
+        <div className="note-list" key={list.id}>
+          {list.items.map((note) => {
+            const [name, task] = chores ? note.title.split(/\s+[-–—]\s+(.+)/, 2) : [];
+            return <label className={chores ? "quest-card" : undefined} key={note.id}>
+              <input type="checkbox" checked={note.completed ?? false} onChange={(event) => onToggle(list.id, note.id, event.target.checked)} />
+              {chores ? <span className="quest-copy">{task && <small>{name}'s quest</small>}<strong>{task || note.title}</strong></span> : <span>{note.title}</span>}
+            </label>;
+          })}
+          {!list.items.length && <p>{chores ? "No quests yet. Enjoy the break!" : "No tasks."}</p>}
+        </div>
       </div>
       </>}
     </aside>
