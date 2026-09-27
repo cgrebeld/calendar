@@ -3,6 +3,7 @@
 - Run frontend and API tests from `app/` with `npm test` (Node 22.16 needs `NODE_OPTIONS=--experimental-strip-types`).
 - Run `npm run build` from `app/` for TypeScript checking and the production Vite build.
 - Commit every completed, verified logical chunk of work separately.
+- After each commit that changes container inputs, run `./restart.sh web` for `app/`, `./restart.sh api` for `api/`, or `./restart.sh all` when both services or shared build settings change. Skip redeployment for documentation-only commits.
 
 # Calendar features
 

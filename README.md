@@ -101,10 +101,12 @@ A changed Google connection requires a new Picker selection; imported images rem
 ## Run with Docker
 
 ```sh
-./restart.sh
+./restart.sh web  # frontend changes
+./restart.sh api  # API changes
+./restart.sh all  # both services or shared build settings
 ```
 
-The script rebuilds and restarts the API and frontend, then prints the frontend URL using `WEB_PORT` from `.env` (default `8080`).
+The script builds and updates only the selected service (or both for `all`). Unchanged containers are left running. The web command prints the frontend URL using `WEB_PORT` from `.env` (default `8080`).
 
 For local frontend development, run the API and Vite in separate terminals:
 
