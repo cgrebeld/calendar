@@ -185,7 +185,7 @@
 [data-skin="woodland"] .month-day.today::before { content: ""; position: absolute; inset: 0 0 auto; height: 2rem; }
 [data-skin="woodland"] .month-day.today > span { position: relative; z-index: 1; }
 [data-skin="woodland"] .month-day.today > .day-weather { z-index: 1; }
-[data-skin="woodland"] :is(.day-heading.today, .mini-day.today > header, .month-day.today::before) {
+[data-skin="woodland"] :is(.day-heading.today, .mini-day.today > header), [data-skin="woodland"] .month-day.today::before {
   background-image: linear-gradient(#70b16b, #568e58), url("/skins/woodland/wood.png");
   background-size: auto, 256px 128px;
   background-blend-mode: multiply, normal;
