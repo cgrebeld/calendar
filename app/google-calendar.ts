@@ -10,6 +10,8 @@ export type CalendarEvent = {
   title: string;
   detail: string;
   timeLabel?: string;
+  endLabel?: string;
+  recurring?: boolean;
   allDay?: boolean;
   collection?: "garbage" | "recycling";
 };
@@ -69,6 +71,7 @@ export type GoogleEvent = {
   location?: string;
   start: { date?: string; dateTime?: string };
   end: { date?: string; dateTime?: string };
+  recurringEventId?: string;
 };
 
 type Calendar = { id: string; summary: string; selected?: boolean; primary?: boolean };
@@ -99,6 +102,8 @@ export function convertGoogleEvent(event: GoogleEvent, calendar: Calendar, tone:
     title: event.summary || "Untitled event",
     detail: [event.location, event.description].filter(Boolean).join(" · ") || calendar.summary,
     timeLabel: allDay ? "All day" : startDate.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+    endLabel: allDay ? undefined : endDate.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
+    recurring: Boolean(event.recurringEventId),
     allDay,
   };
 }

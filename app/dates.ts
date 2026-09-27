@@ -25,7 +25,10 @@ export function viewDates(anchor: Date, mode: ViewMode) {
 export function moveAnchor(anchor: Date, mode: ViewMode, direction: -1 | 1) {
   if (mode === "month") {
     const result = new Date(anchor);
+    const day = result.getDate();
+    result.setDate(1);
     result.setMonth(result.getMonth() + direction);
+    result.setDate(Math.min(day, new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate()));
     return result;
   }
   return addDays(anchor, direction * ({ day: DAY_VIEW_STEP, week: 7, twoWeek: 14 }[mode]));

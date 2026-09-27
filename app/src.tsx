@@ -142,6 +142,10 @@ function eventTime(event: CalendarEvent) {
   return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
+function eventTimeSpan(event: CalendarEvent) {
+  return event.allDay ? "All day" : `${eventTime(event)} – ${event.endLabel ?? formatHour(event.start + event.duration)}`;
+}
+
 function eventTitle(event: CalendarEvent) {
   return <>{event.collection && <span className="collection-icon" aria-hidden="true">{event.collection === "garbage" ? "🗑️" : "♻️"}</span>}{event.title}</>;
 }
@@ -821,7 +825,7 @@ function App() {
 
       {openDay && <DayModal date={openDay} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onClose={() => setOpenDay(undefined)} />}
 
-      {selected && <div className="backdrop event-backdrop" onClick={() => setSelected(undefined)}><section className="event-detail" role="dialog" aria-modal="true" aria-labelledby="event-title" onClick={(event) => event.stopPropagation()}><button className="close" onClick={() => setSelected(undefined)} aria-label="Close" data-sound="boop">×</button><span className={`badge ${selected.tone}`}>{selected.person}</span><h2 id="event-title">{eventTitle(selected)}</h2><p>{eventTime(selected)}</p><p>{selected.detail}</p></section></div>}
+      {selected && <div className="backdrop event-backdrop" onClick={() => setSelected(undefined)}><section className="event-detail" role="dialog" aria-modal="true" aria-labelledby="event-title" onClick={(event) => event.stopPropagation()}><button className="close" onClick={() => setSelected(undefined)} aria-label="Close" data-sound="boop">×</button><span className={`badge ${selected.tone}`}>{selected.person}</span><h2 id="event-title">{eventTitle(selected)}</h2><p>{eventTimeSpan(selected)}</p>{selected.recurring && <p>Recurring event</p>}<p>{selected.detail}</p></section></div>}
     </main>
   );
 }

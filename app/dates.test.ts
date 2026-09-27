@@ -270,6 +270,11 @@ test("calendar modes return the expected ranges", () => {
   assert.deepEqual(["day", "week", "twoWeek", "month"].map((mode) => viewDates(wednesday, mode as Parameters<typeof viewDates>[1]).length), [3, 7, 14, 42]);
   assert.equal(viewDates(wednesday, "week")[0].getDay(), 0);
   assert.equal(moveAnchor(wednesday, "twoWeek", 1).getDate(), 23);
+  const januaryEnd = new Date(2026, 0, 31);
+  const februaryEnd = moveAnchor(januaryEnd, "month", 1);
+  assert.equal(dateKey(februaryEnd), "2026-02-28");
+  assert.equal(dateKey(moveAnchor(februaryEnd, "month", 1)), "2026-03-28");
+  assert.equal(dateKey(moveAnchor(new Date(2024, 0, 31), "month", 1)), "2024-02-29");
 });
 
 test("horizontal swipes navigate only after a deliberate gesture", () => {
@@ -300,6 +305,15 @@ test("Google all-day events keep their local calendar date", () => {
   const event = convertGoogleEvent({ summary: "Trip", start: { date: "2026-09-12" }, end: { date: "2026-09-13" } }, { id: "family", summary: "Family" }, "family", new Date(2026, 8, 11));
   assert.equal(event.day, 1);
   assert.equal(event.allDay, true);
+});
+
+test("Google event details retain actual end time and recurrence", () => {
+  const event = convertGoogleEvent({ summary: "Lesson", recurringEventId: "series-1", start: { dateTime: "2026-09-25T21:30:00-07:00" }, end: { dateTime: "2026-09-25T23:00:00-07:00" } }, { id: "school", summary: "School" }, "alex", new Date(2026, 8, 25));
+  const format = (value: string) => new Date(value).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  assert.equal(event.timeLabel, format("2026-09-25T21:30:00-07:00"));
+  assert.equal(event.endLabel, format("2026-09-25T23:00:00-07:00"));
+  assert.equal(event.recurring, true);
+  assert.ok(event.duration < 1.5);
 });
 
 test("overlapping events stack vertically", () => {
