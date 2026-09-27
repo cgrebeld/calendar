@@ -308,10 +308,12 @@ test("Google all-day events keep their local calendar date", () => {
 });
 
 test("Google event details retain actual end time and recurrence", () => {
-  const event = convertGoogleEvent({ summary: "Lesson", recurringEventId: "series-1", start: { dateTime: "2026-09-25T21:30:00-07:00" }, end: { dateTime: "2026-09-25T23:00:00-07:00" } }, { id: "school", summary: "School" }, "alex", new Date(2026, 8, 25));
-  const format = (value: string) => new Date(value).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  assert.equal(event.timeLabel, format("2026-09-25T21:30:00-07:00"));
-  assert.equal(event.endLabel, format("2026-09-25T23:00:00-07:00"));
+  const start = new Date(2026, 8, 25, 21, 30);
+  const end = new Date(2026, 8, 25, 23);
+  const event = convertGoogleEvent({ summary: "Lesson", recurringEventId: "series-1", start: { dateTime: start.toISOString() }, end: { dateTime: end.toISOString() } }, { id: "school", summary: "School" }, "alex", start);
+  const format = (date: Date) => date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  assert.equal(event.timeLabel, format(start));
+  assert.equal(event.endLabel, format(end));
   assert.equal(event.recurring, true);
   assert.ok(event.duration < 1.5);
 });
