@@ -327,8 +327,10 @@ shell, and one real update with Google token persistence and browser reload.
 
 ## Optional: self-hosted photos (Immich)
 
-For a proposed third photo source with GPS metadata (Google Photos Picker
-provides capture dates but not locations), see
+The API supports reading an Immich album as a third photo source with GPS
+metadata (Google Photos Picker provides capture dates but not locations). See
 [immich-setup.md](immich-setup.md) for host setup and
 [../docs/immich-photo-backend-plan.md](../docs/immich-photo-backend-plan.md)
-for the app integration plan. Immich is not currently an app photo source.
+for the remaining browser integration. Set `IMMICH_URL=http://host.docker.internal:2283`
+in `/etc/calendar/calendar.env` when Immich runs on the Docker host. Immich is
+not yet available in browser photo mode.

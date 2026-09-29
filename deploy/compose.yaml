@@ -15,6 +15,8 @@ services:
     image: ${API_IMAGE:?Set API_IMAGE in release.env}
     platform: linux/amd64
     env_file: /etc/calendar/calendar.env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       GOOGLE_TOKEN_PATH: /data/google-oauth.json
       GOOGLE_PHOTOS_STATE_PATH: /data/google-photos.json

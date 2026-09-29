@@ -29,6 +29,9 @@ services:
       GOOGLE_TOKEN_PATH: /data/google-oauth.json
       GOOGLE_PHOTOS_STATE_PATH: /data/google-photos.json
       UNSPLASH_ACCESS_KEY: ${UNSPLASH_ACCESS_KEY:-}
+      IMMICH_URL: ${IMMICH_URL:-}
+      IMMICH_API_KEY: ${IMMICH_API_KEY:-}
+      IMMICH_ALBUM_ID: ${IMMICH_ALBUM_ID:-}
       TASK_LISTS: ${TASK_LISTS:-}
       AGENDA_CALENDARS: ${AGENDA_CALENDARS:-}
       COLLECTION_ADDRESS: ${COLLECTION_ADDRESS:-}
@@ -38,6 +41,8 @@ services:
       WEATHER_WIND_UNIT: ${WEATHER_WIND_UNIT:-}
     ports:
       - "3000:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - calendar-data:/data
     restart: unless-stopped

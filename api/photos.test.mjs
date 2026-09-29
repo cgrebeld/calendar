@@ -430,3 +430,60 @@ test("Unsplash topics() fetches once and caches for the process lifetime", async
   await source.topics();
   assert.equal(calls, 1, "a second call should reuse the cached list");
 });
+
+import { createImmich } from "./immich.mjs";
+const albumId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const assetId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+
+test("Immich requires configuration and fetches an album at most every 30 minutes", async () => {
+  assert.equal(createImmich({ baseUrl: "", apiKey: "key", albumId }).status().enabled, false);
+  let time = 0, calls = 0;
+  const source = createImmich({ baseUrl: "http://immich:2283/", apiKey: "secret", albumId, now: () => time,
+    fetcher: async (url, options) => {
+      assert.equal(url, `http://immich:2283/api/albums/${albumId}`);
+      assert.equal(options.headers["x-api-key"], "secret");
+      assert.equal(options.redirect, "error");
+      calls++;
+      return ok({ albumName: "Calendar Wall", assets: [
+        { id: assetId, type: "IMAGE", exifInfo: { dateTimeOriginal: "2024-07-12T23:00:00.000Z", city: "Victoria" } },
+        { id: albumId, type: "VIDEO" }, { id: "bad", type: "IMAGE" },
+      ] });
+    } });
+  const [first, same] = await Promise.all([source.load(), source.load()]);
+  assert.deepEqual(first, same);
+  assert.equal(calls, 1);
+  assert.deepEqual(first, { enabled: true, count: 1, albumName: "Calendar Wall", error: undefined, items: [
+    { id: `immich-${assetId}`, url: `/api/photos/immich/image/${assetId}`, external: true, date: "2024-07-12", city: "Victoria" },
+  ] });
+  assert.equal(JSON.stringify(first).includes("secret"), false);
+  time = 30 * 60000 - 1; await source.load(); assert.equal(calls, 1);
+  time++; await source.load(); assert.equal(calls, 2);
+});
+
+test("Immich keeps cached photos on errors and rejects malformed album responses", async () => {
+  let time = 0, fail = false, calls = 0;
+  const source = createImmich({ baseUrl: "http://immich:2283", apiKey: "secret", albumId, now: () => time,
+    fetcher: async () => { calls++; return fail ? ok({ assets: {} }) : ok({ assets: [{ id: assetId, type: "IMAGE" }] }); } });
+  const first = await source.load();
+  time = 30 * 60000; fail = true;
+  const stale = await source.load();
+  assert.deepEqual(stale.items, first.items);
+  assert.match(stale.error, /unavailable/);
+  await source.load(); assert.equal(calls, 2);
+});
+
+test("Immich proxies only images listed in the configured album with a server-side key", async () => {
+  const urls = [];
+  const source = createImmich({ baseUrl: "http://immich:2283", apiKey: "secret", albumId,
+    fetcher: async (url, options) => {
+      urls.push(url);
+      assert.equal(options.headers["x-api-key"], "secret");
+      if (url.endsWith(`/albums/${albumId}`)) return ok({ assets: [{ id: assetId, type: "IMAGE" }] });
+      return new Response("image bytes", { headers: { "content-type": "image/jpeg" } });
+    } });
+  assert.equal(await source.image(albumId), null);
+  assert.equal(await source.image("../../secret"), null);
+  const image = await source.image(assetId);
+  assert.equal(await image.text(), "image bytes");
+  assert.deepEqual(urls, [`http://immich:2283/api/albums/${albumId}`, `http://immich:2283/api/assets/${assetId}/thumbnail?size=preview`]);
+});

@@ -1,12 +1,16 @@
 import { randomBytes, createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { updateRequest } from "./updates.mjs";
 import { createPhotos } from "./photos.mjs";
 import { createUnsplash } from "./unsplash.mjs";
+import { createImmich } from "./immich.mjs";
 import { loadCollection } from "./collections.mjs";
 
 const unsplash = createUnsplash();
+const immich = createImmich();
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -302,6 +306,19 @@ export const server = createServer(async (request, response) => {
       const topics = (url.searchParams.get("topics") || "").split(",").map((topic) => topic.trim()).filter((topic) => /^[\w-]+$/.test(topic));
       return json(request, response, 200, await unsplash.load(topics));
     }
+    if (url.pathname === "/api/photos/immich" || url.pathname === "/api/photos/immich/status") {
+      if (request.method !== "GET") return json(request, response, 405, { error: "Unsupported Immich operation" });
+      response.setHeader("cache-control", "no-store");
+      return json(request, response, 200, url.pathname.endsWith("/status") ? immich.status() : await immich.load());
+    }
+    const immichImage = /^\/api\/photos\/immich\/image\/([^/]+)$/.exec(url.pathname);
+    if (immichImage) {
+      if (request.method !== "GET") return json(request, response, 405, { error: "Unsupported Immich operation" });
+      const image = await immich.image(immichImage[1]);
+      if (!image) return json(request, response, 404, { error: "Photo not found" });
+      response.writeHead(200, { "content-type": image.headers.get("content-type"), "cache-control": "private, max-age=300", "x-content-type-options": "nosniff", "access-control-allow-origin": allowedOrigin(request.headers.origin, appOrigins), vary: "origin" });
+      return pipeline(Readable.fromWeb(image.body), response);
+    }
     if (url.pathname.startsWith("/api/photos/")) {
       const result = await photosRequest(request, url, appOrigins);
       response.writeHead(result.status, { ...(result.location ? { location: result.location } : {}), "content-type": result.type || "application/json", "cache-control": "no-store", "x-content-type-options": "nosniff", "access-control-allow-origin": allowedOrigin(request.headers.origin, appOrigins), vary: "origin" });
@@ -362,6 +379,7 @@ export const server = createServer(async (request, response) => {
     if (request.method === "GET" && url.pathname === "/api/tasks") return json(request, response, 200, await familyTasks(url.searchParams.get("force") === "true"));
     json(request, response, 404, { error: "Not found" });
   } catch (error) {
+    if (response.headersSent) return response.destroy(error);
     json(request, response, 500, { error: error.message });
   }
 });
