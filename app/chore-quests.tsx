@@ -4,6 +4,7 @@ import "./chore-quests.css";
 export function ChoreQuests({ quests, now }: { quests: Quest[]; now: Date }) {
   return <div className="chore-quests">
     <p className="quest-week">Week of {weekOf(now).start.toLocaleDateString(undefined, { month: "short", day: "numeric" })} <span>✦</span> Reach the castle!</p>
+    {!quests.length && <p className="quest-empty">No challenges this week. Add a task like “Ada: Make bed” in Google Tasks to start an adventure.</p>}
     {quests.map(({ name, challenges, done }, index) => {
       const complete = challenges.length > 0 && done === challenges.length;
       const hero = index % 2 ? "ninja" : "unicorn";
@@ -24,6 +25,6 @@ export function ChoreQuests({ quests, now }: { quests: Quest[]; now: Date }) {
       </section>;
     })}
     <p className="quest-help">Parents check off challenges in Google Tasks. Progress appears here after syncing.</p>
-    <details className="quest-help"><summary>Set up challenges</summary>In the Chores list, name tasks “Ada - Make bed” or “Clio - Feed the dog”. Set due dates for this week (Monday–Sunday). Undated open tasks join this week’s quest. Adventurer names are configured in the environment file.</details>
+    <details className="quest-help"><summary>Set up challenges</summary>In the Chores list, name tasks “Ada: Make bed” or “Clio-Feed the dog”. Each unique name gets a quest automatically. Set due dates for this week (Monday–Sunday). Undated open tasks join this week’s quest.</details>
   </div>;
 }

@@ -11,12 +11,10 @@ import { WoodlandBackground } from "./skins/woodland";
 import { DateTime } from "./date-time";
 import { DogCompanion } from "./dog";
 import { ChoreQuests } from "./chore-quests";
-import { kidNames, weeklyQuests, weekOf, newlyCompleted, type NoteList, type Quest } from "./quests";
+import { weeklyQuests, weekOf, newlyCompleted, type NoteList, type Quest } from "./quests";
 import { Countdowns } from "./countdown-list";
 import { ApplicationUpdates } from "./updates";
 import { PhotoIcon, PhotoMode, PhotoSettings } from "./photos";
-
-const kids = kidNames(import.meta.env.VITE_CHORE_KIDS || "Ada, Clio");
 
 const themeMode = parseThemeMode(new URLSearchParams(location.search).get("theme") ?? import.meta.env.VITE_THEME_MODE);
 function savedSkin() {
@@ -603,7 +601,7 @@ function App() {
   const swipeStart = useRef<[number, number] | undefined>(undefined);
   const now = useNow();
   const today = now;
-  const quests = weeklyQuests(taskLists.filter(list => list.label.toLowerCase() === "chores").flatMap(list => list.items), kids, now);
+  const quests = weeklyQuests(taskLists.filter(list => list.label.toLowerCase() === "chores").flatMap(list => list.items), now);
   const questWeek = weekOf(now).key;
   useEffect(() => {
     if (!connected || tasksError) return;
@@ -611,7 +609,7 @@ function App() {
     const names = previous?.week === questWeek ? newlyCompleted(previous.quests, quests) : [];
     if (names.length) setCelebration({ names: names.join(" & "), id: Date.now() });
     previousQuests.current = { week: questWeek, quests };
-  }, [taskLists, kids, questWeek, connected, tasksError]);
+  }, [taskLists, questWeek, connected, tasksError]);
   const dayKey = dateKey(now);
   const background = backgroundDisabled ? undefined : backgroundOverrides[theme] ?? (skin === "default" ? backgroundFor(theme, now) : undefined);
   useEffect(() => {
