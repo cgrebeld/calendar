@@ -437,33 +437,38 @@ const assetId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
 test("Immich requires configuration and fetches an album at most every 30 minutes", async () => {
   assert.equal(createImmich({ baseUrl: "", apiKey: "key", albumId }).status().enabled, false);
-  let time = 0, calls = 0;
+  let time = 0, searches = 0;
   const source = createImmich({ baseUrl: "http://immich:2283/", apiKey: "secret", albumId, now: () => time,
     fetcher: async (url, options) => {
-      assert.equal(url, `http://immich:2283/api/albums/${albumId}`);
       assert.equal(options.headers["x-api-key"], "secret");
       assert.equal(options.redirect, "error");
-      calls++;
-      return ok({ albumName: "Calendar Wall", assets: [
+      if (url.endsWith(`/albums/${albumId}`)) return ok({ id: albumId, albumName: "Calendar Wall" });
+      assert.equal(url, "http://immich:2283/api/search/metadata");
+      const query = JSON.parse(options.body);
+      assert.deepEqual(query.filter, { type: { eq: "IMAGE" }, albumIds: { any: [albumId] } });
+      assert.equal(query.withExif, true);
+      searches++;
+      return ok({ assets: { items: [
         { id: assetId, type: "IMAGE", exifInfo: { dateTimeOriginal: "2024-07-12T23:00:00.000Z", city: "Victoria" } },
         { id: albumId, type: "VIDEO" }, { id: "bad", type: "IMAGE" },
-      ] });
+      ], nextCursor: null } });
     } });
   const [first, same] = await Promise.all([source.load(), source.load()]);
   assert.deepEqual(first, same);
-  assert.equal(calls, 1);
+  assert.equal(searches, 1);
   assert.deepEqual(first, { enabled: true, count: 1, albumName: "Calendar Wall", error: undefined, items: [
     { id: `immich-${assetId}`, url: `/api/photos/immich/image/${assetId}`, external: true, date: "2024-07-12", city: "Victoria" },
   ] });
   assert.equal(JSON.stringify(first).includes("secret"), false);
-  time = 30 * 60000 - 1; await source.load(); assert.equal(calls, 1);
-  time++; await source.load(); assert.equal(calls, 2);
+  time = 30 * 60000 - 1; await source.load(); assert.equal(searches, 1);
+  time++; await source.load(); assert.equal(searches, 2);
 });
 
 test("Immich keeps cached photos on errors and rejects malformed album responses", async () => {
   let time = 0, fail = false, calls = 0;
   const source = createImmich({ baseUrl: "http://immich:2283", apiKey: "secret", albumId, now: () => time,
-    fetcher: async () => { calls++; return fail ? ok({ assets: {} }) : ok({ assets: [{ id: assetId, type: "IMAGE" }] }); } });
+    fetcher: async (url) => url.endsWith(`/albums/${albumId}`) ? ok({ id: albumId, albumName: "Wall" }) :
+      (calls++, fail ? ok({ assets: {} }) : ok({ assets: { items: [{ id: assetId, type: "IMAGE" }], nextCursor: null } })) });
   const first = await source.load();
   time = 30 * 60000; fail = true;
   const stale = await source.load();
@@ -478,12 +483,31 @@ test("Immich proxies only images listed in the configured album with a server-si
     fetcher: async (url, options) => {
       urls.push(url);
       assert.equal(options.headers["x-api-key"], "secret");
-      if (url.endsWith(`/albums/${albumId}`)) return ok({ assets: [{ id: assetId, type: "IMAGE" }] });
+      if (url.endsWith(`/albums/${albumId}`)) return ok({ id: albumId });
+      if (url.endsWith("/search/metadata")) return ok({ assets: { items: [{ id: assetId, type: "IMAGE" }], nextCursor: null } });
       return new Response("image bytes", { headers: { "content-type": "image/jpeg" } });
     } });
   assert.equal(await source.image(albumId), null);
   assert.equal(await source.image("../../secret"), null);
   const image = await source.image(assetId);
   assert.equal(await image.text(), "image bytes");
-  assert.deepEqual(urls, [`http://immich:2283/api/albums/${albumId}`, `http://immich:2283/api/assets/${assetId}/thumbnail?size=preview`]);
+  assert.deepEqual(urls, [`http://immich:2283/api/albums/${albumId}`, "http://immich:2283/api/search/metadata", `http://immich:2283/api/assets/${assetId}/thumbnail?size=preview`]);
+});
+
+test("Immich all-album mode excludes marked albums and follows search cursors", async () => {
+  const hiddenId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+  const source = createImmich({ baseUrl: "http://immich:2283", apiKey: "key", albumId: "*", fetcher: async (url, options) => {
+    if (url.endsWith("/albums")) return ok([
+      { id: albumId, albumName: "Family", description: "" },
+      { id: hiddenId, albumName: "Private", description: "Do not show #calendar-hide" },
+    ]);
+    assert.equal(url, "http://immich:2283/api/search/metadata");
+    const query = JSON.parse(options.body);
+    assert.deepEqual(query.filter, { type: { eq: "IMAGE" }, hasAlbums: { eq: true }, albumIds: { none: [hiddenId] } });
+    return ok({ assets: { items: [{ id: query.cursor ? albumId : assetId, type: "IMAGE" }], nextCursor: query.cursor ? null : "next" } });
+  } });
+  const result = await source.load();
+  assert.equal(result.enabled, true);
+  assert.equal(result.count, 2);
+  assert.deepEqual(result.items.map((item) => item.id), [`immich-${assetId}`, `immich-${albumId}`]);
 });

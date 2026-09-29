@@ -332,5 +332,7 @@ metadata (Google Photos Picker provides capture dates but not locations). See
 [immich-setup.md](immich-setup.md) for host setup and
 [../docs/immich-photo-backend-plan.md](../docs/immich-photo-backend-plan.md)
 for the remaining browser integration. Set `IMMICH_URL=http://host.docker.internal:2283`
-in `/etc/calendar/calendar.env` when Immich runs on the Docker host. Immich is
-not yet available in browser photo mode.
+in `/etc/calendar/calendar.env` when Immich runs on the Docker host. Set
+`IMMICH_ALBUM_ID=*` to use every album, then put `#calendar-hide` in the
+description of each album to exclude. Immich is not yet available in browser
+photo mode.

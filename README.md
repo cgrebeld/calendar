@@ -59,13 +59,17 @@ that state cannot be read or saved, online requests pause. This assumes the sing
 API service in the supplied Compose configuration and its persistent data volume;
 separate installations sharing the same key have separate budgets.
 
-The API also supports an optional Immich album. Set `IMMICH_URL`, `IMMICH_API_KEY`,
-and `IMMICH_ALBUM_ID` on the API container. For Immich on the Docker host, use
-`http://host.docker.internal:2283` as the URL. `GET /api/photos/immich` returns
-still photos with capture dates and cities; `GET /api/photos/immich/status` reports
-configuration and cached count. Images are served through
-`/api/photos/immich/image/:id` without exposing the API key. Album results refresh
-every 30 minutes. The browser photo mode does not yet use this source.
+The API supports Immich photos. Set `IMMICH_URL`, `IMMICH_API_KEY`, and
+`IMMICH_ALBUM_ID` on the API container. For Immich on the Docker host, use
+`http://host.docker.internal:2283` as the URL. Set `IMMICH_ALBUM_ID` to one
+album ID, or `*` to use photos from every album. In `*` mode, add
+`#calendar-hide` to an album's description in Immich to exclude its photos;
+exclusion wins if a photo also belongs to another album. Photos outside all
+albums are not included. `GET /api/photos/immich` returns still photos with
+capture dates and cities; `/api/photos/immich/status` reports configuration
+and cached count. Images are served through `/api/photos/immich/image/:id`
+without exposing the API key. Results refresh every 30 minutes. The browser
+photo mode does not yet use this source.
 
 Google Photos setup:
 
