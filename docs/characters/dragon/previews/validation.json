@@ -1,0 +1,13 @@
+{
+  "dimensions": [
+    768,
+    416
+  ],
+  "frames": 8,
+  "states": [
+    "idle",
+    "celebrate"
+  ],
+  "structural_checks": "passed",
+  "visual_review": "required"
+}

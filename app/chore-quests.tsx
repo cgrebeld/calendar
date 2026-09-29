@@ -1,5 +1,22 @@
+import { useEffect, useRef, useState } from "react";
 import { weekOf, type Quest } from "./quests";
 import "./chore-quests.css";
+
+function QuestCharacter({ name, species, complete, progress, onCelebrate }: { name: string; species: string; complete: boolean; progress: number; onCelebrate: (name: string) => void }) {
+  const [replay, setReplay] = useState(0);
+  const wasComplete = useRef(complete);
+  useEffect(() => {
+    if (complete && !wasComplete.current) setReplay(value => value + 1);
+    if (!complete) setReplay(0);
+    wasComplete.current = complete;
+  }, [complete]);
+  return <button className="quest-hero" type="button" style={{ left: `${8 + progress * 66}%` }} disabled={!complete} onClick={() => {
+    setReplay(value => value + 1);
+    onCelebrate(name);
+  }} aria-label={complete ? `Celebrate ${name}’s completed quest` : `${name}’s quest is still in progress`}>
+    <span key={replay} className={`quest-character ${replay ? "character-celebrate" : ""}`} style={{ backgroundImage: `url(/characters/${species}.png)` }} aria-hidden="true" onAnimationEnd={() => setReplay(0)} />
+  </button>;
+}
 
 export function ChoreQuests({ quests, now, onCelebrate }: { quests: Quest[]; now: Date; onCelebrate: (name: string) => void }) {
   return <div className="chore-quests">
@@ -7,14 +24,14 @@ export function ChoreQuests({ quests, now, onCelebrate }: { quests: Quest[]; now
     {!quests.length && <p className="quest-empty">No challenges this week.</p>}
     {quests.map(({ name, challenges, done }, index) => {
       const complete = challenges.length > 0 && done === challenges.length;
-      const hero = index % 2 ? "ninja" : "unicorn";
+      const hero = index % 2 ? "otter" : "dragon";
       return <section className={`kid-quest ${complete ? "quest-won" : ""}`} key={name} aria-label={`${name}'s weekly quest`}>
-        <header><div><h3>{name}’s Quest</h3><small>{index % 2 ? "Moonlight explorer" : "Rainbow adventurer"}</small></div><b aria-label={`${done} of ${challenges.length} challenges complete`}>{done}<span>/{challenges.length}</span></b></header>
+        <header><div><h3>{name}’s Quest</h3><small>{index % 2 ? "Pebble the otter" : "Moss the dragon"}</small></div><b aria-label={`${done} of ${challenges.length} challenges complete`}>{done}<span>/{challenges.length}</span></b></header>
         <div className="quest-landscape">
           <span className="quest-cloud" aria-hidden="true">☁</span><span className="quest-spark" aria-hidden="true">✦</span>
           <img className="quest-castle" src="/skins/woodland/quest-castle.png" alt="" />
           <div className="quest-trail"><i style={{ width: `${challenges.length ? done / challenges.length * 100 : 0}%` }} /></div>
-          <button className="quest-hero" type="button" style={{ left: `${8 + (challenges.length ? done / challenges.length : 0) * 66}%` }} disabled={!complete} onClick={() => onCelebrate(name)} aria-label={complete ? `Celebrate ${name}’s completed quest` : `${name}’s quest is still in progress`}><img src={`/skins/woodland/quest-${hero}.png`} alt="" /></button>
+          <QuestCharacter name={name} species={hero} complete={complete} progress={challenges.length ? done / challenges.length : 0} onCelebrate={onCelebrate} />
           <span className="quest-start">START</span><span className="quest-goal">{complete ? "★ HOME!" : "CASTLE"}</span>
         </div>
         <p className="quest-caption">{complete ? "★ Quest complete. You’re a star!" : challenges.length ? `${challenges.length - done} more to the castle` : "A new adventure awaits…"}</p>
