@@ -17,7 +17,7 @@ export function weeklyQuests(items: Task[], now: Date) {
     if (!name || !title) continue;
     // Google due dates are calendar dates, not UTC instants.
     const due = task.due && new Date(`${task.due.slice(0, 10)}T00:00:00`);
-    if (due ? !inWeek(due) : task.completed && (!task.completedAt || !inWeek(new Date(task.completedAt)))) continue;
+    if (due && !inWeek(due)) continue;
     const key = name.toLowerCase();
     if (!quests.has(key)) quests.set(key, { name, challenges: [], done: 0 });
     const quest = quests.get(key)!;

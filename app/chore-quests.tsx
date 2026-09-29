@@ -25,6 +25,6 @@ export function ChoreQuests({ quests, now }: { quests: Quest[]; now: Date }) {
       </section>;
     })}
     <p className="quest-help">Parents check off challenges in Google Tasks. Progress appears here after syncing.</p>
-    <details className="quest-help"><summary>Set up challenges</summary>In the Chores list, name tasks “Ada: Make bed” or “Clio-Feed the dog”. Each unique name gets a quest automatically. Set due dates for this week (Monday–Sunday). Undated open tasks join this week’s quest.</details>
+    <details className="quest-help"><summary>Set up challenges</summary>In the Chores list, name tasks “Ada: Make bed” or “Clio-Feed the dog”. Each unique name gets a quest automatically. Set due dates for this week (Monday–Sunday). Undated tasks count too, including completed ones. To reset undated progress, delete completed undated tasks in Google Tasks.</details>
   </div>;
 }
