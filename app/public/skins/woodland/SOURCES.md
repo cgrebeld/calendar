@@ -13,20 +13,12 @@ Font source: https://github.com/quiple/galmuri · https://cdn.jsdelivr.net/npm/g
 
 ## Quest sprites
 
-`quest-unicorn.png`, `quest-ninja.png`, and `quest-castle.png` were generated with the built-in image generation tool using `dog-first.png` as a fidelity/style reference. Transparent PNGs replace the original 16-pixel SVG sprites. AI-generated for this repo; same licence as the repo.
+`quest-castle.png` was generated with the built-in image generation tool using `dog-first.png` as a fidelity/style reference. The transparent PNG replaces the original 16-pixel castle SVG. AI-generated for this repo; same licence as the repo.
 
 Generation prompts:
-
-### unicorn
-
-Use case: stylized-concept. Create one isolated transparent game sprite for a cozy woodland family calendar. Subject: A friendly ivory unicorn, whole body in side view facing RIGHT, walking with one front hoof lifted, flowing softly rainbow-tinted mane and tail, golden horn, expressive dark eye. Readable graceful silhouette. The attached black dog sprite is STYLE AND FIDELITY REFERENCE ONLY, do not include a dog. Match its detailed hand-painted pixel illustration, fine-grained texture, many subtle shaded color clusters, natural volume, crisp outer contour. Far more detail than a 16x16 or 32x32 retro sprite: roughly 300-400 pixels of meaningful subject detail, matching the dog's fidelity. Not smooth vector clip art, not chunky blocks, not photorealistic, not 3D plastic. Entire subject visible, centered, tightly filling the canvas with only a small transparent margin. One sprite only, transparent alpha background, no scene, no ground plane, no text or UI. Keep details legible when used at about 80 pixels on screen.
-
-### ninja
-
-Use case: stylized-concept. Create one isolated transparent game sprite for a cozy woodland family calendar. Subject: A friendly small woodland ninja adventurer, whole body in three-quarter side view facing RIGHT, navy blue fabric outfit, warm eyes visible through a face scarf, flowing muted red scarf, soft boots, relaxed jaunty walking pose. Cute but not a giant chibi head. No weapons. The attached black dog sprite is STYLE AND FIDELITY REFERENCE ONLY, do not include a dog. Match its detailed hand-painted pixel illustration, fine-grained texture, many subtle shaded color clusters, natural volume, crisp outer contour. Far more detail than a 16x16 or 32x32 retro sprite: roughly 300-400 pixels of meaningful subject detail, matching the dog's fidelity. Not smooth vector clip art, not chunky blocks, not photorealistic, not 3D plastic. Entire subject visible, centered, tightly filling the canvas with only a small transparent margin. One sprite only, transparent alpha background, no scene, no ground plane, no text or UI. Keep details legible when used at about 80 pixels on screen.
 
 ### castle
 
 Use case: stylized-concept. Create one isolated transparent game sprite for a cozy woodland family calendar. Subject: A welcoming small fairytale woodland castle viewed from slightly above and three-quarter front, warm grey stone blocks with nuanced masonry, three slate blue turret roofs, red pennants, open arched wooden gateway, a little ivy at the base. Compact, readable silhouette. The attached black dog sprite is STYLE AND FIDELITY REFERENCE ONLY, do not include a dog. Match its detailed hand-painted pixel illustration, fine-grained texture, many subtle shaded color clusters, natural volume, crisp outer contour. Far more detail than a 16x16 or 32x32 retro sprite: roughly 300-400 pixels of meaningful subject detail, matching the dog's fidelity. Not smooth vector clip art, not chunky blocks, not photorealistic, not 3D plastic. Entire subject visible, centered, tightly filling the canvas with only a small transparent margin. One sprite only, transparent alpha background, no scene, no ground plane, no text or UI. Keep details legible when used at about 80 pixels on screen.
 
-Ninja refinement prompt: Edit this ninja sprite only to REMOVE ALL background and diffuse colored glow/halo. Preserve the exact character design, pose, fine pixel texture, clothing and scarf. Fully transparent background outside the crisp character silhouette, including between limbs and scarf. No shadow, no glow, no black rectangle, no scenery. Tight transparent sprite cutout.
+Current animated companions and their generation records are in `app/public/characters/` and `docs/characters/`.
