@@ -64,6 +64,34 @@ export function layoutEvents(events: CalendarEvent[], minimumDuration = 1, range
   return place(low);
 }
 
+export function layoutEventColumns(events: CalendarEvent[], range: ScheduleRange = defaultScheduleRange) {
+  const sorted = [...events].sort((left, right) => left.start - right.start || right.duration - left.duration || left.title.localeCompare(right.title));
+  const laidOut: { event: CalendarEvent; start: number; duration: number; column: number; columns: number }[] = [];
+  let groupStart = 0;
+  let groupEnd = -Infinity;
+  let laneEnds: number[] = [];
+
+  const finishGroup = () => {
+    for (let index = groupStart; index < laidOut.length; index++) laidOut[index].columns = laneEnds.length;
+    groupStart = laidOut.length;
+    laneEnds = [];
+  };
+
+  for (const event of sorted) {
+    const start = Math.max(range.startHour, event.start);
+    const end = Math.min(range.endHour, event.start + Math.max(event.duration, 1));
+    if (end <= start) continue;
+    if (start >= groupEnd) finishGroup();
+    let column = laneEnds.findIndex((laneEnd) => laneEnd <= start);
+    if (column < 0) column = laneEnds.length;
+    laneEnds[column] = end;
+    laidOut.push({ event, start, duration: end - start, column, columns: 0 });
+    groupEnd = Math.max(groupEnd, end);
+  }
+  finishGroup();
+  return laidOut;
+}
+
 export type GoogleEvent = {
   id?: string;
   summary?: string;

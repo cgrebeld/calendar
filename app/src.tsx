@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { addDays, moveAnchor, swipeDirection, viewDates, viewTitle, type ViewMode } from "./dates";
 import { moonPhaseOn } from "./moon";
-import { agendaColumns, dayDifference, layoutEvents, loadGoogleAgenda, loadGoogleEvents, orderEvents, upcomingEvents, type AgendaCalendar, type CalendarEvent } from "./google-calendar";
+import { agendaColumns, dayDifference, layoutEventColumns, layoutEvents, loadGoogleAgenda, loadGoogleEvents, orderEvents, upcomingEvents, type AgendaCalendar, type CalendarEvent } from "./google-calendar";
 import { formatHour, hourLabels, hourOf, hourOffset, placeRows, scheduleHours, scheduleRangeFromEnv, timeMarkerOffset, titleLines, type ScheduleRange } from "./schedule";
 import { dateKey, fakeForecast, loadWeather, upcomingHours, weatherChartScale, weatherDescription, weatherGlyph, weatherIcon, windStrength, type DayWeather, type WeatherReport } from "./weather";
 import { backgroundFor, parseSkin, parseThemeMode, parseThemeSchedule, resolveTheme, scheduleFromSolar, type ThemeMode, type ThemeName } from "./theme";
@@ -193,6 +193,7 @@ function DayWeatherBadge({ date, day, compact }: { date: Date; day?: DayWeather;
 
 function Timeline({ dates, today, now, events, range, focus, forecast, onSelect, onOpenDay }: { dates: Date[]; today: Date; now: Date; events: CalendarEvent[]; range: ScheduleRange; focus?: Date; forecast: Map<string, DayWeather>; onSelect: (event: CalendarEvent) => void; onOpenDay: (date: Date) => void }) {
   const nowHour = hourOf(now);
+  const sideBySide = Boolean(focus) || dates.length === 1;
   const todayShown = dates.some((date) => sameDay(date, now));
   const nearestLabel = todayShown ? hourLabels(range).reduce((best, hour) => (Math.abs(hour - nowHour) < Math.abs(best - nowHour) ? hour : best)) : undefined;
   return (
@@ -207,8 +208,9 @@ function Timeline({ dates, today, now, events, range, focus, forecast, onSelect,
       <div className="time-labels">{hourLabels(range).map((hour) => <span className={hour === nearestLabel ? "now-near" : ""} style={{ top: `${hourOffset(range, hour) * 100}%` }} key={hour}>{formatHour(hour)}</span>)}</div>
       {dates.map((date) => {
         const dayEvents = eventsFor(events, date, today);
-        const laidOut = layoutEvents(dayEvents.filter((event) => !event.allDay), 1, range);
-        const nowOffset = sameDay(date, now) ? timeMarkerOffset(nowHour, laidOut, range) : null;
+        const timedEvents = dayEvents.filter((event) => !event.allDay);
+        const laidOut = sideBySide ? layoutEventColumns(timedEvents, range) : layoutEvents(timedEvents, 1, range).map((item) => ({ ...item, column: 0, columns: 1 }));
+        const nowOffset = sameDay(date, now) ? timeMarkerOffset(nowHour, sideBySide ? [] : laidOut, range) : null;
         return (
           <div className={`day-column ${sameDay(date, today) ? "today" : ""} ${focus ? (sameDay(date, focus) ? "focus" : "context") : ""}`} key={date.toDateString()} onClick={dayTap(onOpenDay, date)} aria-label={`Open ${longDate.format(date)}`}>
             <div className="all-day-lane">
@@ -216,10 +218,10 @@ function Timeline({ dates, today, now, events, range, focus, forecast, onSelect,
             </div>
             <div className="hours" style={{ "--schedule-hours": scheduleHours(range) } as React.CSSProperties}>
               {nowOffset !== null && <div className="now-line" style={{ top: `${nowOffset * 100}%` }} aria-hidden />}
-              {laidOut.map(({ event, start, duration }) => (
+              {laidOut.map(({ event, start, duration, column, columns }) => (
                 <button
                   className={`timed-event ${event.tone} ${isPastEvent(date, now, event.start, event.duration) ? "past" : ""}`}
-                  style={{ top: `${hourOffset(range, start) * 100}%`, height: `calc(${(duration / scheduleHours(range)) * 100}% - 1px)`, "--title-lines": titleLines(duration, 0.75 * scheduleHours(range) / 12, 3) } as React.CSSProperties}
+                  style={{ top: `${hourOffset(range, start) * 100}%`, height: `calc(${(duration / scheduleHours(range)) * 100}% - 1px)`, left: `calc(${column / columns * 100}% + .2rem)`, width: `calc(${100 / columns}% - .4rem)`, "--title-lines": titleLines(duration, 0.75 * scheduleHours(range) / 12, 3) } as React.CSSProperties}
                   onClick={() => onSelect(event)}
                   key={`${event.start}-${event.title}`}
                 >
