@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Character"
+  short_description: "Create quest companions with idle and celebrate loops"
+  default_prompt: "Use $create-character to make a cute animated companion for Chore Quests."
