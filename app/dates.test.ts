@@ -57,7 +57,7 @@ import { countdownItems, countdownRange } from "./countdowns.ts";
 import { execFileSync } from "node:child_process";
 import { moonPhaseInstant, moonPhaseOn, type MoonPhase } from "./moon.ts";
 import { addDays, moveAnchor, swipeDirection, viewDates, viewTitle } from "./dates.ts";
-import { agendaColumns, convertGoogleEvent, layoutEvents, orderEvents, upcomingEvents, type CalendarEvent } from "./google-calendar.ts";
+import { agendaColumns, convertGoogleEvent, layoutEventColumns, layoutEvents, orderEvents, upcomingEvents, type CalendarEvent } from "./google-calendar.ts";
 
 test("agenda columns use calendar names and keep calendars with the same color or name separate", () => {
   const today = new Date(2026, 8, 25);
@@ -322,6 +322,14 @@ test("overlapping events stack vertically", () => {
   const makeEvent = (start: number, duration: number): CalendarEvent => ({ day: 0, person: "Family", tone: "family", start, duration, title: `${start}`, detail: "" });
   const laidOut = layoutEvents([makeEvent(9, 3), makeEvent(10, 1), makeEvent(13, 1)]);
   assert.deepEqual(laidOut.map(({ start, duration }) => [start, duration]), [[9, 3], [12, 1], [13, 1]]);
+});
+
+test("day view keeps overlapping events at their times in reusable columns", () => {
+  const makeEvent = (start: number, duration: number): CalendarEvent => ({ day: 0, person: "Family", tone: "family", start, duration, title: `${start}`, detail: "" });
+  const laidOut = layoutEventColumns([makeEvent(12.5, 1), makeEvent(10.5, 1), makeEvent(9, 3), makeEvent(11.5, 1), makeEvent(10, 1)]);
+  assert.deepEqual(laidOut.map(({ start, duration, column, columns }) => [start, duration, column, columns]), [
+    [9, 3, 0, 3], [10, 1, 1, 3], [10.5, 1, 2, 3], [11.5, 1, 1, 3], [12.5, 1, 0, 1],
+  ]);
 });
 
 test("a crowded event stack compresses to the schedule end", () => {
