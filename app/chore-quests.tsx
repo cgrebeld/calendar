@@ -24,6 +24,6 @@ export function ChoreQuests({ quests, now }: { quests: Quest[]; now: Date }) {
       </section>;
     })}
     <p className="quest-help">Parents check off challenges in Google Tasks. Progress appears here after syncing.</p>
-    <details className="quest-help"><summary>Set up challenges</summary>In the Chores list, name tasks “Ada - Make bed” or “Clio - Feed the dog”. Set due dates for this week (Monday–Sunday). Undated open tasks join this week’s quest. Change adventurers in Settings.</details>
+    <details className="quest-help"><summary>Set up challenges</summary>In the Chores list, name tasks “Ada - Make bed” or “Clio - Feed the dog”. Set due dates for this week (Monday–Sunday). Undated open tasks join this week’s quest. Adventurer names are configured in the environment file.</details>
   </div>;
 }

@@ -16,6 +16,8 @@ import { Countdowns } from "./countdown-list";
 import { ApplicationUpdates } from "./updates";
 import { PhotoIcon, PhotoMode, PhotoSettings } from "./photos";
 
+const kids = kidNames(import.meta.env.VITE_CHORE_KIDS || "Ada, Clio");
+
 const themeMode = parseThemeMode(new URLSearchParams(location.search).get("theme") ?? import.meta.env.VITE_THEME_MODE);
 function savedSkin() {
   try { return localStorage.getItem("skin"); } catch { return null; }
@@ -583,9 +585,6 @@ function App() {
   const [availableUpdate, setAvailableUpdate] = useState<string>();
   const [notesOpen, setNotesOpen] = useState(false);
   const [taskLists, setTaskLists] = useState(noteLists);
-  const [kids, setKids] = useState(() => {
-    try { return kidNames(localStorage.getItem("quest-kids") ?? "Ada, Clio"); } catch { return ["Ada", "Clio"]; }
-  });
   const [celebration, setCelebration] = useState<{ names: string; id: number }>();
   const previousQuests = useRef<{ week: string; quests: Quest[] }>(undefined);
   const [tasksError, setTasksError] = useState<string>();
@@ -834,11 +833,6 @@ function App() {
             <option value="woodland">Woodland</option>
           </select></label>
         </section>
-        <section><h3>Chore adventurers</h3><label>Names, separated by commas <input defaultValue={kids.join(", ")} onBlur={event => {
-          const names = kidNames(event.target.value);
-          setKids(names);
-          try { localStorage.setItem("quest-kids", names.join(", ")); } catch {}
-        }} /></label><p>Match the names before “ - ” in your Google Tasks Chores list.</p></section>
         <PhotoSettings apiUrl={apiUrl} open={settingsOpen} />
         <ApplicationUpdates apiUrl={apiUrl} onAvailableChange={setAvailableUpdate} />
         <div className="settings-footer"><button onClick={() => settingsDialog.current?.close()}>Close</button></div>
