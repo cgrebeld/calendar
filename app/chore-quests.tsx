@@ -12,9 +12,9 @@ export function ChoreQuests({ quests, now }: { quests: Quest[]; now: Date }) {
         <header><div><h3>{name}’s Quest</h3><small>{index % 2 ? "Moonlight explorer" : "Rainbow adventurer"}</small></div><b aria-label={`${done} of ${challenges.length} challenges complete`}>{done}<span>/{challenges.length}</span></b></header>
         <div className="quest-landscape" aria-hidden="true">
           <span className="quest-cloud">☁</span><span className="quest-spark">✦</span>
-          <img className="quest-castle" src="/skins/woodland/quest-castle.svg" alt="" />
+          <img className="quest-castle" src="/skins/woodland/quest-castle.png" alt="" />
           <div className="quest-trail"><i style={{ width: `${challenges.length ? done / challenges.length * 100 : 0}%` }} /></div>
-          <img className="quest-hero" style={{ left: `${8 + (challenges.length ? done / challenges.length : 0) * 66}%` }} src={`/skins/woodland/quest-${hero}.svg`} alt="" />
+          <img className="quest-hero" style={{ left: `${8 + (challenges.length ? done / challenges.length : 0) * 66}%` }} src={`/skins/woodland/quest-${hero}.png`} alt="" />
           <span className="quest-start">START</span><span className="quest-goal">{complete ? "★ HOME!" : "CASTLE"}</span>
         </div>
         <p className="quest-caption">{complete ? "★ Quest complete. You’re a star!" : challenges.length ? `${challenges.length - done} more to the castle` : "A new adventure awaits…"}</p>

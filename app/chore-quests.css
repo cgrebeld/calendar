@@ -7,14 +7,14 @@
 .kid-quest header small { color: var(--text-muted); font-size: .65rem; }
 .kid-quest header b { font-size: 1.5rem; white-space: nowrap; color: var(--accent-strong); }
 .kid-quest header b span { font-size: .85rem; color: var(--text-muted); }
-.quest-landscape { position: relative; height: 8.5rem; overflow: hidden; background: linear-gradient(transparent 65%, #91ac69 65%, #718e50 80%, #536c3e 80%), linear-gradient(#b9d9dd, #eef0cf); }
+.quest-landscape { position: relative; height: 10rem; overflow: hidden; background: linear-gradient(transparent 65%, #91ac69 65%, #718e50 80%, #536c3e 80%), linear-gradient(#b9d9dd, #eef0cf); }
 .kid-quest:nth-of-type(even) .quest-landscape { background: linear-gradient(transparent 65%, #9395a8 65%, #757d95 80%, #505e77 80%), linear-gradient(#5c678c, #c7b8d9); }
 .quest-cloud { position: absolute; top: -.8rem; left: 12%; color: #fff9e2; font-size: 3rem; }
 .quest-spark { position: absolute; top: .5rem; left: 54%; color: #fff1a6; }
-.quest-castle { position: absolute; width: 4.5rem; right: 4%; bottom: 2.15rem; }
+.quest-castle { position: absolute; width: 5.5rem; right: 4%; bottom: 2.15rem; }
 .quest-trail { position: absolute; bottom: 1.9rem; left: 8%; width: 75%; height: .65rem; background: #b5a27d; border: 2px solid #675231; box-shadow: 0 3px #465b33; }
 .quest-trail i { display: block; height: 100%; background: #f8db7c; transition: width .8s steps(8); }
-.quest-hero { position: absolute; bottom: 2.55rem; width: 3.1rem; transform: translateX(-25%); filter: drop-shadow(0 2px #443b38); transition: left .8s steps(8); }
+.quest-hero { position: absolute; bottom: 2.55rem; width: 4.25rem; transform: translateX(-25%); filter: drop-shadow(0 2px #443b38); transition: left .8s steps(8); }
 .quest-start, .quest-goal { position: absolute; bottom: .45rem; font-size: .6rem; font-weight: bold; color: #fff7da; }
 .quest-start { left: 7%; } .quest-goal { right: 5%; }
 .quest-caption { margin: 0; padding: .5rem; text-align: center; font-size: .7rem; background: var(--surface-muted); color: var(--accent-strong); }
@@ -44,3 +44,5 @@ main { grid-template-columns: minmax(0, 1fr); }
   .workspace:has(.chore-quests) { grid-template-columns: minmax(0, 1fr); }
 }
 .notes:has(.chore-quests) { color: var(--text); }
+
+.quest-hero, .quest-castle { image-rendering: auto; }
