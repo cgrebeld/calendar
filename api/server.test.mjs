@@ -322,11 +322,11 @@ test("familyTasks includes completed and hidden tasks and refreshes their check 
     assert.equal(url.searchParams.get("showHidden"), "true");
     assert.equal(url.searchParams.get("showDeleted"), "false");
     if (!url.searchParams.has("pageToken")) return { items: [{ id: "open", title: "Milk", status: "needsAction" }], nextPageToken: "next" };
-    return { items: [{ id: "done", title: "Bread", hidden: true, status: completed ? "completed" : "needsAction" }] };
+    return { items: [{ id: "done", title: "Bread", due: "2026-09-29T00:00:00Z", completed: "2026-09-29T12:00:00Z", hidden: true, status: completed ? "completed" : "needsAction" }] };
   };
   try {
     assert.deepEqual(await familyTasks(true, load), [{ id: "family", label: "Family", items: [
-      { id: "open", title: "Milk", completed: false }, { id: "done", title: "Bread", completed: true },
+      { id: "open", title: "Milk", completed: false }, { id: "done", title: "Bread", completed: true, due: "2026-09-29T00:00:00Z", completedAt: "2026-09-29T12:00:00Z" },
     ] }]);
     completed = false;
     assert.equal((await familyTasks(true, load))[0].items[1].completed, false);

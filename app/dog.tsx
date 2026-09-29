@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import "./dog.css";
 
-export function DogCompanion({ apiUrl }: { apiUrl: string }) {
+export function DogCompanion({ apiUrl, celebration }: { apiUrl: string; celebration?: { names: string; id: number } }) {
   const [quote, setQuote] = useState<{ text: string; author: string; expiresAt: string; stale?: boolean }>();
+  const [cheer, setCheer] = useState<string>();
   const [dogPlaying, setDogPlaying] = useState(false);
   const [speechVisible, setSpeechVisible] = useState(false);
   const speechTimer = useRef<number>(undefined);
@@ -53,6 +54,12 @@ export function DogCompanion({ apiUrl }: { apiUrl: string }) {
       document.removeEventListener("visibilitychange", wake);
     };
   }, [apiUrl]);
+  useEffect(() => {
+    if (!celebration) return;
+    setCheer(`Hooray, ${celebration.names}! Every challenge conquered. You’re a woodland legend!`);
+    const timer = window.setTimeout(() => setCheer(undefined), 12000);
+    return () => window.clearTimeout(timer);
+  }, [celebration]);
   const playDog = () => {
     if (dogPlaying || barkPending.current) return;
     setSpeechVisible(true);
@@ -76,11 +83,11 @@ export function DogCompanion({ apiUrl }: { apiUrl: string }) {
     window.clearTimeout(dogTimer.current);
     window.clearTimeout(speechTimer.current);
   }, []);
-  return <aside className="dog-companion" aria-label="Daily inspiration">
+  return <aside className={`dog-companion ${cheer ? "dog-celebrating" : ""}`} aria-label="Woodland companion">
     <audio ref={bark} src="/audio/bark.m4a" preload="auto" />
-    {speechVisible && quote && <div className="dog-bubble" aria-live="polite"><blockquote>{quote.text}</blockquote></div>}
+    {<div className="dog-announcement" role="status">{cheer ? <div className="dog-bubble"><strong>★ Quest complete! ★</strong><p>{cheer}</p><span className="dog-stars" aria-hidden="true">✦ ★ ✧ ★ ✦</span></div> : speechVisible && quote ? <div className="dog-bubble"><blockquote>{quote.text}</blockquote></div> : null}</div>}
     <button className="companion-dog" type="button" onClick={playDog} aria-label="Play bark and show the quote of the day">
-      <img src={dogPlaying ? "/skins/woodland/dog-loop.gif" : "/skins/woodland/dog-first.png"} alt="A cheerful dog" width="380" height="620" />
+      <img src={(dogPlaying || (cheer && !window.matchMedia("(prefers-reduced-motion: reduce)").matches)) ? "/skins/woodland/dog-loop.gif" : "/skins/woodland/dog-first.png"} alt="A cheerful dog" width="380" height="620" />
     </button>
   </aside>;
 }

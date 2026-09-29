@@ -243,7 +243,7 @@ export async function familyTasks(force = false, load = googleJson) {
       id: list.id,
       label: list.title,
       items: (await googleItems(`https://tasks.googleapis.com/tasks/v1/lists/${encodeURIComponent(list.id)}/tasks`, { maxResults: "100", showCompleted: "true", showDeleted: "false", showHidden: "true" }, load))
-        .map((task) => ({ id: task.id, title: task.title || "Untitled task", completed: task.status === "completed" })),
+        .map((task) => ({ id: task.id, title: task.title || "Untitled task", completed: task.status === "completed", ...(task.due ? { due: task.due } : {}), ...(task.completed ? { completedAt: task.completed } : {}) })),
     })));
   }, 300000, Date.now(), force);
 }

@@ -1,0 +1,47 @@
+.quest-week, .quest-help, .quest-empty { font-size: .75rem; line-height: 1.5; color: var(--text-muted); }
+.quest-week { margin-top: 0; }
+.quest-week span { color: var(--accent); }
+.kid-quest { margin-bottom: 1rem; border: 2px solid var(--border); border-radius: .65rem; background: var(--surface); overflow: hidden; }
+.kid-quest header { display: flex; justify-content: space-between; align-items: center; gap: .5rem; padding: .7rem; }
+.kid-quest h3 { margin: 0 0 .25rem; font-size: 1.1rem; overflow-wrap: anywhere; }
+.kid-quest header small { color: var(--text-muted); font-size: .65rem; }
+.kid-quest header b { font-size: 1.5rem; white-space: nowrap; color: var(--accent-strong); }
+.kid-quest header b span { font-size: .85rem; color: var(--text-muted); }
+.quest-landscape { position: relative; height: 8.5rem; overflow: hidden; background: linear-gradient(transparent 65%, #91ac69 65%, #718e50 80%, #536c3e 80%), linear-gradient(#b9d9dd, #eef0cf); }
+.kid-quest:nth-of-type(even) .quest-landscape { background: linear-gradient(transparent 65%, #9395a8 65%, #757d95 80%, #505e77 80%), linear-gradient(#5c678c, #c7b8d9); }
+.quest-cloud { position: absolute; top: -.8rem; left: 12%; color: #fff9e2; font-size: 3rem; }
+.quest-spark { position: absolute; top: .5rem; left: 54%; color: #fff1a6; }
+.quest-castle { position: absolute; width: 4.5rem; right: 4%; bottom: 2.15rem; }
+.quest-trail { position: absolute; bottom: 1.9rem; left: 8%; width: 75%; height: .65rem; background: #b5a27d; border: 2px solid #675231; box-shadow: 0 3px #465b33; }
+.quest-trail i { display: block; height: 100%; background: #f8db7c; transition: width .8s steps(8); }
+.quest-hero { position: absolute; bottom: 2.55rem; width: 3.1rem; transform: translateX(-25%); filter: drop-shadow(0 2px #443b38); transition: left .8s steps(8); }
+.quest-start, .quest-goal { position: absolute; bottom: .45rem; font-size: .6rem; font-weight: bold; color: #fff7da; }
+.quest-start { left: 7%; } .quest-goal { right: 5%; }
+.quest-caption { margin: 0; padding: .5rem; text-align: center; font-size: .7rem; background: var(--surface-muted); color: var(--accent-strong); }
+.quest-challenges { list-style: none; padding: .35rem .7rem; margin: 0; }
+.quest-challenges li { display: flex; align-items: center; gap: .65rem; padding: .45rem 0; font-size: .85rem; overflow-wrap: anywhere; }
+.challenge-stone { display: grid; place-items: center; flex: 0 0 1.8rem; height: 1.8rem; border: 2px solid var(--border); border-radius: .3rem; background: var(--surface-muted); box-shadow: 0 2px var(--border); font-weight: bold; }
+.challenge-done .challenge-stone { background: var(--accent); color: var(--accent-text); }
+.challenge-done > span:last-child { color: var(--text-muted); }
+.quest-won { border-color: var(--accent); }
+.quest-won .quest-caption { font-weight: bold; }
+.quest-empty { padding: 0 .7rem; }
+.quest-help summary { cursor: pointer; }
+[data-skin="woodland"] .kid-quest { border-radius: .15rem; box-shadow: inset 0 2px var(--bevel-hi), 0 3px var(--bevel-lo); }
+[data-skin="woodland"] .kid-quest h3, [data-skin="woodland"] .quest-caption, [data-skin="woodland"] .quest-week { font-family: "Galmuri11", sans-serif; }
+@media (prefers-reduced-motion: reduce) { .quest-hero, .quest-trail i { transition: none; } }
+/* Keep the notes column on screen even when the calendar header scrolls. */
+main { grid-template-columns: minmax(0, 1fr); }
+.kid-quest header { width: auto; min-width: 0; margin: 0; }
+@media (max-width: 900px) {
+  .notes-frame { position: fixed; z-index: 9; right: 1rem; top: 8rem; bottom: 7.5rem; width: min(20rem, calc(100vw - 2rem)); }
+}
+.workspace:has(.chore-quests) { grid-template-columns: minmax(0, 1fr) 22rem; }
+.notes:has(.chore-quests) .eyebrow { font-size: .7rem; }
+.notes:has(.chore-quests) .notes-header { margin-bottom: .25rem; }
+.notes:has(.chore-quests) .note-tabs { margin-bottom: .25rem; }
+@media (max-width: 900px) {
+  :root .workspace .notes-frame { position: fixed; }
+  .workspace:has(.chore-quests) { grid-template-columns: minmax(0, 1fr); }
+}
+.notes:has(.chore-quests) { color: var(--text); }

@@ -160,3 +160,9 @@ docker run --rm -p 8080:80 calendar-display
 See [release deployment](deploy/README.md) for Debian 13 / M710q deployment,
 versioned GitHub releases, and opt-in install/restart with rollback. The macOS
 development workflow above is unchanged.
+
+### Chore Quests
+
+The **Chores** Google Tasks list appears as a woodland quest for each child. In Settings, set **Chore adventurers** (defaults: Ada, Clio; saved on this display). Name challenges `Ada - Make bed` or `Clio - Feed the dog`, and give them due dates in the current Monday–Sunday week. Due dates use the display’s local calendar date. Undated open tasks are included; undated completed tasks count only in their completion week. Old dated tasks and future tasks are excluded. Tasks without a matching child prefix are not part of a quest. Include `Chores` in `TASK_LISTS` if filtering lists.
+
+All task lists are read-only on the calendar. Parents complete tasks in Google; use **Sync now** for immediate progress or wait for the five-minute refresh. When a sync observes the final remaining challenge completed, the dog jumps with a personalized congratulation. Opening an already completed quest does not replay the celebration. Reduced-motion displays show the message without jumping.

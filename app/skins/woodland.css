@@ -195,10 +195,6 @@
 [data-skin="woodland"] :is(.day-heading.today, .mini-day.today > header) strong, [data-skin="woodland"] .month-day.today > span { width: auto; border-radius: 0; background: none; }
 [data-skin="woodland"] .month-day.outside:not(.today) { background: var(--surface-context); }
 [data-skin="woodland"] .note-list label, [data-skin="woodland"] .countdown-note { border: 2px solid var(--border); border-radius: .2rem; box-shadow: inset 0 2px var(--bevel-hi), 0 2px var(--bevel-lo); }
-[data-skin="woodland"] .quest-progress { border: 2px solid var(--border); border-radius: .2rem; box-shadow: inset 0 2px var(--bevel-hi), 0 2px var(--bevel-lo); }
-[data-skin="woodland"] .quest-progress-text, [data-skin="woodland"] .quest-copy small { font-family: "Galmuri11", sans-serif; }
-[data-skin="woodland"] .quest-card input { border-radius: .15rem; }
-[data-skin="woodland"] .note-list .quest-card:has(input:checked) { border-color: var(--accent); }
 [data-skin="woodland"] .notes-header > div:first-child { min-width: 0; }
 [data-skin="woodland"] .notes-header h2 { font-size: 1.35rem; overflow-wrap: anywhere; }
 [data-skin="woodland"] .notes-actions { flex-shrink: 0; }

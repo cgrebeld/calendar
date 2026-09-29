@@ -11,3 +11,12 @@
   .companion-dog { width: 6rem; margin-top: -2rem; }
   .dog-bubble { padding: .75rem; }
 }
+.dog-announcement:empty { display: none; }
+.dog-celebrating .companion-dog { animation: quest-dog-jump .7s ease-in-out 8; transform-origin: bottom center; }
+.dog-celebrating .dog-bubble { border-color: var(--accent); background: var(--surface); }
+.dog-celebrating .dog-bubble strong { color: var(--accent-strong); }
+.dog-celebrating .dog-bubble p { margin: .4rem 0; }
+.dog-stars { display: block; color: var(--accent-strong); letter-spacing: .4rem; animation: quest-stars .8s alternate 10; }
+@keyframes quest-dog-jump { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-2.5rem) rotate(5deg); } }
+@keyframes quest-stars { to { transform: translateY(-.4rem); } }
+@media (prefers-reduced-motion: reduce) { .dog-celebrating .companion-dog, .dog-stars { animation: none; } }

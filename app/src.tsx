@@ -10,6 +10,8 @@ import "./style.css";
 import { WoodlandBackground } from "./skins/woodland";
 import { DateTime } from "./date-time";
 import { DogCompanion } from "./dog";
+import { ChoreQuests } from "./chore-quests";
+import { kidNames, weeklyQuests, weekOf, newlyCompleted, type NoteList, type Quest } from "./quests";
 import { Countdowns } from "./countdown-list";
 import { ApplicationUpdates } from "./updates";
 import { PhotoIcon, PhotoMode, PhotoSettings } from "./photos";
@@ -74,7 +76,6 @@ function CalendarModeIcon({ mode }: { mode: ViewMode | "agenda" }) {
   </svg>;
 }
 
-type NoteList = { id: string; label: string; items: { id: string; title: string; completed?: boolean }[] };
 const noteLists: NoteList[] = [
   { id: "reminders", label: "Reminders", items: ["Pick up dry cleaning", "Order Maya’s school photos", "Replace hallway light bulb", "Call Grandma this weekend"].map((title, id) => ({ id: `reminder-${id}`, title })) },
   { id: "groceries", label: "Groceries", items: ["Milk", "Bananas", "Coffee beans", "Dish soap", "Cheddar"].map((title, id) => ({ id: `grocery-${id}`, title })) },
@@ -468,13 +469,12 @@ function WeatherModal({ report, forecast, onClose }: { report?: WeatherReport; f
   );
 }
 
-function Notes({ onClose, onToggle, lists, error, reconnect, apiUrl, connected, refresh }: { onClose: () => void; onToggle: (listId: string, taskId: string, completed: boolean) => void; lists: NoteList[]; error?: string; reconnect: () => void; apiUrl: string; connected: boolean; refresh: number }) {
+function Notes({ onClose, quests, now, lists, error, reconnect, apiUrl, connected, refresh }: { onClose: () => void; quests: Quest[]; now: Date; lists: NoteList[]; error?: string; reconnect: () => void; apiUrl: string; connected: boolean; refresh: number }) {
   const tabs = [...lists, { id: "countdowns", label: "Countdowns" }].sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
   const [listId, setListId] = useState(tabs[0].id);
   const list = lists.find((entry) => entry.id === listId) ?? lists[0];
   const activeId = listId === "countdowns" ? listId : list.id;
   const chores = listId !== "countdowns" && list.label.toLowerCase() === "chores";
-  const completedChores = chores ? list.items.filter((item) => item.completed).length : 0;
   const swipe = useRef<[number, number] | undefined>(undefined);
   const swiped = useRef(false);
 
@@ -499,7 +499,7 @@ function Notes({ onClose, onToggle, lists, error, reconnect, apiUrl, connected, 
       }
     }}>
       <div className="notes-header">
-        <div><p className="eyebrow">{chores ? "Family Adventures" : "Family Notes"}</p><h2>{chores ? "Quest Board" : listId === "countdowns" ? "Countdowns" : list.label}</h2></div>
+        <div><p className="eyebrow">{chores ? "Family Adventures" : "Family Notes"}</p><h2>{chores ? "Chore Quests" : listId === "countdowns" ? "Countdowns" : list.label}</h2></div>
         <div className="notes-actions">
           <button onClick={onClose} aria-label="Hide Family Notes" data-sound="boop">×</button>
         </div>
@@ -512,23 +512,13 @@ function Notes({ onClose, onToggle, lists, error, reconnect, apiUrl, connected, 
       </div>
       {listId === "countdowns" ? <Countdowns apiUrl={apiUrl} connected={connected} refresh={refresh} /> : <>
       {error && <p className="tasks-warning" role="status" title={error}>Live tasks unavailable. <button onClick={reconnect}>Reconnect Google</button></p>}
-      <div className={chores ? "chores-board" : undefined}>
-        {chores && <div className="quest-progress">
-          <div className="quest-progress-text"><span aria-hidden="true">✦</span><strong>{list.items.length && completedChores === list.items.length ? "All quests complete!" : "Your quest progress"}</strong><span>{completedChores} / {list.items.length}</span></div>
-          <progress value={completedChores} max={list.items.length || 1} aria-label="Chores completed" />
-          <small>{completedChores === list.items.length && list.items.length ? "Amazing work, team!" : "Every little quest counts!"}</small>
-        </div>}
-        <div className="note-list" key={list.id}>
-          {list.items.map((note) => {
-            const [name, task] = chores ? note.title.split(/\s+[-–—]\s+(.+)/, 2) : [];
-            return <label className={chores ? "quest-card" : undefined} key={note.id}>
-              <input type="checkbox" checked={note.completed ?? false} onChange={(event) => onToggle(list.id, note.id, event.target.checked)} />
-              {chores ? <span className="quest-copy">{task && <small>{name}'s quest</small>}<strong>{task || note.title}</strong></span> : <span>{note.title}</span>}
-            </label>;
-          })}
-          {!list.items.length && <p>{chores ? "No quests yet. Enjoy the break!" : "No tasks."}</p>}
-        </div>
-      </div>
+      {chores ? <ChoreQuests quests={quests} now={now} /> : <div className="note-list" key={list.id}>
+        {list.items.map(note => <label key={note.id}>
+          <input type="checkbox" checked={note.completed ?? false} disabled /><span>{note.title}</span>
+        </label>)}
+        {!list.items.length && <p>No tasks.</p>}
+        <p className="quest-help">Managed in Google Tasks.</p>
+      </div>}
       </>}
     </aside>
   );
@@ -591,6 +581,11 @@ function App() {
   const [availableUpdate, setAvailableUpdate] = useState<string>();
   const [notesOpen, setNotesOpen] = useState(false);
   const [taskLists, setTaskLists] = useState(noteLists);
+  const [kids, setKids] = useState(() => {
+    try { return kidNames(localStorage.getItem("quest-kids") ?? "Ada, Clio"); } catch { return ["Ada", "Clio"]; }
+  });
+  const [celebration, setCelebration] = useState<{ names: string; id: number }>();
+  const previousQuests = useRef<{ week: string; quests: Quest[] }>(undefined);
   const [tasksError, setTasksError] = useState<string>();
   const [countdownRefresh, setCountdownRefresh] = useState(0);
   const [calendarEvents, setCalendarEvents] = useState(fakeEvents);
@@ -607,6 +602,15 @@ function App() {
   const swipeStart = useRef<[number, number] | undefined>(undefined);
   const now = useNow();
   const today = now;
+  const quests = weeklyQuests(taskLists.filter(list => list.label.toLowerCase() === "chores").flatMap(list => list.items), kids, now);
+  const questWeek = weekOf(now).key;
+  useEffect(() => {
+    if (!connected || tasksError) return;
+    const previous = previousQuests.current;
+    const names = previous?.week === questWeek ? newlyCompleted(previous.quests, quests) : [];
+    if (names.length) setCelebration({ names: names.join(" & "), id: Date.now() });
+    previousQuests.current = { week: questWeek, quests };
+  }, [taskLists, kids, questWeek, connected, tasksError]);
   const dayKey = dateKey(now);
   const background = backgroundDisabled ? undefined : backgroundOverrides[theme] ?? (skin === "default" ? backgroundFor(theme, now) : undefined);
   useEffect(() => {
@@ -792,7 +796,7 @@ function App() {
         <div className="calendar-pane" onTouchStart={startSwipe} onTouchEnd={finishSwipe} onTouchCancel={() => { swipeStart.current = undefined; }}>
           {agendaOpen ? <WhatsNext calendars={agendaCalendars ?? (connected ? [] : agendaColumns(fakeEvents, hourOf(now)))} now={now} onSelect={setSelected} /> : mode === "month" ? <Month dates={dates} anchor={anchor} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : mode === "twoWeek" ? <TwoWeek dates={dates} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : <Timeline dates={dates} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} focus={mode === "day" ? anchor : undefined} onSelect={setSelected} onOpenDay={setOpenDay} />}
         </div>
-        {notesOpen && <div className="notes-frame"><Notes onClose={() => setNotesOpen(false)} onToggle={(listId, taskId, completed) => setTaskLists((lists) => lists.map((list) => list.id === listId ? { ...list, items: list.items.map((task) => task.id === taskId ? { ...task, completed } : task) } : list))} lists={taskLists} error={tasksError} reconnect={connectGoogle} apiUrl={apiUrl} connected={connected} refresh={countdownRefresh} /></div>}
+        {notesOpen && <div className="notes-frame"><Notes onClose={() => setNotesOpen(false)} quests={quests} now={now} lists={taskLists} error={tasksError} reconnect={connectGoogle} apiUrl={apiUrl} connected={connected} refresh={countdownRefresh} /></div>}
       </div>
 
       <nav className="corner-controls" aria-label="Calendar settings">
@@ -828,12 +832,17 @@ function App() {
             <option value="woodland">Woodland</option>
           </select></label>
         </section>
+        <section><h3>Chore adventurers</h3><label>Names, separated by commas <input defaultValue={kids.join(", ")} onBlur={event => {
+          const names = kidNames(event.target.value);
+          setKids(names);
+          try { localStorage.setItem("quest-kids", names.join(", ")); } catch {}
+        }} /></label><p>Match the names before “ - ” in your Google Tasks Chores list.</p></section>
         <PhotoSettings apiUrl={apiUrl} open={settingsOpen} />
         <ApplicationUpdates apiUrl={apiUrl} onAvailableChange={setAvailableUpdate} />
         <div className="settings-footer"><button onClick={() => settingsDialog.current?.close()}>Close</button></div>
       </dialog>
 
-      {skin === "woodland" && <DogCompanion apiUrl={apiUrl} />}
+      {(skin === "woodland" || celebration) && <DogCompanion apiUrl={apiUrl} celebration={celebration} />}
       {skin === "woodland" && <WoodlandBackground />}
 
       {weatherOpen && <WeatherModal report={weatherNow} forecast={forecast} onClose={() => setWeatherOpen(false)} />}
