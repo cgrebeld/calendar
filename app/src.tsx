@@ -471,7 +471,7 @@ function WeatherModal({ report, forecast, onClose }: { report?: WeatherReport; f
   );
 }
 
-function Notes({ onClose, quests, now, lists, error, reconnect, apiUrl, connected, refresh }: { onClose: () => void; quests: Quest[]; now: Date; lists: NoteList[]; error?: string; reconnect: () => void; apiUrl: string; connected: boolean; refresh: number }) {
+function Notes({ onClose, onCelebrate, quests, now, lists, error, reconnect, apiUrl, connected, refresh }: { onClose: () => void; onCelebrate: (name: string) => void; quests: Quest[]; now: Date; lists: NoteList[]; error?: string; reconnect: () => void; apiUrl: string; connected: boolean; refresh: number }) {
   const tabs = [...lists, { id: "countdowns", label: "Countdowns" }].sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
   const [listId, setListId] = useState(tabs[0].id);
   const list = lists.find((entry) => entry.id === listId) ?? lists[0];
@@ -514,7 +514,7 @@ function Notes({ onClose, quests, now, lists, error, reconnect, apiUrl, connecte
       </div>
       {listId === "countdowns" ? <Countdowns apiUrl={apiUrl} connected={connected} refresh={refresh} /> : <>
       {error && <p className="tasks-warning" role="status" title={error}>Live tasks unavailable. <button onClick={reconnect}>Reconnect Google</button></p>}
-      {chores ? <ChoreQuests quests={quests} now={now} /> : <div className="note-list" key={list.id}>
+      {chores ? <ChoreQuests quests={quests} now={now} onCelebrate={onCelebrate} /> : <div className="note-list" key={list.id}>
         {list.items.map(note => <label key={note.id}>
           <input type="checkbox" checked={note.completed ?? false} disabled /><span>{note.title}</span>
         </label>)}
@@ -795,7 +795,7 @@ function App() {
         <div className="calendar-pane" onTouchStart={startSwipe} onTouchEnd={finishSwipe} onTouchCancel={() => { swipeStart.current = undefined; }}>
           {agendaOpen ? <WhatsNext calendars={agendaCalendars ?? (connected ? [] : agendaColumns(fakeEvents, hourOf(now)))} now={now} onSelect={setSelected} /> : mode === "month" ? <Month dates={dates} anchor={anchor} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : mode === "twoWeek" ? <TwoWeek dates={dates} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : <Timeline dates={dates} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} focus={mode === "day" ? anchor : undefined} onSelect={setSelected} onOpenDay={setOpenDay} />}
         </div>
-        {notesOpen && <div className="notes-frame"><Notes onClose={() => setNotesOpen(false)} quests={quests} now={now} lists={taskLists} error={tasksError} reconnect={connectGoogle} apiUrl={apiUrl} connected={connected} refresh={countdownRefresh} /></div>}
+        {notesOpen && <div className="notes-frame"><Notes onCelebrate={name => setCelebration(previous => ({ names: name, id: (previous?.id ?? 0) + 1 }))} onClose={() => setNotesOpen(false)} quests={quests} now={now} lists={taskLists} error={tasksError} reconnect={connectGoogle} apiUrl={apiUrl} connected={connected} refresh={countdownRefresh} /></div>}
       </div>
 
       <nav className="corner-controls" aria-label="Calendar settings">

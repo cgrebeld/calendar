@@ -85,8 +85,8 @@ export function DogCompanion({ apiUrl, celebration }: { apiUrl: string; celebrat
   }, []);
   return <aside className={`dog-companion ${cheer ? "dog-celebrating" : ""}`} aria-label="Woodland companion">
     <audio ref={bark} src="/audio/bark.m4a" preload="auto" />
-    {<div className="dog-announcement" role="status">{cheer ? <div className="dog-bubble"><strong>★ Quest complete! ★</strong><p>{cheer}</p><span className="dog-stars" aria-hidden="true">✦ ★ ✧ ★ ✦</span></div> : speechVisible && quote ? <div className="dog-bubble"><blockquote>{quote.text}</blockquote></div> : null}</div>}
-    <button className="companion-dog" type="button" onClick={playDog} aria-label="Play bark and show the quote of the day">
+    {<div className="dog-announcement" role="status">{cheer ? <div className="dog-bubble" key={celebration?.id}><strong>★ Quest complete! ★</strong><p>{cheer}</p><span className="dog-stars" aria-hidden="true">✦ ★ ✧ ★ ✦</span></div> : speechVisible && quote ? <div className="dog-bubble"><blockquote>{quote.text}</blockquote></div> : null}</div>}
+    <button key={celebration?.id} className="companion-dog" type="button" onClick={playDog} aria-label="Play bark and show the quote of the day">
       <img src={(dogPlaying || (cheer && !window.matchMedia("(prefers-reduced-motion: reduce)").matches)) ? "/skins/woodland/dog-loop.gif" : "/skins/woodland/dog-first.png"} alt="A cheerful dog" width="380" height="620" />
     </button>
   </aside>;

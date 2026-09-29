@@ -14,7 +14,7 @@
 .quest-castle { position: absolute; width: 5.5rem; right: 4%; bottom: 2.15rem; }
 .quest-trail { position: absolute; bottom: 1.9rem; left: 8%; width: 75%; height: .65rem; background: #b5a27d; border: 2px solid #675231; box-shadow: 0 3px #465b33; }
 .quest-trail i { display: block; height: 100%; background: #f8db7c; transition: width .8s steps(8); }
-.quest-hero { position: absolute; bottom: 2.55rem; width: 4.25rem; transform: translateX(-25%); filter: drop-shadow(0 2px #443b38); transition: left .8s steps(8); }
+.quest-hero { padding: 0; border: 0; background: none; position: absolute; bottom: 2.55rem; width: 4.25rem; transform: translateX(-25%); filter: drop-shadow(0 2px #443b38); transition: left .8s steps(8); }
 .quest-start, .quest-goal { position: absolute; bottom: .45rem; font-size: .6rem; font-weight: bold; color: #fff7da; }
 .quest-start { left: 7%; } .quest-goal { right: 5%; }
 .quest-caption { margin: 0; padding: .5rem; text-align: center; font-size: .7rem; background: var(--surface-muted); color: var(--accent-strong); }
@@ -46,3 +46,8 @@ main { grid-template-columns: minmax(0, 1fr); }
 .notes:has(.chore-quests) { color: var(--text); }
 
 .quest-hero, .quest-castle { image-rendering: auto; }
+
+.quest-hero img { display: block; width: 100%; }
+.quest-hero:disabled { cursor: default; }
+.quest-hero:focus-visible { outline: 3px solid var(--accent-strong); outline-offset: 4px; }
+.quest-hero:enabled:hover { filter: drop-shadow(0 0 4px #fff1a6); }
