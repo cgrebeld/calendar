@@ -26,7 +26,6 @@
 .quest-won { border-color: var(--accent); }
 .quest-won .quest-caption { font-weight: bold; }
 .quest-empty { padding: 0 .7rem; }
-.quest-help summary { cursor: pointer; }
 [data-skin="woodland"] .kid-quest { border-radius: .15rem; box-shadow: inset 0 2px var(--bevel-hi), 0 3px var(--bevel-lo); }
 [data-skin="woodland"] .kid-quest h3, [data-skin="woodland"] .quest-caption, [data-skin="woodland"] .quest-week { font-family: "Galmuri11", sans-serif; }
 @media (prefers-reduced-motion: reduce) { .quest-hero, .quest-trail i { transition: none; } }
