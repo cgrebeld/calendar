@@ -503,7 +503,7 @@ function Notes({ onClose, quests, now, lists, error, reconnect, apiUrl, connecte
       <div className="notes-header">
         <div><p className="eyebrow">{chores ? "Family Adventures" : "Family Notes"}</p><h2>{chores ? "Chore Quests" : listId === "countdowns" ? "Countdowns" : list.label}</h2></div>
         <div className="notes-actions">
-          <button onClick={onClose} aria-label="Hide Family Notes" data-sound="boop">×</button>
+          <button onClick={onClose} aria-label="Hide Family Notes" data-sound="boop"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="m3 3 8 8m0-8-8 8" fill="none" stroke="currentColor" strokeWidth="2" /></svg></button>
         </div>
       </div>
       <div className="note-tabs" role="radiogroup" aria-label="Notes list">

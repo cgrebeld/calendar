@@ -188,7 +188,7 @@ nav .dark { color: var(--on-accent); background: var(--nav-dark-bg); border: 0; 
 .notes-header { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .875rem; }
 .notes-header h2 { margin: .15rem 0 0; font-size: 1.65rem; }
 .notes-actions { display: flex; gap: .35rem; }
-.notes-actions button { width: 2.6rem; height: 2.6rem; border: 0; border-radius: .7rem; color: var(--text-subtle); background: var(--surface); font-size: 1.35rem; font-weight: 800; }
+.notes-actions button { display: grid; place-items: center; padding: 0; width: 2.6rem; height: 2.6rem; border: 0; border-radius: .7rem; color: var(--text-subtle); background: var(--surface); font-size: 1.35rem; font-weight: 800; }
 .notes { touch-action: pan-y; }
 .note-tabs { margin: 0 0 1rem; display: flex; flex-wrap: wrap; justify-content: center; }
 .note-tabs label { position: relative; display: grid; place-items: center; width: 44px; height: 44px; cursor: pointer; }
