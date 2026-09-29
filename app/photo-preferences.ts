@@ -6,6 +6,10 @@ export function googlePhotosEnabled() {
   try { return localStorage.getItem("google-photos") !== "false"; } catch { return true; }
 }
 
+export function immichEnabled() {
+  try { return localStorage.getItem("immich-photos") === "true"; } catch { return false; }
+}
+
 export function ambientTopics(): string[] {
   try {
     const saved = JSON.parse(localStorage.getItem("ambient-topics") || "[]");

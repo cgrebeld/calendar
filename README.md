@@ -69,7 +69,9 @@ albums are not included. `GET /api/photos/immich` returns still photos with
 capture dates and cities; `/api/photos/immich/status` reports configuration
 and cached count. Images are served through `/api/photos/immich/image/:id`
 without exposing the API key. Results refresh every 30 minutes. The browser
-photo mode does not yet use this source.
+photo mode uses this source when **Settings → Photos → Display family photos
+from Immich** is enabled on that display. The setting is off by default and
+does not change the server's Immich configuration.
 
 Google Photos setup:
 

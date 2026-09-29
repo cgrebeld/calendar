@@ -4,12 +4,12 @@ import { DateTime } from "./date-time";
 import { weatherDescription, weatherGlyph, weatherIcon, type WeatherReport } from "./weather";
 import { shufflePhotos, photoLabel, adjacentPhoto } from "./photo-order";
 import { swipeDirection } from "./dates";
-import { ambientEnabled, googlePhotosEnabled, ambientTopics, setAmbientTopics } from "./photo-preferences";
+import { ambientEnabled, googlePhotosEnabled, immichEnabled, ambientTopics, setAmbientTopics } from "./photo-preferences";
 
 type Photo = { id: string; url: string; date?: string; city?: string; external?: boolean };
 
 type PhotoStatus = {
-  enabled: boolean; connected?: boolean; count?: number; error?: string; warning?: string; setupUrl?: string;
+  enabled: boolean; connected?: boolean; count?: number; albumName?: string; error?: string; warning?: string; setupUrl?: string;
   importing?: { completed: number; total: number };
   session?: { url: string; ready: boolean; expiresAt: number; pollUntil: number; pollAfterMs: number };
   items?: Photo[];
@@ -84,8 +84,10 @@ function TopicsDialog({ apiUrl, onClose }: { apiUrl: string; onClose: () => void
 export function PhotoSettings({ apiUrl, open }: { apiUrl: string; open: boolean }) {
   const [ambient, setAmbient] = useState(ambientEnabled);
   const [google, setGoogle] = useState(googlePhotosEnabled);
+  const [immich, setImmich] = useState(immichEnabled);
   const [status, setStatus] = useState<PhotoStatus>();
   const [onlineStatus, setOnlineStatus] = useState<PhotoStatus>();
+  const [immichStatus, setImmichStatus] = useState<PhotoStatus>();
   const [error, setError] = useState("");
   const [setupUrl, setSetupUrl] = useState<string>();
   const [busy, setBusy] = useState(false);
@@ -95,6 +97,7 @@ export function PhotoSettings({ apiUrl, open }: { apiUrl: string; open: boolean 
     if (!open || !visible) return;
     const controller = new AbortController();
     photosJson(apiUrl, "ambient/status", "GET", controller.signal).then(setOnlineStatus).catch(() => { if (!controller.signal.aborted) setOnlineStatus({ enabled: false, error: "Unable to check online photos." }); });
+    photosJson(apiUrl, "immich/status", "GET", controller.signal).then(setImmichStatus).catch(() => { if (!controller.signal.aborted) setImmichStatus({ enabled: false, error: "Unable to check Immich photos." }); });
     photosJson(apiUrl, "status", "GET", controller.signal).then(setStatus).catch((e) => { if (!controller.signal.aborted) setError(e.message); });
     return () => controller.abort();
   }, [apiUrl, open, visible]);
@@ -134,6 +137,16 @@ export function PhotoSettings({ apiUrl, open }: { apiUrl: string; open: boolean 
       {onlineStatus?.error && <p role="status">{onlineStatus.error}</p>}
       <div className="settings-actions"><button onClick={() => setTopicsOpen(true)}>Choose topics…</button></div>
       {topicsOpen && <TopicsDialog apiUrl={apiUrl} onClose={() => setTopicsOpen(false)} />}
+      <h4>Immich</h4>
+      <label><input type="checkbox" checked={immich} onChange={(event) => {
+        const enabled = event.target.checked;
+        try { localStorage.setItem("immich-photos", String(enabled)); setImmich(enabled); }
+        catch { setError("Unable to save photo preference in this browser."); }
+      }} /> Display family photos from Immich</label>
+      <p>Saved for this display. Albums and exclusions are managed in Immich.</p>
+      {immichStatus && !immichStatus.enabled && <p>Set the Immich URL, API key, and album selection on the calendar server.</p>}
+      {immichStatus?.enabled && <p>{immichStatus.albumName || "Immich"}: {immichStatus.count ?? 0} photos cached.</p>}
+      {immichStatus?.error && <p role="status">{immichStatus.error}</p>}
       <h4>Google Photos</h4>
       <label><input type="checkbox" checked={google} onChange={(event) => {
         const enabled = event.target.checked;
@@ -186,16 +199,19 @@ export function PhotoMode({ apiUrl, now, weather, coldThreshold = 0, onExit }: {
       const results = await Promise.allSettled([
         googlePhotosEnabled() ? photosJson(apiUrl, "items", "GET", controller.signal) : Promise.resolve({ enabled: false, items: [] } as PhotoStatus),
         online ? photosJson(apiUrl, `ambient?${new URLSearchParams(topics.length ? { topics: topics.join(",") } : {})}`, "GET", controller.signal) : Promise.resolve({ enabled: false, items: [] } as PhotoStatus),
+        immichEnabled() ? photosJson(apiUrl, "immich", "GET", controller.signal) : Promise.resolve({ enabled: false, items: [] } as PhotoStatus),
       ]);
       if (controller.signal.aborted) return;
-      const [local, ambient] = results;
+      const [local, ambient, immich] = results;
       setGalleryMessage(local.status === "rejected" ? "Local gallery unavailable; retrying shortly"
         : ambient.status === "rejected" ? "Online photos unavailable; retrying shortly"
-        : ambient.value.error || "");
+        : immich.status === "rejected" ? "Immich photos unavailable; retrying shortly"
+        : ambient.value.error || immich.value.error || "");
       setItems((previous) => {
         const incoming = [
           ...(local.status === "fulfilled" ? local.value.items || [] : previous.filter((photo) => !photo.external)),
-          ...(ambient.status === "fulfilled" ? ambient.value.items || [] : previous.filter((photo) => photo.external)),
+          ...(ambient.status === "fulfilled" ? ambient.value.items || [] : previous.filter((photo) => photo.id.startsWith("unsplash-"))),
+          ...(immich.status === "fulfilled" ? immich.value.items || [] : previous.filter((photo) => photo.id.startsWith("immich-"))),
         ];
         const kept = previous.filter((photo) => incoming.some(({ id }) => id === photo.id));
         return [...kept, ...shufflePhotos(incoming.filter((photo) => !kept.some(({ id }) => id === photo.id)))];
@@ -214,7 +230,7 @@ export function PhotoMode({ apiUrl, now, weather, coldThreshold = 0, onExit }: {
       try {
         if (item.external) {
           // Render the provider URL directly, including its tracking parameters.
-          setPhoto({ item, url: item.url });
+          setPhoto({ item, url: item.url.startsWith("/") ? `${apiUrl}${item.url}` : item.url });
           imageTimer.current = setTimeout(() => { setPhoto(undefined); setMessage("Photo unavailable; swipe to continue"); }, 15000);
           return;
         }
@@ -295,7 +311,7 @@ export function PhotoMode({ apiUrl, now, weather, coldThreshold = 0, onExit }: {
     </button>
     {photo && !photo.item.external && <button className="photo-remove" disabled={removing} onClick={() => void remove()} aria-label="Remove this photo from local gallery" title="Remove from local gallery">{removing ? "…" : "×"}</button>}
     <small className="photo-caption" role="status">
-      {message || galleryMessage || (!items.length ? "Enable Google Photos or online photos in Settings; import photos if your gallery is empty" : photo && photoLabel(photo.item))}
+      {message || galleryMessage || (!items.length ? "Enable a photo source in Settings; import photos if your gallery is empty" : photo && photoLabel(photo.item))}
     </small>
 
   </div>;
