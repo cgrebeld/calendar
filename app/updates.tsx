@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { needsUpdateReload } from "./update-version";
 
 type UpdateStatus = {
   enabled: boolean; busy: boolean; status: string; currentVersion?: string;
@@ -27,7 +28,7 @@ export function ApplicationUpdates({ apiUrl, onAvailableChange }: { apiUrl: stri
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
-  const loadedVersion = useRef<string | undefined>(undefined);
+  const loadedVersion = useRef<string | undefined>(import.meta.env.VITE_APP_VERSION === "dev" ? undefined : import.meta.env.VITE_APP_VERSION);
   useEffect(() => {
     // Keep checking while settings are closed so the calendar can show an update.
     let stopped = false;
@@ -63,11 +64,11 @@ export function ApplicationUpdates({ apiUrl, onAvailableChange }: { apiUrl: stri
     finally { setPending(false); }
   }
   useEffect(() => {
-    // A fresh document must load the newly activated frontend once installation restarts the app.
-    if (status?.currentVersion) {
-      if (loadedVersion.current && loadedVersion.current !== status.currentVersion) location.reload();
-      loadedVersion.current = status.currentVersion;
-    }
+    if (!status) return;
+    // Wait for successful activation; the page's build version also catches missed transitions.
+    if (needsUpdateReload(loadedVersion.current, status)) location.reload();
+    // Development builds have no release identity; remember the first stable version instead.
+    if (!loadedVersion.current && !status.busy && status.status === "idle") loadedVersion.current = status.currentVersion;
   }, [status]);
 
   if (!status) return <section className="settings-section"><h3>App updates</h3><p role="status">{error || "Loading…"}</p></section>;
