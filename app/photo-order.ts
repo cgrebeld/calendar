@@ -20,3 +20,8 @@ export function photoLabel({ date, city }: { date?: string; city?: string }): st
   const parsed = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? new Date(`${date}T12:00:00`) : undefined;
   return [city, parsed && Number.isFinite(parsed.getTime()) ? parsed.toLocaleDateString([], { year: "numeric", month: "short", day: "numeric" }) : undefined].filter(Boolean).join(" · ");
 }
+
+export function photoFailure(id: string, reason: string): string {
+  const source = id.startsWith("immich-") ? "Immich" : id.startsWith("unsplash-") ? "Unsplash" : "Local";
+  return `${source} photo unavailable (${reason}); swipe to continue`;
+}

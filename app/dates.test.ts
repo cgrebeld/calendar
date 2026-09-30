@@ -507,7 +507,7 @@ test("backgroundFor rotates one image per day per theme", () => {
 });
 
 
-import { shufflePhotos, adjacentPhoto, photoLabel } from "./photo-order.ts";
+import { shufflePhotos, adjacentPhoto, photoLabel, photoFailure } from "./photo-order.ts";
 
 test("photo shuffle keeps every photo once, leaves the source alone, and avoids repeating across cycles", () => {
   const photos = [{ id: "a" }, { id: "b" }, { id: "c" }, { id: "d" }];
@@ -595,4 +595,10 @@ test("photo source preferences persist independently and preserve existing defau
     if (descriptor) Object.defineProperty(globalThis, "localStorage", descriptor);
     else Reflect.deleteProperty(globalThis, "localStorage");
   }
+});
+
+test("photo failures identify the provider and available reason", () => {
+  assert.equal(photoFailure("immich-123", "HTTP 404"), "Immich photo unavailable (HTTP 404); swipe to continue");
+  assert.equal(photoFailure("unsplash-123", "timed out"), "Unsplash photo unavailable (timed out); swipe to continue");
+  assert.equal(photoFailure("123", "load or decode failed"), "Local photo unavailable (load or decode failed); swipe to continue");
 });

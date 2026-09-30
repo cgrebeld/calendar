@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import "./photos.css";
 import { DateTime } from "./date-time";
 import { weatherDescription, weatherGlyph, weatherIcon, type WeatherReport } from "./weather";
-import { shufflePhotos, photoLabel, adjacentPhoto } from "./photo-order";
+import { shufflePhotos, photoLabel, adjacentPhoto, photoFailure } from "./photo-order";
 import { swipeDirection } from "./dates";
 import { ambientEnabled, googlePhotosEnabled, immichEnabled, ambientTopics, setAmbientTopics } from "./photo-preferences";
 import { connectGoogle } from "./google-connect";
@@ -21,10 +21,10 @@ type Topic = { slug: string; title: string };
 type TopicsStatus = { enabled: boolean; items: Topic[]; error?: string };
 async function photosJson(apiUrl: string, action: string, method = "GET", signal?: AbortSignal): Promise<PhotoStatus> {
   try {
-  const response = await fetch(`${apiUrl}/api/photos/${action}`, { method, signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000), cache: "no-store" });
-  const data = await response.json();
-  if (!response.ok) throw Object.assign(new Error(data.error || "Photos unavailable"), { setupUrl: data.setupUrl });
-  return data;
+    const response = await fetch(`${apiUrl}/api/photos/${action}`, { method, signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000), cache: "no-store" });
+    const data = await response.json();
+    if (!response.ok) throw Object.assign(new Error(data.error || "Photos unavailable"), { setupUrl: data.setupUrl });
+    return data;
   } catch (error) { if (!signal?.aborted) reportError(apiUrl, `photos ${action.split("?")[0]}`, error); throw error; }
 }
 function useVisible() {
@@ -234,25 +234,25 @@ export function PhotoMode({ apiUrl, now, weather, coldThreshold = 0, onExit }: {
     let objectUrl: string | undefined;
     async function load() {
       try {
-        if (item.external) {
+        if (item.external && !item.url.startsWith("/")) {
           // Render the provider URL directly, including its tracking parameters.
-          setPhoto({ item, url: item.url.startsWith("/") ? `${apiUrl}${item.url}` : item.url });
-          imageTimer.current = setTimeout(() => { setPhoto(undefined); setMessage("Photo unavailable; swipe to continue"); }, 15000);
+          setPhoto({ item, url: item.url });
+          imageTimer.current = setTimeout(() => photoFailed(item, "timed out"), 15000);
           return;
         }
         const response = await fetch(`${apiUrl}${item.url}`, {
           signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]),
           cache: "no-store", referrerPolicy: "no-referrer",
         });
-        if (!response.ok) throw new Error("Photo unavailable");
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const blob = await response.blob();
         if (controller.signal.aborted) return;
         objectUrl = URL.createObjectURL(blob);
         const image = new Image(); image.src = objectUrl;
         await image.decode();
         if (!controller.signal.aborted) { setPhoto({ item, url: objectUrl }); setMessage(""); }
-      } catch {
-        if (!controller.signal.aborted) { setPhoto(undefined); setMessage("Photo unavailable; swipe to continue"); }
+      } catch (error) {
+        if (!controller.signal.aborted) photoFailed(item, error instanceof Error ? error.message : "load failed");
       }
     }
     setPhoto(undefined); setMessage("");
@@ -268,6 +268,14 @@ export function PhotoMode({ apiUrl, now, weather, coldThreshold = 0, onExit }: {
     }, message ? 5000 : 60000);
     return () => clearTimeout(timer);
   }, [items, item, visible, message, retry]);
+
+  function photoFailed(failed: Photo, reason: string) {
+    const message = photoFailure(failed.id, reason);
+    clearTimeout(imageTimer.current);
+    reportError(apiUrl, `photo ${failed.id}`, new Error(message));
+    setPhoto(undefined);
+    setMessage(message);
+  }
 
   async function remove() {
     if (!photo || photo.item.external || removing) return;
@@ -306,7 +314,7 @@ export function PhotoMode({ apiUrl, now, weather, coldThreshold = 0, onExit }: {
       }}>
       {photo && <img key={photo.url} src={photo.url} alt="" draggable={false}
         onLoad={() => clearTimeout(imageTimer.current)}
-        onError={() => { clearTimeout(imageTimer.current); setPhoto(undefined); setMessage("Photo unavailable; swipe to continue"); }} /> }
+        onError={() => photoFailed(photo.item, "load or decode failed")} /> }
       <span className="photo-info">
         <DateTime now={now} />
         {conditions && <span className="photo-weather" aria-label={`${weatherDescription(conditions.code)}, ${Math.round(conditions.high)} degrees`}>
