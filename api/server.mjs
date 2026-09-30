@@ -1,3 +1,4 @@
+import { logFailure } from "./diagnostics.mjs";
 import { randomBytes, createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
@@ -305,10 +306,22 @@ export function countdownEvents(items) {
 
 function json(request, response, status, body) {
   response.writeHead(status, { "content-type": "application/json", "access-control-allow-origin": allowedOrigin(request.headers.origin, appOrigins), vary: "origin" });
+  if (status >= 400) response.diagnosticError = body.error || `HTTP ${status}`;
   response.end(JSON.stringify(body));
 }
 
 export const server = createServer(async (request, response) => {
+  const started = Date.now();
+  const fields = () => ({ method: request.method, path: (request.url || "/").split("?")[0],
+    status: response.statusCode, duration: Date.now() - started });
+  let logged = false;
+  response.on("finish", () => {
+    if (!logged && (response.statusCode < 200 || response.statusCode >= 300))
+      logFailure("request", response.diagnosticError || `HTTP ${response.statusCode}`, fields());
+  });
+  response.on("close", () => {
+    if (!logged && !response.writableFinished) logFailure("request", "Response stream closed before completion", fields());
+  });
   try {
     const url = new URL(request.url, `http://${request.headers.host}`);
     if (["/api/photos/ambient", "/api/photos/ambient/status", "/api/photos/topics"].includes(url.pathname)) {
@@ -330,7 +343,7 @@ export const server = createServer(async (request, response) => {
       const image = await immich.image(immichImage[1]);
       if (!image) return json(request, response, 404, { error: "Photo not found" });
       response.writeHead(200, { "content-type": image.headers.get("content-type"), "cache-control": "private, max-age=300", "x-content-type-options": "nosniff", "access-control-allow-origin": allowedOrigin(request.headers.origin, appOrigins), vary: "origin" });
-      return pipeline(Readable.fromWeb(image.body), response);
+      return await pipeline(Readable.fromWeb(image.body), response);
     }
     if (url.pathname.startsWith("/api/photos/")) {
       const result = await photosRequest(request, url, appOrigins);
@@ -393,6 +406,8 @@ export const server = createServer(async (request, response) => {
     if (request.method === "GET" && url.pathname === "/api/tasks") return json(request, response, 200, await familyTasks(url.searchParams.get("force") === "true"));
     json(request, response, 404, { error: "Not found" });
   } catch (error) {
+    logged = true;
+    logFailure("request", error, { ...fields(), status: response.headersSent ? response.statusCode : 500, stream: response.headersSent });
     if (response.headersSent) return response.destroy(error);
     json(request, response, 500, { error: error.message });
   }

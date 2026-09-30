@@ -351,3 +351,21 @@ test("familyTasks includes completed and hidden tasks and refreshes their check 
     else process.env.TASK_LISTS = saved;
   }
 });
+
+test("request failures log structured context without OAuth queries", async (t) => {
+  const { server } = await import("./server.mjs");
+  const lines = [];
+  t.mock.method(console, "error", (line) => lines.push(JSON.parse(line)));
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  try {
+    const response = await fetch(`http://127.0.0.1:${server.address().port}/api/auth/callback?code=private-code`);
+    assert.equal(response.status, 400);
+    assert.equal(lines.length, 1);
+    assert.equal(lines[0].path, "/api/auth/callback");
+    assert.equal(lines[0].status, 400);
+    assert.ok(lines[0].duration >= 0);
+    assert.match(lines[0].error, /OAuth state/);
+    assert.ok(!JSON.stringify(lines).includes("private-code"));
+  } finally { await new Promise((resolve) => server.close(resolve)); }
+});
