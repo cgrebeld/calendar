@@ -343,7 +343,7 @@ nav .dark { color: var(--on-accent); background: var(--nav-dark-bg); border: 0; 
 .day-modal .timeline { min-width: 0; height: min(78vh, 880px); }
 .event-detail { width: min(34rem, calc(100% - 4rem)); padding: 2.5rem; border-radius: 1.5rem; background: var(--surface); box-shadow: var(--shadow-lg); }
 .event-detail h2 { margin: 1.5rem 0 .8rem; font-size: 2.4rem; }
-.event-detail p { font-size: 1.25rem; color: var(--text-subtle); }
+.event-detail p { font-size: 1.25rem; color: var(--text-subtle); overflow-wrap: anywhere; }
 .close { position: absolute; top: 1rem; right: 1rem; box-shadow: none; }
 .badge { display: inline-block; padding: .5rem .8rem; border-left: .35rem solid var(--tone); border-radius: .5rem; font-weight: 800; background: var(--tone-bg); color: var(--tone-text); }
 
