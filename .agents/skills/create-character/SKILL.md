@@ -9,7 +9,7 @@ Adapt the ChatGPT pet creation ideas to this project: canonical identity, ground
 
 ## Generate
 
-Inspect the current quest component before replacing its art. Preserve the requested animal and personality. Default to rounded plush-like forms, expressive faces, simple readable details, and compact whole-body silhouettes. Avoid realistic anatomy and tiny decorative detail.
+Inspect the current quest component before replacing its art. These characters are calendar pets. Preserve the requested animal and personality. Default to chunky 16-bit pixel art, a limited palette, stepped dark outlines, simple readable faces, and compact whole-body silhouettes. Avoid smooth 3D shading, realistic anatomy, and tiny decorative detail.
 
 Use the built-in image generation tool for the base and every new pose. Inspect a canonical transparent base first, then attach it as the identity reference to each state strip. Do not substitute CSS movement of a still for generated character animation.
 
@@ -27,7 +27,7 @@ Keep base, source strips, and prompts in `docs/characters/<slug>/`. Final artwor
 Run the bundled helper with a Python runtime providing Pillow:
 
 ```sh
-python3 .agents/skills/create-character/scripts/assemble.py --idle docs/characters/<slug>/idle.png --celebrate docs/characters/<slug>/celebrate.png --output app/public/characters/<slug>.png --preview-dir docs/characters/<slug>/previews
+python3 .agents/skills/create-character/scripts/assemble.py --idle docs/characters/<slug>/idle.png --celebrate docs/characters/<slug>/celebrate.png --output app/public/characters/<slug>.png --preview-dir docs/characters/<slug>/previews --pixel-art
 ```
 
 The local atlas is **768×416**, four 192×208 cells per row: idle first, celebrate second. The helper applies a common crop/scale, retaining authored registration and airborne motion, then writes a structural report and idle→celebrate→idle GIF. It does not judge artistic quality.
