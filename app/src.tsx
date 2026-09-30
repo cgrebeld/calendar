@@ -1,14 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { addDays, moveAnchor, swipeDirection, viewDates, viewTitle, type ViewMode } from "./dates";
-import { moonPhaseOn } from "./moon";
-import { agendaColumns, dayDifference, layoutEventColumns, layoutEvents, loadGoogleAgenda, loadGoogleEvents, orderEvents, upcomingEvents, type AgendaCalendar, type CalendarEvent } from "./google-calendar";
-import { formatHour, hourLabels, hourOf, hourOffset, placeRows, scheduleHours, scheduleRangeFromEnv, timeMarkerOffset, titleLines, type ScheduleRange } from "./schedule";
-import { dateKey, fakeForecast, loadWeather, upcomingHours, weatherChartScale, weatherDescription, weatherGlyph, weatherIcon, windStrength, type DayWeather, type WeatherReport } from "./weather";
+import { agendaColumns, dayDifference, loadGoogleAgenda, loadGoogleEvents, type AgendaCalendar, type CalendarEvent } from "./google-calendar";
+import { hourOf, scheduleRangeFromEnv } from "./schedule";
+import { dateKey, fakeForecast, loadWeather, weatherGlyph, weatherIcon, type DayWeather, type WeatherReport } from "./weather";
 import { backgroundFor, parseSkin, parseThemeMode, parseThemeSchedule, resolveTheme, scheduleFromSolar, type ThemeMode, type ThemeName } from "./theme";
 import "./style.css";
 import { WoodlandBackground } from "./skins/woodland";
-import { DateTime } from "./date-time";
+import { DateTime, useNow } from "./date-time";
+import { coldThreshold, DayModal, eventTimeSpan, eventTitle, Month, Timeline, TwoWeek, WhatsNext } from "./calendar-views";
+import { WeatherModal } from "./weather-modal";
 import { DogCompanion } from "./dog";
 import { ChoreQuests } from "./chore-quests";
 import { weeklyQuests, weekOf, newlyCompleted, type NoteList, type Quest } from "./quests";
@@ -26,7 +27,6 @@ document.documentElement.dataset.skin = initialSkin;
 const envThemeSchedule = parseThemeSchedule(import.meta.env.VITE_THEME_LIGHT_START, import.meta.env.VITE_THEME_DARK_START);
 
 const scheduleRange = scheduleRangeFromEnv();
-const coldThreshold = Number(import.meta.env.VITE_WEATHER_COLD_THRESHOLD ?? 0);
 const backgroundDisabled = import.meta.env.VITE_BACKGROUND === "none";
 const backgroundOverrides: Record<ThemeName, string | undefined> = {
   light: import.meta.env.VITE_BACKGROUND_LIGHT,
@@ -81,10 +81,6 @@ const noteLists: NoteList[] = [
   { id: "reminders", label: "Reminders", items: ["Pick up dry cleaning", "Order Maya’s school photos", "Replace hallway light bulb", "Call Grandma this weekend"].map((title, id) => ({ id: `reminder-${id}`, title })) },
   { id: "groceries", label: "Groceries", items: ["Milk", "Bananas", "Coffee beans", "Dish soap", "Cheddar"].map((title, id) => ({ id: `grocery-${id}`, title })) },
 ];
-const dayName = new Intl.DateTimeFormat(undefined, { weekday: "short" });
-const longDate = new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric" });
-const agendaDate = new Intl.DateTimeFormat(undefined, { weekday: "short", month: "short", day: "numeric" });
-
 let uiAudioContext: AudioContext | undefined;
 
 function playButtonSound(sound: "beep" | "boop") {
@@ -121,355 +117,6 @@ function useButtonSounds() {
     document.addEventListener("click", play, true);
     return () => document.removeEventListener("click", play, true);
   }, []);
-}
-
-const dayTap = (onOpenDay: (date: Date) => void, date: Date) => (event: React.MouseEvent) => {
-  if ((event.target as Element).closest("button")) return;
-  onOpenDay(date);
-};
-
-
-function sameDay(left: Date, right: Date) {
-  return left.toDateString() === right.toDateString();
-}
-
-function isPastEvent(date: Date, now: Date, start: number, duration: number) {
-  return sameDay(date, now) ? start + duration <= hourOf(now) : date < now;
-}
-
-function eventTime(event: CalendarEvent) {
-  if (event.timeLabel) return event.timeLabel;
-  if (event.allDay) return "All day";
-  const date = new Date(2000, 0, 1, Math.floor(event.start), (event.start % 1) * 60);
-  return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-}
-
-function eventTimeSpan(event: CalendarEvent) {
-  return event.allDay ? "All day" : `${eventTime(event)} – ${event.endLabel ?? formatHour(event.start + event.duration)}`;
-}
-
-function eventTitle(event: CalendarEvent) {
-  return <>{event.collection && <span className="collection-icon" aria-hidden="true">{event.collection === "garbage" ? "🗑️" : "♻️"}</span>}{event.title}</>;
-}
-
-function eventsFor(events: CalendarEvent[], date: Date, today: Date) {
-  return orderEvents(events.filter((event) => sameDay(date, addDays(today, event.day))));
-}
-
-function AgendaColumn({ calendar, now, onSelect }: { calendar: AgendaCalendar; now: Date; onSelect: (event: CalendarEvent) => void }) {
-  const [capacityRef, capacity] = useRowCapacity("--agenda-row", "--agenda-gap");
-  const items = upcomingEvents(calendar.events, hourOf(now)).slice(0, capacity);
-  const days = [...new Set(items.map((event) => event.day))];
-  return <article className={`agenda-person ${calendar.tone}`}>
-    <h3><span className="agenda-avatar" aria-hidden="true">{calendar.name.slice(0, 1).toUpperCase()}</span>{calendar.name}</h3>
-    <div className="agenda-events" ref={capacityRef}>
-      {items.length ? items.map((event, index) => <button className={`agenda-event ${days.indexOf(event.day) % 2 ? "alternate-day" : ""}`} onClick={() => onSelect(event)} key={`${event.day}-${event.start}-${event.title}-${index}`}>
-        <span className="agenda-when">{event.day === 0 ? "Today" : event.day === 1 ? "Tomorrow" : agendaDate.format(addDays(now, event.day))} · {eventTime(event)}</span>
-        <strong>{eventTitle(event)}</strong>
-        {event.detail && <small>{event.detail}</small>}
-      </button>) : <p className="agenda-empty">A clear trail ahead</p>}
-    </div>
-  </article>;
-}
-
-function WhatsNext({ calendars, now, onSelect }: { calendars: AgendaCalendar[]; now: Date; onSelect: (event: CalendarEvent) => void }) {
-  return <section className="whats-next" aria-label="What's next by calendar">
-    <div className="agenda-grid" style={{ "--agenda-columns": Math.max(1, calendars.length) } as React.CSSProperties}>
-      {calendars.map((calendar) => <AgendaColumn calendar={calendar} now={now} onSelect={onSelect} key={calendar.id} />)}
-    </div>
-  </section>;
-}
-
-function DayWeatherBadge({ date, day, compact }: { date: Date; day?: DayWeather; compact?: boolean }) {
-  const phase = moonPhaseOn(date);
-  if (!day && !phase) return null;
-  return <div className="day-weather">
-    {day && <><span className="glyph" data-icon={weatherIcon(day, coldThreshold)}>{weatherGlyph(day, coldThreshold)}</span>{!compact && `${Math.round(day.high)}°`}</>}
-    {phase && <svg className="moon-icon" viewBox="0 0 24 24" role="img" aria-label={phase === "full" ? "Full moon" : "New moon"}>
-      <title>{phase === "full" ? "Full moon" : "New moon"}</title>
-      <circle cx="12" cy="12" r="10" fill={phase === "full" ? "#f5e6af" : "#263044"} stroke="#9b8c6c" strokeWidth="1.5" />
-      {phase === "full" && <g fill="#d6c892"><circle cx="8" cy="8" r="2.5" /><circle cx="15" cy="14" r="3" /><circle cx="8" cy="16" r="1.5" /></g>}
-    </svg>}
-  </div>;
-}
-
-function Timeline({ dates, today, now, events, range, focus, forecast, onSelect, onOpenDay }: { dates: Date[]; today: Date; now: Date; events: CalendarEvent[]; range: ScheduleRange; focus?: Date; forecast: Map<string, DayWeather>; onSelect: (event: CalendarEvent) => void; onOpenDay: (date: Date) => void }) {
-  const nowHour = hourOf(now);
-  const sideBySide = Boolean(focus) || dates.length === 1;
-  const todayShown = dates.some((date) => sameDay(date, now));
-  const nearestLabel = todayShown ? hourLabels(range).reduce((best, hour) => (Math.abs(hour - nowHour) < Math.abs(best - nowHour) ? hour : best)) : undefined;
-  return (
-    <section className="timeline" style={{ "--days": dates.length } as React.CSSProperties}>
-      <div className="corner">All day</div>
-      {dates.map((date) => (
-        <div className={`day-heading ${sameDay(date, today) ? "today" : ""} ${focus ? (sameDay(date, focus) ? "focus" : "context") : ""}`} key={`heading-${date.toDateString()}`} onClick={dayTap(onOpenDay, date)} aria-label={`Open ${longDate.format(date)}`}>
-          <span>{dayName.format(date)}</span><strong>{date.getDate()}</strong>
-          <DayWeatherBadge date={date} day={forecast.get(dateKey(date))} />
-        </div>
-      ))}
-      <div className="time-labels">{hourLabels(range).map((hour) => <span className={hour === nearestLabel ? "now-near" : ""} style={{ top: `${hourOffset(range, hour) * 100}%` }} key={hour}>{formatHour(hour)}</span>)}</div>
-      {dates.map((date) => {
-        const dayEvents = eventsFor(events, date, today);
-        const timedEvents = dayEvents.filter((event) => !event.allDay);
-        const laidOut = sideBySide ? layoutEventColumns(timedEvents, range) : layoutEvents(timedEvents, 1, range).map((item) => ({ ...item, column: 0, columns: 1 }));
-        const nowOffset = sameDay(date, now) ? timeMarkerOffset(nowHour, sideBySide ? [] : laidOut, range) : null;
-        return (
-          <div className={`day-column ${sameDay(date, today) ? "today" : ""} ${focus ? (sameDay(date, focus) ? "focus" : "context") : ""}`} key={date.toDateString()} onClick={dayTap(onOpenDay, date)} aria-label={`Open ${longDate.format(date)}`}>
-            <div className="all-day-lane">
-              {dayEvents.filter((event) => event.allDay).map((event) => <button className={`all-day ${event.tone} ${dayDifference(date, today) < 0 ? "past" : ""}`} onClick={() => onSelect(event)} key={event.title}>{eventTitle(event)}</button>)}
-            </div>
-            <div className="hours" style={{ "--schedule-hours": scheduleHours(range) } as React.CSSProperties}>
-              {nowOffset !== null && <div className="now-line" style={{ top: `${nowOffset * 100}%` }} aria-hidden />}
-              {laidOut.map(({ event, start, duration, column, columns }) => (
-                <button
-                  className={`timed-event ${event.tone} ${isPastEvent(date, now, event.start, event.duration) ? "past" : ""}`}
-                  style={{ top: `${hourOffset(range, start) * 100}%`, height: `calc(${(duration / scheduleHours(range)) * 100}% - 1px)`, left: `calc(${column / columns * 100}% + .2rem)`, width: `calc(${100 / columns}% - .4rem)`, "--title-lines": titleLines(duration, 0.75 * scheduleHours(range) / 12, 3) } as React.CSSProperties}
-                  onClick={() => onSelect(event)}
-                  key={`${event.start}-${event.title}`}
-                >
-                  <span className="event-body"><span>{eventTime(event)}</span><strong>{event.title}</strong></span>
-                </button>
-              ))}
-            </div>
-          </div>
-        );
-      })}
-    </section>
-  );
-}
-
-function useRowCapacity(rowProperty = "--month-row", gapProperty = "--month-gap") {
-  const [element, setElement] = useState<HTMLDivElement | null>(null);
-  const [capacity, setCapacity] = useState(3);
-  useEffect(() => {
-    if (!element) return;
-    const measure = () => {
-      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-      const styles = getComputedStyle(element);
-      const row = (parseFloat(styles.getPropertyValue(rowProperty)) || 1.4) * rem;
-      const gap = (parseFloat(styles.getPropertyValue(gapProperty)) || 0.15) * rem;
-      setCapacity(Math.max(1, Math.floor((element.clientHeight + gap) / (row + gap))));
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [element, rowProperty, gapProperty]);
-  return [setElement, capacity] as const;
-}
-
-function Month({ dates, anchor, today, now, events, range, forecast, onSelect, onOpenDay }: { dates: Date[]; anchor: Date; today: Date; now: Date; events: CalendarEvent[]; range: ScheduleRange; forecast: Map<string, DayWeather>; onSelect: (event: CalendarEvent) => void; onOpenDay: (date: Date) => void }) {
-  const [capacityRef, capacity] = useRowCapacity();
-  const hours = scheduleHours(range);
-  return (
-    <section className="month-grid">
-      {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <strong className="month-heading" key={day}>{day}</strong>)}
-      {dates.map((date, index) => {
-        const dayEvents = eventsFor(events, date, today);
-        const isToday = sameDay(date, now);
-        const rowFraction = 1 / capacity;
-        if (dayEvents.length <= capacity) {
-          const tops = placeRows(dayEvents.map((event) => (event.allDay ? range.startHour : event.start)), range, rowFraction);
-          const laidOut = dayEvents.map((event, row) => ({ event: { start: event.allDay ? range.startHour : event.start, duration: rowFraction * hours }, start: range.startHour + tops[row] * hours, duration: rowFraction * hours }));
-          const ruleTop = isToday && dayEvents.some((event) => !event.allDay) ? timeMarkerOffset(hourOf(now), laidOut, range) : null;
-          return (
-            <div className={`month-day ${date.getMonth() !== anchor.getMonth() ? "outside" : ""} ${sameDay(date, today) ? "today" : ""}`} key={date.toDateString()} onClick={dayTap(onOpenDay, date)} aria-label={`Open ${longDate.format(date)}`}>
-              <span>{date.getDate()}</span>
-              <DayWeatherBadge date={date} day={forecast.get(dateKey(date))} compact />
-              <div className="month-events placed" ref={index === 0 ? capacityRef : undefined}>
-                {ruleTop !== null && <div className="now-rule" style={{ top: `${ruleTop * 100}%` }} aria-hidden />}
-                {dayEvents.map((event, row) => <button className={`${event.tone} ${(event.allDay ? dayDifference(date, today) < 0 : isPastEvent(date, now, event.start, event.duration)) ? "past" : ""}`} style={{ top: `${tops[row] * 100}%` }} onClick={() => onSelect(event)} key={`${event.start}-${event.title}`} aria-label={`${eventTime(event)} ${event.title}`}>{eventTitle(event)}</button>)}
-              </div>
-            </div>
-          );
-        }
-        const visible = dayEvents.slice(0, Math.max(1, capacity - 1));
-        const upcoming = isToday ? visible.find((event) => !event.allDay && event.start > hourOf(now)) : undefined;
-        const showRule = isToday && dayEvents.some((event) => !event.allDay);
-        return (
-          <div className={`month-day ${date.getMonth() !== anchor.getMonth() ? "outside" : ""} ${sameDay(date, today) ? "today" : ""}`} key={date.toDateString()} onClick={dayTap(onOpenDay, date)} aria-label={`Open ${longDate.format(date)}`}>
-            <span>{date.getDate()}</span>
-            <DayWeatherBadge date={date} day={forecast.get(dateKey(date))} compact />
-            <div className="month-events list" ref={index === 0 ? capacityRef : undefined}>
-              {visible.map((event) => (
-                <React.Fragment key={`${event.start}-${event.title}`}>
-                  {event === upcoming && <div className="now-rule" aria-hidden />}
-                  <button className={`${event.tone} ${(event.allDay ? dayDifference(date, today) < 0 : isPastEvent(date, now, event.start, event.duration)) ? "past" : ""}`} onClick={() => onSelect(event)} aria-label={`${eventTime(event)} ${event.title}`}>{eventTitle(event)}</button>
-                </React.Fragment>
-              ))}
-              {showRule && !upcoming && <div className="now-rule" aria-hidden />}
-              {capacity > 1 && <button className="more" onClick={() => onOpenDay(date)}>⌄ {dayEvents.length - visible.length} more</button>}
-            </div>
-          </div>
-        );
-      })}
-    </section>
-  );
-}
-
-function TwoWeek({ dates, today, now, events, range, forecast, onSelect, onOpenDay }: { dates: Date[]; today: Date; now: Date; events: CalendarEvent[]; range: ScheduleRange; forecast: Map<string, DayWeather>; onSelect: (event: CalendarEvent) => void; onOpenDay: (date: Date) => void }) {
-  return (
-    <section className="two-week-grid">
-      {dates.map((date) => {
-        const dayEvents = eventsFor(events, date, today);
-        const laidOut = layoutEvents(dayEvents.filter((event) => !event.allDay), 1.5, range);
-        const nowOffset = sameDay(date, now) ? timeMarkerOffset(hourOf(now), laidOut, range) : null;
-        return (
-          <article className={`mini-day ${sameDay(date, today) ? "today" : ""}`} key={date.toDateString()} onClick={dayTap(onOpenDay, date)} aria-label={`Open ${longDate.format(date)}`}>
-            <header><span>{dayName.format(date)}</span><strong>{date.getDate()}</strong><DayWeatherBadge date={date} day={forecast.get(dateKey(date))} /></header>
-            <div className="mini-all-day">
-              {dayEvents.filter((event) => event.allDay).map((event) => <button className={`${event.tone} ${dayDifference(date, today) < 0 ? "past" : ""}`} onClick={() => onSelect(event)} key={event.title}>{eventTitle(event)}</button>)}
-            </div>
-            <div className="mini-hours" style={{ "--schedule-hours": scheduleHours(range) } as React.CSSProperties}>
-              {nowOffset !== null && <div className="now-line mini" style={{ top: `${nowOffset * 100}%` }} aria-hidden />}
-              {laidOut.map(({ event, start, duration }) => (
-                <button className={`${event.tone} ${isPastEvent(date, now, event.start, event.duration) ? "past" : ""}`} style={{ top: `${hourOffset(range, start) * 100}%`, height: `calc(${(duration / scheduleHours(range)) * 100}% - 1px)`, "--title-lines": titleLines(duration, 0.75 * scheduleHours(range) / 12, 2) } as React.CSSProperties} onClick={() => onSelect(event)} key={`${event.start}-${event.title}`}>
-                  <span>{eventTime(event)}</span><strong>{event.title}</strong>
-                </button>
-              ))}
-            </div>
-          </article>
-        );
-      })}
-    </section>
-  );
-}
-
-function DayModal({ date, today, now, events, range, forecast, onSelect, onClose }: { date: Date; today: Date; now: Date; events: CalendarEvent[]; range: ScheduleRange; forecast: Map<string, DayWeather>; onSelect: (event: CalendarEvent) => void; onClose: () => void }) {
-  return (
-    <div className="backdrop" onClick={onClose}>
-      <section className="day-modal" role="dialog" aria-modal="true" aria-label={longDate.format(date)} onClick={(event) => event.stopPropagation()}>
-        <button className="close" onClick={onClose} aria-label="Close" data-sound="boop">×</button>
-        <h2>{longDate.format(date)}</h2>
-        <Timeline dates={[date]} today={today} now={now} events={events} range={range} forecast={forecast} onSelect={onSelect} onOpenDay={() => {}} />
-      </section>
-    </div>
-  );
-}
-
-function WeatherConditionIcon({ code }: { code: number }) {
-  const icon = weatherIcon({ date: "", code, high: 1, low: 1 }, -Infinity);
-  const sunny = icon === "sun" || icon === "partly";
-  return <svg className="condition-icon" data-icon={icon} viewBox="0 0 80 80" role="img" aria-label={weatherDescription(code)}>
-    <title>{weatherDescription(code)}</title>
-    {sunny && <g transform={icon === "partly" ? "translate(26 28) scale(.8)" : "translate(40 40)"} fill="#edb757" stroke="#edb757" strokeWidth="3" strokeLinecap="round">
-      <circle r="13" stroke="none" /><path d="M0-26v7M0 19v7M-26 0h7M19 0h7M-18-18l5 5M13 13l5 5M-18 18l5-5M13-13l5-5" />
-    </g>}
-    {icon !== "sun" && <path d="M18 49C3 49 4 29 18 28C18 8 48 7 53 28C74 22 81 49 61 49Z" fill="#a5b6cb" transform={icon === "partly" ? "translate(8 12) scale(.85)" : undefined} />}
-    {icon === "fog" && <path d="M12 56h51M21 64h49M10 72h44" stroke="#8ea4b9" strokeWidth="3" strokeLinecap="round" />}
-    {(icon === "rain" || icon === "storm") && <path d="M24 57l-5 10M42 57l-5 10M60 57l-5 10" stroke="#689cc9" strokeWidth="3" strokeLinecap="round" />}
-    {icon === "storm" && <path d="M43 36l-9 18h9l-5 17 19-25H46l7-10Z" fill="#edb757" />}
-    {icon === "snow" && <path d="M23 55v17M15 59l16 9M15 68l16-9M56 55v17M48 59l16 9M48 68l16-9" stroke="#689cc9" strokeWidth="2" strokeLinecap="round" />}
-  </svg>;
-}
-
-function WeatherModal({ report, forecast, onClose }: { report?: WeatherReport; forecast: Map<string, DayWeather>; onClose: () => void }) {
-  const dialog = useRef<HTMLDialogElement>(null);
-  const outlook = useRef<HTMLDivElement>(null);
-  const hourlyOutlook = useRef<HTMLDivElement>(null);
-  const hours = upcomingHours(report, useNow());
-  const hourlyScale = weatherChartScale(hours.map((hour) => ({ high: hour.temperature, low: hour.temperature })));
-  const hourlyPosition = (temperature: number) => (hourlyScale.max - temperature) / (hourlyScale.max - hourlyScale.min) * 100;
-  useEffect(() => {
-    const element = dialog.current!;
-    const previouslyFocused = document.activeElement;
-    element.showModal();
-    return () => {
-      element.close();
-      if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus();
-    };
-  }, []);
-  const todayKey = report?.timezone ? new Intl.DateTimeFormat("en-CA", { timeZone: report.timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()) : dateKey(new Date());
-  const units = report?.units ?? { temperature: "°C", windSpeed: "kt" };
-  const days = Array.from(forecast.values()).filter((day) => day.date >= todayKey).sort((a, b) => a.date.localeCompare(b.date));
-  const scale = weatherChartScale(days);
-  const position = (temperature: number) => (scale.max - temperature) / (scale.max - scale.min) * 100;
-  const value = (number: number | undefined, unit = "") => Number.isFinite(number) ? `${Number(number!.toFixed(1))} ${unit}`.trim() : "Unavailable";
-  return (
-    <dialog ref={dialog} className="weather-modal" aria-labelledby="weather-title" onCancel={(event) => { event.preventDefault(); onClose(); }} onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <button className="close" onClick={onClose} aria-label="Close weather details" data-sound="boop">×</button>
-      <div className="weather-content">
-        <p className="eyebrow">Conditions & forecast</p>
-        <h2 id="weather-title">Weather details</h2>
-        <p className="weather-meta">{report ? `Open-Meteo · Updated ${new Date(report.fetchedAt).toLocaleString()}` : "Demo forecast · Live weather is unavailable"}{report?.timezone && ` · ${report.timezone}`}</p>
-        {report?.stale && <p className="weather-warning" role="status">Showing saved weather. Live updates are temporarily unavailable.</p>}
-        {report && <div className="weather-current">
-          <div className="weather-hero">
-            <p className="eyebrow">Right now</p>
-            <WeatherConditionIcon code={report.current.code} />
-            <strong>{value(report.current.temperature, units.temperature)}</strong>
-            <p>{weatherDescription(report.current.code)}</p>
-          </div>
-          <dl className="weather-metrics">
-            <div><dt>Wind speed</dt><dd>{value(report.current.windSpeed, units.windSpeed)}</dd></div>
-            {report.current.details?.map((detail) => <div key={detail.label}><dt>{detail.label}</dt><dd>{value(detail.value, detail.unit)}</dd></div>)}
-          </dl>
-        </div>}
-        {hours.length > 0 && <>
-          <div className="outlook-heading">
-            <h3 id="hourly-title">Hourly Outlook</h3>
-            <div className="outlook-navigation">
-              <button aria-label="Previous forecast hours" onClick={() => hourlyOutlook.current?.scrollBy({ left: -hourlyOutlook.current.clientWidth })}>‹</button>
-              <button aria-label="Next forecast hours" onClick={() => hourlyOutlook.current?.scrollBy({ left: hourlyOutlook.current.clientWidth })}>›</button>
-            </div>
-          </div>
-          <div className="outlook-chart">
-            <div className="outlook-axis" aria-hidden="true">
-              <span className="outlook-unit">{units.temperature}</span>
-              <div className="temperature-axis">{hourlyScale.ticks.map((tick) => <span key={tick} style={{ top: `${hourlyPosition(tick)}%` }}>{tick}°</span>)}</div>
-              <span className="wind-axis">Wind<small>{units.windSpeed}</small></span>
-            </div>
-            <div className="outlook-scroll" ref={hourlyOutlook} role="region" aria-labelledby="hourly-title" aria-describedby="hourly-help" tabIndex={0}>
-              {hours.map((hour) => {
-                const strength = windStrength(hour.windSpeed, units.windSpeed);
-                return <div key={hour.time} className="outlook-day" role="img" aria-label={`${hour.time.replace("T", " ")}: ${weatherDescription(hour.code)}. ${value(hour.temperature, units.temperature)}. Wind ${value(hour.windSpeed, units.windSpeed)}.`}>
-                  <span className="temperature-plot" aria-hidden="true">
-                    {hourlyScale.ticks.map((tick) => <span className="temperature-gridline" key={tick} style={{ top: `${hourlyPosition(tick)}%` }} />)}
-                    <span className="hourly-temperature" style={{ top: `${hourlyPosition(hour.temperature)}%` }}><b>{Math.round(hour.temperature)}°</b></span>
-                  </span>
-                  <span className="outlook-date">{hour.time.slice(11, 16)}<small>{hour.time.slice(5, 10)}</small></span>
-                  <WeatherConditionIcon code={hour.code} />
-                  <span className="wind-cell" style={strength === undefined ? undefined : { background: `color-mix(in srgb, #5589aa ${strength * 100}%, #e6efe1)`, color: strength > .75 ? "#fff" : "#243348" }}>{Number.isFinite(hour.windSpeed) ? Math.round(hour.windSpeed!) : "—"}</span>
-                </div>;
-              })}
-            </div>
-          </div>
-          <p id="hourly-help" className="weather-meta">Swipe or scroll for more hours. Times shown in {report?.timezone || "local time"}.</p>
-        </>}
-        <div className="outlook-heading">
-          <h3 id="outlook-title">Daily outlook</h3>
-          <div className="outlook-navigation">
-            <button aria-label="Previous forecast days" onClick={() => outlook.current?.scrollBy({ left: -outlook.current.clientWidth })}>‹</button>
-            <button aria-label="Next forecast days" onClick={() => outlook.current?.scrollBy({ left: outlook.current.clientWidth })}>›</button>
-          </div>
-        </div>
-        {days.length ? <div className="outlook-chart">
-          <div className="outlook-axis" aria-hidden="true">
-            <span className="outlook-unit">{units.temperature}</span>
-            <div className="temperature-axis">{scale.ticks.map((tick) => <span key={tick} style={{ top: `${position(tick)}%` }}>{tick}°</span>)}</div>
-            <span className="wind-axis">Wind<small>Max · {units.windSpeed}</small></span>
-          </div>
-          <div className="outlook-scroll" ref={outlook} role="region" aria-labelledby="outlook-title" aria-describedby="outlook-help" tabIndex={0}>
-            {days.map((day) => {
-              const date = new Date(`${day.date}T12:00:00`);
-              const strength = windStrength(day.windMax, units.windSpeed);
-              const hasTemperature = Number.isFinite(day.high) && Number.isFinite(day.low) && day.high >= day.low;
-              return <div key={day.date} className={`outlook-day ${day.date === todayKey ? "is-today" : ""}`} role="img" aria-label={`${longDate.format(date)}: ${weatherDescription(day.code)}. High ${value(day.high, units.temperature)}, low ${value(day.low, units.temperature)}. Maximum wind ${value(day.windMax, units.windSpeed)}.`}>
-                <span className="temperature-plot" aria-hidden="true">
-                  {scale.ticks.map((tick) => <span className="temperature-gridline" key={tick} style={{ top: `${position(tick)}%` }} />)}
-                  {hasTemperature ? <span className="temperature-range" style={{ top: `${position(day.high)}%`, height: `${(day.high - day.low) / (scale.max - scale.min) * 100}%` }}><b>{Math.round(day.high)}°</b><span>{Math.round(day.low)}°</span></span> : <span className="temperature-missing">—</span>}
-                </span>
-                <span className="outlook-date">{day.date === todayKey ? "Today" : dayName.format(date)} · {date.getDate()}</span>
-                <WeatherConditionIcon code={day.code} />
-                <span className="wind-cell" style={strength === undefined ? undefined : { background: `color-mix(in srgb, #5589aa ${strength * 100}%, #e6efe1)`, color: strength > .75 ? "#fff" : "#243348" }}>{Number.isFinite(day.windMax) ? Math.round(day.windMax!) : "—"}</span>
-              </div>;
-            })}
-          </div>
-        </div> : <p className="weather-meta">No upcoming forecast is available.</p>}
-        <p id="outlook-help" className="weather-meta">Swipe or scroll for more days.</p>
-      </div>
-    </dialog>
-  );
 }
 
 function Notes({ onClose, onCelebrate, quests, now, lists, error, reconnect, apiUrl, connected, refresh }: { onClose: () => void; onCelebrate: (name: string) => void; quests: Quest[]; now: Date; lists: NoteList[]; error?: string; reconnect: () => void; apiUrl: string; connected: boolean; refresh: number }) {
@@ -547,25 +194,6 @@ function useTheme(mode: ThemeMode, forecast: Map<string, DayWeather>, idle: bool
     document.documentElement.dataset.theme = idle ? "dark" : theme;
   }, [theme, idle]);
   return theme;
-}
-
-function useNow(): Date {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const update = () => setNow(new Date());
-    let interval: number | undefined;
-    const first = window.setTimeout(() => {
-      update();
-      interval = window.setInterval(update, 60 * 1000);
-    }, Math.max(1, (60 - new Date().getSeconds()) * 1000 - new Date().getMilliseconds()));
-    document.addEventListener("visibilitychange", update);
-    return () => {
-      window.clearTimeout(first);
-      if (interval !== undefined) window.clearInterval(interval);
-      document.removeEventListener("visibilitychange", update);
-    };
-  }, []);
-  return now;
 }
 
 
