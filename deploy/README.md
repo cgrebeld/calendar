@@ -159,8 +159,8 @@ can create its profile and startup log.
 The supplied [autostart script](kiosk-autostart) starts screen standby after 30
 minutes without input between midnight and 07:00 (the display stays on from
 07:00, and blanks at midnight if idle), resumes on input, waits for the local calendar, and
-relaunches Chromium three seconds after an exit. It logs the latest browser
-attempt to `/home/kiosk/.config/chromium-startup.log`. The browser profile persists
+relaunches Chromium three seconds after an exit. It appends launch timestamps, browser stderr, and page console output
+to `/home/kiosk/.config/chromium-startup.log`, preserving earlier launches. The browser profile persists
 in `/home/kiosk/.config/chromium`. Keep the sandbox and GPU acceleration enabled.
 The root `launch-kiosk.sh` is not this Debian Wayland launcher.
 
@@ -263,6 +263,76 @@ sudo systemctl status getty@tty1 calendar-updater --no-pager
   session startup messages.
 - For silent HDMI, check monitor mute/volume, `wpctl status` in the kiosk session,
   and `cat /proc/asound/card*/eld*`. Confirm the default sink is HDMI, not analog.
+
+## Diagnosing failures
+
+Start with the status snapshot and recent API logs. On the Debian box:
+
+```sh
+curl -fsS --max-time 5 http://localhost:8080/api/status | python3 -m json.tool
+sudo docker compose --project-name calendar-wall \
+  --env-file /etc/calendar/calendar.env \
+  --env-file /var/lib/calendar-updater/release.env \
+  -f /opt/calendar/compose.yaml logs --since 1h --tail 200 calendar-api
+```
+
+For web access logs, use the same Compose command with `calendar-web` instead of
+`calendar-api`. Add `--follow` to watch new failures. In the macOS checkout, use
+`docker compose logs --since 1h --tail 200 calendar-api` (or `calendar-web`);
+the direct API status URL is `http://localhost:3000/api/status`.
+
+`/api/status` always returns HTTP 200 when the snapshot can be read. Its top-level
+`ok` means no **observed, enabled** dependency is degraded; `degraded` names the
+failures. Each of Google, weather, quote, collections, Immich, Unsplash, and
+`localPhotos` has `enabled`, `ok`, `lastSuccess`, `lastError`, and
+`failedOperations`. `ok: null` means no operation has completed since API startup;
+it is not a successful connectivity check. Disabled optional sources are excluded
+from `degraded`. Google also has `connected`, meaning a refresh token is stored,
+not that Google has accepted it recently.
+
+Status does not contact providers or refresh caches. Times are UTC, state resets
+when the API restarts, and `lastError` remains as history after recovery. Use `ok`
+and `failedOperations` for current failures. A successful sibling operation does
+not clear a failed operation: for example, recycling recovery cannot hide a
+failed garbage schedule. Stale data can still appear on screen while `ok` is false.
+`/api/health` remains the Docker **liveness** check and does not fail for an
+upstream outage.
+
+| Symptom | Evidence to check | Next action |
+|---|---|---|
+| Calendar or chores stop refreshing | `google` in `/api/status`; API JSON lines with source `google` | `invalid_grant` means reconnect Google; check the OAuth app's publishing mode if it recurs. For 403, check API/scopes; for DNS/timeouts, check the host network. |
+| Weather, quote, or collection dates stay old | `weather`, `quote`, or `collections`; API source and operation fields | Check provider status and network; collections identifies garbage versus recycling. Successful refresh clears the affected failure. |
+| Immich photo unavailable | `/api/photos/immich/status`, `immich` in `/api/status`, API log with photo ID | Check the logged upstream status, key permissions, album membership, or content type. The screen's HTTP status is the calendar proxy's status; the log preserves the upstream cause. |
+| Unsplash stops changing | `/api/photos/ambient/status`, `unsplash` in `/api/status` | Check access key/quota for 401/403/429; cache-operation errors identify storage trouble on `/data`. Retry limits still apply. |
+| Local photo or import unavailable | `/api/photos/status`, `localPhotos` in `/api/status`, API logs | Check the photo ID, filesystem error, import error, or Google Picker permission failure. Existing imported photos remain available when imports fail. |
+| Blank/frozen page or intermittent UI failure | API JSON lines with source `browser`, context, error and stack | Identify the failing loader/render. If the API is unreachable, inspect the kiosk log below for its console copy. |
+| API returns an error or cuts off an image | API source `request`; web access log | Request lines contain method, path, HTTP status and duration in milliseconds. Thrown errors include stacks; interrupted responses are logged even after headers were sent. |
+| Update check/install fails | `sudo journalctl -u calendar-updater --since '1 hour ago' --no-pager`; `/api/updates/status` | Read the traceback and updater state; follow recovery instructions below. API source `updater` identifies socket/proxy failures. |
+
+Upstream failures include a preview of at most 200 response bytes. Diagnostics
+redact configured secrets, token fields, and URL queries. Request paths omit
+OAuth query parameters. Keep logs private: error messages can still contain
+photo IDs, filenames, or provider details.
+
+Browser reports use `POST /api/client-log`, require a configured `APP_ORIGIN`,
+and accept at most 4 KiB per request, 30 requests per minute across this kiosk.
+The browser sends at most 10 per minute and never retries a failed report.
+Intentional cancelled requests are ignored. Reports already accepted by the API
+remain in Docker logs; there is no offline browser queue. Debian container logs
+rotate at 10 MB, retaining three files per service.
+
+For browser startup failures or an unreachable API:
+
+```sh
+sudo tail -n 200 /home/kiosk/.config/chromium-startup.log
+sudo journalctl -b _UID="$(id -u kiosk)" -n 80 --no-pager
+```
+
+The launcher appends across restarts and enables Chromium stderr logging.
+The startup log is not automatically rotated; archive/truncate it during host
+maintenance if it grows large. Installing the updated launcher requires a reboot
+to use it and clear old startup loops. Then verify display, touch wake, hidden
+cursor, and HDMI playback on the actual kiosk hardware.
 
 ## Updates and recovery
 
