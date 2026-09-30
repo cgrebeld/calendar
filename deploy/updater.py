@@ -13,6 +13,7 @@ import subprocess
 import tarfile
 import threading
 import time
+import traceback
 from http.server import BaseHTTPRequestHandler
 from urllib.request import Request, urlopen
 
@@ -133,6 +134,7 @@ class Updater:
                 raise ValueError("Invalid release notes response")
             return {"version": tag.lstrip("v"), "body": body.strip()[:4000]}
         except Exception:
+            traceback.print_exc()
             return self.state.get("notes")
 
     def check(self):
@@ -302,6 +304,7 @@ class Updater:
             try:
                 self.run("docker", "image", "rm", ref, timeout=30)
             except Exception:
+                traceback.print_exc()
                 remaining.append(ref)  # In-use images are retained and retried later.
         self.save(images=remaining)
 
@@ -357,6 +360,7 @@ class Updater:
                 work()
             except Exception as error:
                 print(f"Update {action}: {error}", flush=True)
+                traceback.print_exc()
                 if action == "check":
                     self.fail_progress()
                     self.save(status="check_failed", message="Release check unavailable. Current app is unaffected.")

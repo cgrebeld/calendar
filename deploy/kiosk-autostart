@@ -15,7 +15,8 @@ done &
     sleep 2
   done
   while true; do
-    chromium --kiosk --no-first-run --noerrdialogs --ozone-platform=wayland --user-data-dir=/home/kiosk/.config/chromium http://localhost:8080 > /home/kiosk/.config/chromium-startup.log 2>&1
+    date -Is >> /home/kiosk/.config/chromium-startup.log
+    chromium --enable-logging=stderr --kiosk --no-first-run --noerrdialogs --ozone-platform=wayland --user-data-dir=/home/kiosk/.config/chromium http://localhost:8080 >> /home/kiosk/.config/chromium-startup.log 2>&1
     sleep 3
   done
 ) &
