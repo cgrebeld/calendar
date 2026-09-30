@@ -188,7 +188,7 @@ async function loadWeather() {
     temperature_unit: units,
     wind_speed_unit: wind,
   });
-  const response = await fetch(`https://api.open-meteo.com/v1/forecast?${query}`);
+  const response = await fetch(`https://api.open-meteo.com/v1/forecast?${query}`, { signal: AbortSignal.timeout(20000) });
   if (!response.ok) throw new Error(`Open-Meteo returned ${response.status}`);
   return shapeWeather(await response.json());
 }
@@ -208,6 +208,7 @@ async function saveRefreshToken(refreshToken) {
 async function exchangeToken(parameters) {
   const response = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
+    signal: AbortSignal.timeout(20000),
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ client_id: process.env.GOOGLE_CLIENT_ID || "", client_secret: process.env.GOOGLE_CLIENT_SECRET || "", ...parameters }),
   });
@@ -225,7 +226,7 @@ async function googleToken() {
 }
 
 async function googleJson(url) {
-  const response = await fetch(url, { headers: { authorization: `Bearer ${await googleToken()}` } });
+  const response = await fetch(url, { headers: { authorization: `Bearer ${await googleToken()}` }, signal: AbortSignal.timeout(20000) });
   if (!response.ok) throw new Error(`Google API returned ${response.status}`);
   return response.json();
 }

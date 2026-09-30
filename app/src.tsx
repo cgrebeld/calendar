@@ -628,7 +628,7 @@ function App() {
   })];
 
   useEffect(() => {
-    const load = () => fetch(`${apiUrl}/api/collections`).then(async (response) => {
+    const load = () => fetch(`${apiUrl}/api/collections`, { signal: AbortSignal.timeout(30000) }).then(async (response) => {
       if (!response.ok) throw new Error(`Collection API returned ${response.status}`);
       const data = await response.json();
       setCollectionDates(data.events);
@@ -670,7 +670,7 @@ function App() {
   }, [idle, sleeping]);
 
   useEffect(() => {
-    fetch(`${apiUrl}/api/auth/status`).then((response) => response.json()).then(({ connected }) => setConnected(connected)).catch(() => setSyncStatus({ state: "error", message: "Calendar API offline" }));
+    fetch(`${apiUrl}/api/auth/status`, { signal: AbortSignal.timeout(10000) }).then((response) => response.json()).then(({ connected }) => setConnected(connected)).catch(() => setSyncStatus({ state: "error", message: "Calendar API offline" }));
   }, [apiUrl]);
 
   useEffect(() => {
@@ -726,7 +726,7 @@ function App() {
     }
   };
 
-  const loadTasks = (force = false) => fetch(`${apiUrl}/api/tasks${force ? "?force=true" : ""}`).then(async (response) => {
+  const loadTasks = (force = false) => fetch(`${apiUrl}/api/tasks${force ? "?force=true" : ""}`, { signal: AbortSignal.timeout(30000) }).then(async (response) => {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || `Tasks API returned ${response.status}`);
     if (!data.length) throw new Error("No matching Google Tasks lists");

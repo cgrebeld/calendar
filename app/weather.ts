@@ -51,7 +51,7 @@ export function windStrength(speed: number | undefined, unit: string): number | 
 }
 
 export async function loadWeather(apiUrl: string): Promise<WeatherReport> {
-  const response = await fetch(`${apiUrl}/api/weather`);
+  const response = await fetch(`${apiUrl}/api/weather`, { signal: AbortSignal.timeout(30000) });
   if (!response.ok) throw new Error(`Weather API returned ${response.status}`);
   return response.json();
 }
