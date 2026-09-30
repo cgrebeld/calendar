@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
+import { Modal } from "./modal";
 import { useNow } from "./date-time";
 import { dayName, longDate } from "./calendar-views";
 import { dateKey, upcomingHours, weatherChartScale, weatherDescription, weatherIcon, windStrength, type DayWeather, type WeatherReport } from "./weather";
@@ -20,21 +21,11 @@ function WeatherConditionIcon({ code }: { code: number }) {
 }
 
 export function WeatherModal({ report, forecast, onClose }: { report?: WeatherReport; forecast: Map<string, DayWeather>; onClose: () => void }) {
-  const dialog = useRef<HTMLDialogElement>(null);
   const outlook = useRef<HTMLDivElement>(null);
   const hourlyOutlook = useRef<HTMLDivElement>(null);
   const hours = upcomingHours(report, useNow());
   const hourlyScale = weatherChartScale(hours.map((hour) => ({ high: hour.temperature, low: hour.temperature })));
   const hourlyPosition = (temperature: number) => (hourlyScale.max - temperature) / (hourlyScale.max - hourlyScale.min) * 100;
-  useEffect(() => {
-    const element = dialog.current!;
-    const previouslyFocused = document.activeElement;
-    element.showModal();
-    return () => {
-      element.close();
-      if (previouslyFocused instanceof HTMLElement) previouslyFocused.focus();
-    };
-  }, []);
   const todayKey = report?.timezone ? new Intl.DateTimeFormat("en-CA", { timeZone: report.timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()) : dateKey(new Date());
   const units = report?.units ?? { temperature: "°C", windSpeed: "kt" };
   const days = Array.from(forecast.values()).filter((day) => day.date >= todayKey).sort((a, b) => a.date.localeCompare(b.date));
@@ -42,7 +33,7 @@ export function WeatherModal({ report, forecast, onClose }: { report?: WeatherRe
   const position = (temperature: number) => (scale.max - temperature) / (scale.max - scale.min) * 100;
   const value = (number: number | undefined, unit = "") => Number.isFinite(number) ? `${Number(number!.toFixed(1))} ${unit}`.trim() : "Unavailable";
   return (
-    <dialog ref={dialog} className="weather-modal" aria-labelledby="weather-title" onCancel={(event) => { event.preventDefault(); onClose(); }} onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <Modal className="weather-modal" aria-labelledby="weather-title" onClose={onClose}>
       <button className="close" onClick={onClose} aria-label="Close weather details" data-sound="boop">×</button>
       <div className="weather-content">
         <p className="eyebrow">Conditions & forecast</p>
@@ -124,6 +115,6 @@ export function WeatherModal({ report, forecast, onClose }: { report?: WeatherRe
         </div> : <p className="weather-meta">No upcoming forecast is available.</p>}
         <p id="outlook-help" className="weather-meta">Swipe or scroll for more days.</p>
       </div>
-    </dialog>
+    </Modal>
   );
 }

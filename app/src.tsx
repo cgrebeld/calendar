@@ -10,6 +10,7 @@ import { WoodlandBackground } from "./skins/woodland";
 import { DateTime, useNow } from "./date-time";
 import { coldThreshold, DayModal, eventTimeSpan, eventTitle, Month, Timeline, TwoWeek, WhatsNext } from "./calendar-views";
 import { WeatherModal } from "./weather-modal";
+import { Modal } from "./modal";
 import { DogCompanion } from "./dog";
 import { ChoreQuests } from "./chore-quests";
 import { weeklyQuests, weekOf, newlyCompleted, type NoteList, type Quest } from "./quests";
@@ -282,7 +283,7 @@ function App() {
 
   useEffect(() => {
     if (idle || sleeping) return;
-    const enterPhotos = () => { if (!document.querySelector("dialog[open]")) setIdle(true); };
+    const enterPhotos = () => { if (!document.querySelector("dialog[open]:not(.day-modal, .event-detail)")) setIdle(true); };
     let timer = window.setTimeout(enterPhotos, 5 * 60 * 1000);
     const wake = () => {
       window.clearTimeout(timer);
@@ -481,7 +482,7 @@ function App() {
 
       {openDay && <DayModal date={openDay} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onClose={() => setOpenDay(undefined)} />}
 
-      {selected && <div className="backdrop event-backdrop" onClick={() => setSelected(undefined)}><section className="event-detail" role="dialog" aria-modal="true" aria-labelledby="event-title" onClick={(event) => event.stopPropagation()}><button className="close" onClick={() => setSelected(undefined)} aria-label="Close" data-sound="boop">×</button><span className={`badge ${selected.tone}`}>{selected.person}</span><h2 id="event-title">{eventTitle(selected)}</h2><p>{eventTimeSpan(selected)}</p>{selected.recurring && <p>Recurring event</p>}<p>{selected.detail}</p></section></div>}
+      {selected && <Modal className="event-detail" aria-labelledby="event-title" onClose={() => setSelected(undefined)}><button className="close" onClick={() => setSelected(undefined)} aria-label="Close" data-sound="boop">×</button><span className={`badge ${selected.tone}`}>{selected.person}</span><h2 id="event-title">{eventTitle(selected)}</h2><p>{eventTimeSpan(selected)}</p>{selected.recurring && <p>Recurring event</p>}<p>{selected.detail}</p></Modal>}
     </main>
   );
 }

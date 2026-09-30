@@ -336,12 +336,12 @@ nav .dark { color: var(--on-accent); background: var(--nav-dark-bg); border: 0; 
   .weather-content { padding: 1rem; }
 }
 
-.backdrop { position: fixed; inset: 0; display: grid; place-items: center; padding: 2rem; background: var(--backdrop); z-index: 5; }
-.backdrop.event-backdrop { z-index: 6; }
-.day-modal { position: relative; width: min(60rem, 100%); padding: 1.5rem 1.5rem 1.25rem; border-radius: 1.5rem; background: var(--surface); box-shadow: var(--shadow-lg); }
+.day-modal, .event-detail { max-width: none; border: 0; color: var(--text); }
+:is(.day-modal, .event-detail)::backdrop { background: var(--backdrop); }
+.day-modal { width: min(60rem, calc(100% - 4rem)); padding: 1.5rem 1.5rem 1.25rem; border-radius: 1.5rem; background: var(--surface); box-shadow: var(--shadow-lg); }
 .day-modal h2 { margin: 0 0 1rem; font-size: 1.9rem; padding-right: 4rem; }
 .day-modal .timeline { min-width: 0; height: min(78vh, 880px); }
-.event-detail { position: relative; width: min(34rem, 100%); padding: 2.5rem; border-radius: 1.5rem; background: var(--surface); box-shadow: var(--shadow-lg); }
+.event-detail { width: min(34rem, calc(100% - 4rem)); padding: 2.5rem; border-radius: 1.5rem; background: var(--surface); box-shadow: var(--shadow-lg); }
 .event-detail h2 { margin: 1.5rem 0 .8rem; font-size: 2.4rem; }
 .event-detail p { font-size: 1.25rem; color: var(--text-subtle); }
 .close { position: absolute; top: 1rem; right: 1rem; box-shadow: none; }

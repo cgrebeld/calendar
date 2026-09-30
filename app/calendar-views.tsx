@@ -3,6 +3,7 @@ import { addDays } from "./dates";
 import { moonPhaseOn } from "./moon";
 import { dayDifference, layoutEventColumns, layoutEvents, orderEvents, upcomingEvents, type AgendaCalendar, type CalendarEvent } from "./google-calendar";
 import { formatHour, hourLabels, hourOf, hourOffset, placeRows, scheduleHours, timeMarkerOffset, titleLines, type ScheduleRange } from "./schedule";
+import { Modal } from "./modal";
 import { dateKey, weatherGlyph, weatherIcon, type DayWeather } from "./weather";
 
 export const coldThreshold = Number(import.meta.env.VITE_WEATHER_COLD_THRESHOLD ?? 0);
@@ -224,12 +225,10 @@ export function TwoWeek({ dates, today, now, events, range, forecast, onSelect, 
 
 export function DayModal({ date, today, now, events, range, forecast, onSelect, onClose }: { date: Date; today: Date; now: Date; events: CalendarEvent[]; range: ScheduleRange; forecast: Map<string, DayWeather>; onSelect: (event: CalendarEvent) => void; onClose: () => void }) {
   return (
-    <div className="backdrop" onClick={onClose}>
-      <section className="day-modal" role="dialog" aria-modal="true" aria-label={longDate.format(date)} onClick={(event) => event.stopPropagation()}>
-        <button className="close" onClick={onClose} aria-label="Close" data-sound="boop">×</button>
-        <h2>{longDate.format(date)}</h2>
-        <Timeline dates={[date]} today={today} now={now} events={events} range={range} forecast={forecast} onSelect={onSelect} onOpenDay={() => {}} />
-      </section>
-    </div>
+    <Modal className="day-modal" aria-label={longDate.format(date)} onClose={onClose}>
+      <button className="close" onClick={onClose} aria-label="Close" data-sound="boop">×</button>
+      <h2>{longDate.format(date)}</h2>
+      <Timeline dates={[date]} today={today} now={now} events={events} range={range} forecast={forecast} onSelect={onSelect} onOpenDay={() => {}} />
+    </Modal>
   );
 }
