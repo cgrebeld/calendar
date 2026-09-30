@@ -199,7 +199,7 @@ export function createPhotos({ getAccessToken, getConnection,
   return function photosRequest(request, url, origins) {
     // ponytail: one household collection; split mutation locks if multiple users are added.
     const result = queue.then(() => handle(request, url, origins)).then((result) => {
-      if (result.status < 400) recordDependency("localPhotos", null);
+      if (result.status < 400 && !url.pathname.endsWith("/status")) recordDependency("localPhotos", null);
       return result;
     }).catch((error) => {
       recordDependency("localPhotos", error);

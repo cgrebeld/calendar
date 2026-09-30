@@ -387,3 +387,19 @@ test("upstream diagnostics bound and redact previews and keep stale failure stat
   assert.equal(dependencyStatus("diagnostic-test").ok, true);
   assert.match(dependencyStatus("diagnostic-test").lastError.message, /invalid_grant/);
 });
+
+test("status reports stale outages without fetching or confusing disabled sources with health", async (t) => {
+  const { serviceStatus } = await import("./server.mjs");
+  const { recordDependency } = await import("./diagnostics.mjs");
+  t.mock.method(console, "error", () => {});
+  t.mock.method(globalThis, "fetch", () => assert.fail("Status must not poll upstreams"));
+  recordDependency("quote", new Error("Quote provider offline"));
+  const status = await serviceStatus();
+  assert.equal(status.ok, false);
+  assert.ok(status.degraded.includes("quote"));
+  assert.equal(status.dependencies.quote.ok, false);
+  assert.match(status.dependencies.quote.lastError.message, /offline/);
+  assert.deepEqual(Object.keys(status.dependencies).sort(), ["collections", "google", "immich", "localPhotos", "quote", "unsplash", "weather"]);
+  recordDependency("quote", null);
+  assert.equal((await serviceStatus()).dependencies.quote.ok, true);
+});

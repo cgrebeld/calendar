@@ -1,4 +1,4 @@
-import { logFailure, observed, upstreamError, recordDependency } from "./diagnostics.mjs";
+import { logFailure, observed, upstreamError, recordDependency, dependencyStatus } from "./diagnostics.mjs";
 import { randomBytes, createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
@@ -316,6 +316,25 @@ function json(request, response, status, body) {
   response.end(JSON.stringify(body));
 }
 
+export async function serviceStatus() {
+  let connected = false;
+  try { connected = Boolean((await savedToken()).refresh_token); }
+  catch (error) { recordDependency("google", error, "token-file"); }
+  const enabled = {
+    google: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+    weather: Boolean(process.env.WEATHER_LATITUDE && process.env.WEATHER_LONGITUDE),
+    quote: true, collections: Boolean(process.env.COLLECTION_ADDRESS?.trim()),
+    immich: immich.status().enabled, unsplash: unsplash.status().enabled, localPhotos: true,
+  };
+  const dependencies = Object.fromEntries(Object.entries(enabled).map(([name, configured]) => [name, {
+    ...dependencyStatus(name), enabled: configured,
+    ...(name === "google" ? { connected } : {}),
+  }]));
+  if (enabled.google && !connected) dependencies.google.ok = false;
+  const degraded = Object.entries(dependencies).filter(([, value]) => value.enabled && value.ok === false).map(([name]) => name);
+  return { ok: degraded.length === 0, degraded, dependencies };
+}
+
 export const server = createServer(async (request, response) => {
   const started = Date.now();
   const fields = () => ({ method: request.method, path: (request.url || "/").split("?")[0],
@@ -355,6 +374,10 @@ export const server = createServer(async (request, response) => {
       const result = await photosRequest(request, url, appOrigins);
       response.writeHead(result.status, { ...(result.location ? { location: result.location } : {}), "content-type": result.type || "application/json", "cache-control": "no-store", "x-content-type-options": "nosniff", "access-control-allow-origin": allowedOrigin(request.headers.origin, appOrigins), vary: "origin" });
       return response.end(result.type ? result.body : JSON.stringify(result.body));
+    }
+    if (request.method === "GET" && url.pathname === "/api/status") {
+      response.setHeader("cache-control", "no-store");
+      return json(request, response, 200, await serviceStatus());
     }
     if (url.pathname === "/api/health") return json(request, response, 200, { ok: true, version: process.env.APP_VERSION || "dev" });
     if (url.pathname.startsWith("/api/updates/")) {
