@@ -101,6 +101,12 @@ development container's OAuth volume. Reauthorize Google on the wall box.
 
 ### Connecting Google and picking photos from another computer
 
+Connect/Reconnect Google opens a separate browser popup, keeping the calendar
+on screen underneath. On the kiosk, use the popup title bar's × to cancel.
+Successful sign-in closes the popup and refreshes the calendar; connecting from
+Photos reopens Settings. Allow popups for the calendar if the browser blocks it.
+The existing reverse-proxy origin and registered Google callback remain unchanged.
+
 Google connection, picker sessions, and imported photos are stored on the wall
 box's server, so you can do these steps from a laptop instead of the kiosk screen.
 Tunnel the laptop's port 8080 to the wall box so the OAuth callback stays on

@@ -21,6 +21,15 @@ export function allowedOrigin(originHeader, list) {
   return list.includes(originHeader) ? originHeader : list[0];
 }
 const redirectUri = process.env.GOOGLE_REDIRECT_URI || `http://localhost:${port}/api/auth/callback`;
+export function googleReturnUrl(state) {
+  const url = new URL(state.returnTo);
+  if (state.photos) url.searchParams.set("photos", "settings");
+  if (/^[a-f0-9]{32}$/.test(state.popup || "")) {
+    url.searchParams.set("google", "connected");
+    url.searchParams.set("popup", state.popup);
+  }
+  return url.href;
+}
 const tokenPath = process.env.GOOGLE_TOKEN_PATH || ".data/google-oauth.json";
 const cache = new Map();
 let accessToken;
@@ -342,14 +351,14 @@ export const server = createServer(async (request, response) => {
     if (url.pathname === "/api/auth/status") return json(request, response, 200, { connected: Boolean((await savedToken()).refresh_token) });
     if (url.pathname === "/api/auth/start") {
       if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) throw new Error("Google OAuth credentials are not configured");
-      oauthState = { value: randomBytes(24).toString("hex"), expires: Date.now() + 600000, returnTo: allowedOrigin(url.searchParams.get("returnTo"), appOrigins), photos: url.searchParams.get("photos") === "true" };
+      oauthState = { value: randomBytes(24).toString("hex"), expires: Date.now() + 600000, returnTo: allowedOrigin(url.searchParams.get("returnTo"), appOrigins), photos: url.searchParams.get("photos") === "true", popup: url.searchParams.get("popup") };
       const query = new URLSearchParams({ client_id: process.env.GOOGLE_CLIENT_ID, redirect_uri: redirectUri, response_type: "code", access_type: "offline", prompt: "consent", include_granted_scopes: "true", scope: googleScopes, state: oauthState.value });
       response.writeHead(302, { location: `https://accounts.google.com/o/oauth2/v2/auth?${query}` });
       return response.end();
     }
     if (url.pathname === "/api/auth/callback") {
       if (!oauthState || oauthState.value !== url.searchParams.get("state") || oauthState.expires < Date.now()) return json(request, response, 400, { error: "Invalid or expired OAuth state" });
-      const returnTo = oauthState.photos ? `${oauthState.returnTo}/?photos=settings` : oauthState.returnTo;
+      const returnTo = googleReturnUrl(oauthState);
       oauthState = undefined;
       const token = await exchangeToken({ code: url.searchParams.get("code") || "", redirect_uri: redirectUri, grant_type: "authorization_code" });
       if (!token.refresh_token) throw new Error("Google did not provide offline access. Reconnect Google to finish signing in.");

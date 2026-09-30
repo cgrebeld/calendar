@@ -77,7 +77,16 @@ test("update controls are disabled in development and reject untrusted mutations
   assert.equal((await updateRequest(req("not json"), "/api/updates/install", origins, "/missing.sock")).status, 400);
   assert.equal((await updateRequest(req(), "/api/updates/check", origins, "/missing.sock")).status, 503);
 });
-import { allowedOrigin, cached, cachedWithStale, countdownEvents, familyTasks, googleItems, loadDailyQuote, nextCstMidnight, selectTaskLists, shapeWeather } from "./server.mjs";
+import { allowedOrigin, cached, cachedWithStale, countdownEvents, familyTasks, googleItems, googleReturnUrl, loadDailyQuote, nextCstMidnight, selectTaskLists, shapeWeather } from "./server.mjs";
+
+test("OAuth returns to the allowed application origin with a validated popup identifier", () => {
+  const returnTo = allowedOrigin("https://evil.example", ["https://calendar.example"]);
+  const popup = "a".repeat(32);
+  assert.equal(googleReturnUrl({ returnTo }), "https://calendar.example/");
+  assert.equal(googleReturnUrl({ returnTo, photos: true }), "https://calendar.example/?photos=settings");
+  assert.equal(googleReturnUrl({ returnTo, popup }), `https://calendar.example/?google=connected&popup=${popup}`);
+  assert.equal(googleReturnUrl({ returnTo, popup: "<script>" }), "https://calendar.example/");
+});
 
 test("countdown events use exact tags in title or description and omit cancelled events", () => {
   const items = [

@@ -15,6 +15,7 @@ import { weeklyQuests, weekOf, newlyCompleted, type NoteList, type Quest } from 
 import { Countdowns } from "./countdown-list";
 import { ApplicationUpdates } from "./updates";
 import { PhotoIcon, PhotoMode, PhotoSettings } from "./photos";
+import { connectGoogle as openGoogle, googlePopupId, finishGooglePopup } from "./google-connect";
 
 const themeMode = parseThemeMode(new URLSearchParams(location.search).get("theme") ?? import.meta.env.VITE_THEME_MODE);
 function savedSkin() {
@@ -713,7 +714,11 @@ function App() {
   }, [connected, anchor, mode, agendaOpen, dayKey]);
 
   const connectGoogle = () => {
-    window.location.assign(`${apiUrl}/api/auth/start?returnTo=${encodeURIComponent(location.origin)}`);
+    try { openGoogle(apiUrl); }
+    catch (error) {
+      setSyncStatus({ state: "error", message: (error as Error).message });
+      openSettings();
+    }
   };
 
   const loadTasks = (force = false) => fetch(`${apiUrl}/api/tasks${force ? "?force=true" : ""}`).then(async (response) => {
@@ -848,4 +853,10 @@ function App() {
   );
 }
 
-createRoot(document.getElementById("root")!).render(<React.StrictMode><App /></React.StrictMode>);
+function GoogleConnected({ id }: { id: string }) {
+  useEffect(() => finishGooglePopup(id), [id]);
+  return <section style={{ padding: "2rem" }}><h1>Google connected</h1><p>You can close this window and return to the calendar.</p><button onClick={() => window.close()}>Close window</button></section>;
+}
+
+const popupId = googlePopupId(location.search);
+createRoot(document.getElementById("root")!).render(<React.StrictMode>{popupId ? <GoogleConnected id={popupId} /> : <App />}</React.StrictMode>);

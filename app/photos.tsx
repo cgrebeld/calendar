@@ -5,6 +5,7 @@ import { weatherDescription, weatherGlyph, weatherIcon, type WeatherReport } fro
 import { shufflePhotos, photoLabel, adjacentPhoto } from "./photo-order";
 import { swipeDirection } from "./dates";
 import { ambientEnabled, googlePhotosEnabled, immichEnabled, ambientTopics, setAmbientTopics } from "./photo-preferences";
+import { connectGoogle } from "./google-connect";
 
 type Photo = { id: string; url: string; date?: string; city?: string; external?: boolean };
 
@@ -114,7 +115,9 @@ export function PhotoSettings({ apiUrl, open }: { apiUrl: string; open: boolean 
   }, [apiUrl, open, visible, busy, error, status]);
   async function act(action: string) {
     if (action === "connect") {
-      location.assign(`${apiUrl}/api/auth/start?${new URLSearchParams({ returnTo: location.origin, photos: "true" })}`);
+      setError("");
+      try { connectGoogle(apiUrl, true); }
+      catch (e) { setError((e as Error).message); }
       return;
     }
     setBusy(true); setError(""); setSetupUrl(undefined);
