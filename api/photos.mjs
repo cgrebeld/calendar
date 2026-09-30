@@ -1,3 +1,4 @@
+import { recordDependency, logFailure } from "./diagnostics.mjs";
 import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -43,6 +44,7 @@ export function createPhotos({ getAccessToken, getConnection,
     const response = await fetcher(url, { ...options, signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000) });
     const data = await response.json();
     if (!response.ok) {
+      logFailure("google-photos", new Error(`Google Photos returned ${response.status}: ${JSON.stringify(data).slice(0, 200)}`));
       const disabled = data.error?.details?.find((detail) => detail.reason === "SERVICE_DISABLED" && detail.metadata?.service === "photospicker.googleapis.com");
       if (disabled) {
         const project = disabled.metadata.consumer?.match(/^projects\/(\d+)$/)?.[1];
@@ -115,9 +117,11 @@ export function createPhotos({ getAccessToken, getConnection,
       if (controller.signal.aborted) throw failure("Import cancelled.", 400);
       await save({ ...saved, staging: undefined, gallery: { items: [...existing, ...items] }, session: { ...saved.session, imported: true } });
       committed = true;
+      recordDependency("localPhotos", null, "import");
       try { await deleteSession(); }
-      catch { warning = "Photos imported. Google session cleanup will be retried the next time you choose photos."; }
+      catch (error) { recordDependency("localPhotos", error, "cleanup"); warning = "Photos imported. Google session cleanup will be retried the next time you choose photos."; }
     } catch (error) {
+      recordDependency("localPhotos", error, "import");
       problem = controller.signal.aborted ? "Import cancelled. Existing photos are unchanged." : error.message;
       if (!committed) {
         await rm(destination, { recursive: true, force: true });
@@ -144,7 +148,7 @@ export function createPhotos({ getAccessToken, getConnection,
     if (action === "disconnect") {
       importing?.controller.abort(); await job;
       warning = undefined;
-      try { if (connection.connected) await deleteSession(); } catch { warning = "Local photos removed. The Google selection session could not be cleaned up; it will expire automatically."; }
+      try { if (connection.connected) await deleteSession(); } catch (error) { recordDependency("localPhotos", error, "cleanup"); warning = "Local photos removed. The Google selection session could not be cleaned up; it will expire automatically."; }
       await save({}); problem = setupUrl = undefined; retryAt = 0;
       await rm(mediaPath, { recursive: true, force: true });
       return { status: 200, body: status() };
@@ -186,7 +190,7 @@ export function createPhotos({ getAccessToken, getConnection,
         if (!session.mediaItemsSet) throw failure("Finish choosing photos first.", 400);
         const controller = new AbortController();
         importing = { completed: 0, total: 0, controller };
-        job = importPhotos(controller).catch((error) => { problem = `Import cleanup failed: ${error.message}`; importing = undefined; });
+        job = importPhotos(controller).catch((error) => { recordDependency("localPhotos", error, "import"); problem = `Import cleanup failed: ${error.message}`; importing = undefined; });
       }
     }
     problem = warning = setupUrl = undefined;
@@ -194,7 +198,11 @@ export function createPhotos({ getAccessToken, getConnection,
   }
   return function photosRequest(request, url, origins) {
     // ponytail: one household collection; split mutation locks if multiple users are added.
-    const result = queue.then(() => handle(request, url, origins)).catch((error) => {
+    const result = queue.then(() => handle(request, url, origins)).then((result) => {
+      if (result.status < 400) recordDependency("localPhotos", null);
+      return result;
+    }).catch((error) => {
+      recordDependency("localPhotos", error);
       if (error.status !== 404) { problem = error.message; setupUrl = error.setupUrl; }
       if (!error.serviceDisabled && !error.coolingDown && [403, 429, 500, 502, 503, 504].includes(error.status || 503)) retryAt = Math.max(retryAt, now() + 15 * 60000);
       return { status: error.status >= 400 && error.status <= 599 ? error.status : 503, body: { error: error.message, setupUrl: error.setupUrl, retryAfterMs: Math.max(10000, retryAt - now()) } };

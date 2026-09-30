@@ -369,3 +369,21 @@ test("request failures log structured context without OAuth queries", async (t) 
     assert.ok(!JSON.stringify(lines).includes("private-code"));
   } finally { await new Promise((resolve) => server.close(resolve)); }
 });
+
+test("upstream diagnostics bound and redact previews and keep stale failure state", async (t) => {
+  const { upstreamError, dependencyStatus, observed } = await import("./diagnostics.mjs");
+  const lines = [];
+  t.mock.method(console, "error", (line) => lines.push(JSON.parse(line)));
+  const error = await upstreamError("Google OAuth", new Response('{"error":"invalid_grant","access_token":"private-token"}' + "x".repeat(1000), { status: 400 }));
+  assert.match(error.message, /400.*invalid_grant/);
+  assert.ok(!error.message.includes("private-token"));
+  assert.ok(error.message.length < 260);
+  await observed("diagnostic-test", async () => "good");
+  await assert.rejects(observed("diagnostic-test", async () => { throw error; }), /invalid_grant/);
+  assert.equal(dependencyStatus("diagnostic-test").ok, false);
+  assert.ok(dependencyStatus("diagnostic-test").lastSuccess);
+  assert.match(lines[0].stack, /invalid_grant/);
+  await observed("diagnostic-test", async () => "recovered");
+  assert.equal(dependencyStatus("diagnostic-test").ok, true);
+  assert.match(dependencyStatus("diagnostic-test").lastError.message, /invalid_grant/);
+});

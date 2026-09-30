@@ -1,4 +1,4 @@
-import { logFailure } from "./diagnostics.mjs";
+import { logFailure, observed, upstreamError, recordDependency } from "./diagnostics.mjs";
 import { randomBytes, createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
@@ -60,7 +60,7 @@ export async function cachedWithStale(key, load, ttl = 300000, now = Date.now())
   const hit = cache.get(key);
   if (hit && hit.expires > now) return hit.value;
   try {
-    const value = await load();
+    const value = await observed(key === "weather" ? "weather" : "collections", load, key.split(":").slice(0, 2).join(":"));
     cache.set(key, { value, expires: now + ttl });
     return value;
   } catch (error) {
@@ -89,13 +89,14 @@ export async function loadDailyQuote(now = Date.now(), fetcher = fetch) {
   quoteRefresh = Promise.resolve().then(async () => {
     try {
       const response = await fetcher("https://zenquotes.io/api/today", { signal: AbortSignal.timeout(10000) });
-      if (!response.ok) throw new Error(`ZenQuotes returned ${response.status}`);
+      if (!response.ok) throw await upstreamError("ZenQuotes", response);
       const data = await response.json();
       const quote = Array.isArray(data) ? data[0] : undefined;
       if (typeof quote?.q !== "string" || !quote.q.trim() || quote.q.length > 5000 ||
           typeof quote?.a !== "string" || !quote.a.trim() || quote.a.length > 300) {
         throw new Error("Invalid ZenQuotes response");
       }
+      recordDependency("quote", null);
       const expires = nextCstMidnight(now);
       const value = { text: quote.q.trim(), author: quote.a.trim(), expiresAt: new Date(expires).toISOString() };
       cache.set("daily-quote", { value, expires });
@@ -103,6 +104,7 @@ export async function loadDailyQuote(now = Date.now(), fetcher = fetch) {
       quoteError = undefined;
       return value;
     } catch (error) {
+      recordDependency("quote", error);
       quoteRetryAt = now + 300000;
       quoteError = error;
       if (hit) return { ...hit.value, stale: true };
@@ -190,7 +192,7 @@ async function loadWeather() {
     wind_speed_unit: wind,
   });
   const response = await fetch(`https://api.open-meteo.com/v1/forecast?${query}`, { signal: AbortSignal.timeout(20000) });
-  if (!response.ok) throw new Error(`Open-Meteo returned ${response.status}`);
+  if (!response.ok) throw await upstreamError("Open-Meteo", response);
   return shapeWeather(await response.json());
 }
 
@@ -207,14 +209,16 @@ async function saveRefreshToken(refreshToken) {
 }
 
 async function exchangeToken(parameters) {
+  return observed("google", async () => {
   const response = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     signal: AbortSignal.timeout(20000),
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ client_id: process.env.GOOGLE_CLIENT_ID || "", client_secret: process.env.GOOGLE_CLIENT_SECRET || "", ...parameters }),
   });
-  if (!response.ok) throw new Error(`Google OAuth returned ${response.status}`);
+  if (!response.ok) throw await upstreamError("Google OAuth", response);
   return response.json();
+  }, "oauth");
 }
 
 async function googleToken() {
@@ -227,9 +231,11 @@ async function googleToken() {
 }
 
 async function googleJson(url) {
+  return observed("google", async () => {
   const response = await fetch(url, { headers: { authorization: `Bearer ${await googleToken()}` }, signal: AbortSignal.timeout(20000) });
-  if (!response.ok) throw new Error(`Google API returned ${response.status}`);
+  if (!response.ok) throw await upstreamError("Google API", response);
   return response.json();
+  }, "api");
 }
 
 export async function googleItems(url, parameters, load = googleJson) {

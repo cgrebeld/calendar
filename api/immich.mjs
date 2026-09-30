@@ -1,3 +1,4 @@
+import { recordDependency, upstreamError, observed } from "./diagnostics.mjs";
 const interval = 30 * 60000;
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -12,7 +13,7 @@ export function createImmich({ baseUrl = process.env.IMMICH_URL, apiKey = proces
       ...options, headers: { "x-api-key": apiKey, ...options.headers },
       signal: AbortSignal.timeout(10000), redirect: "error",
     });
-    if (!response.ok) throw new Error("Immich request failed");
+    if (!response.ok) throw await upstreamError(`Immich ${path.split("/")[0]}`, response);
     return response.json();
   }
 
@@ -49,7 +50,9 @@ export function createImmich({ baseUrl = process.env.IMMICH_URL, apiKey = proces
         });
         albumName = albumId === "*" ? "All albums" : albums[0].albumName;
         error = undefined;
-      } catch {
+        recordDependency("immich", null);
+      } catch (cause) {
+        recordDependency("immich", cause);
         error = "Immich photos are unavailable; retrying in 30 minutes.";
       }
       return { ...status(), items };
@@ -59,11 +62,24 @@ export function createImmich({ baseUrl = process.env.IMMICH_URL, apiKey = proces
 
   async function image(id) {
     // ponytail: album membership stays cached for 30 minutes; recheck each image if immediate removal matters.
-    if (!enabled || !uuid.test(id) || !(await load()).items.some((item) => item.id === `immich-${id}`)) return null;
-    const response = await fetcher(`${origin}/api/assets/${id}/thumbnail?size=preview`, {
+    if (!enabled || !uuid.test(id) || !(await load()).items.some((item) => item.id === `immich-${id}`)) {
+      recordDependency("immich", new Error(`Immich image ${id}: ${!enabled ? "source disabled" : !uuid.test(id) ? "invalid ID" : "not in cached album"}`), "image");
+      return null;
+    }
+    const response = await observed("immich", () => fetcher(`${origin}/api/assets/${id}/thumbnail?size=preview`, {
       headers: { "x-api-key": apiKey }, signal: AbortSignal.timeout(10000), redirect: "error",
-    });
-    return response.ok && response.body && /^image\/(jpeg|png|webp|avif)(?:;|$)/.test(response.headers.get("content-type") || "") ? response : null;
+    }), "image-fetch");
+    if (!response.ok) {
+      recordDependency("immich", await upstreamError(`Immich image ${id}`, response), "image");
+      return null;
+    }
+    if (!response.body || !/^image\/(jpeg|png|webp|avif)(?:;|$)/.test(response.headers.get("content-type") || "")) {
+      recordDependency("immich", new Error(`Immich image ${id}: missing body or unsupported content type`), "image");
+      await response.body?.cancel();
+      return null;
+    }
+    recordDependency("immich", null, "image");
+    return response;
   }
 
   return { status, load, image };

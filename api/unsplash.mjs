@@ -1,3 +1,4 @@
+import { recordDependency, upstreamError } from "./diagnostics.mjs";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
@@ -28,9 +29,11 @@ export function createUnsplash({ accessKey = process.env.UNSPLASH_ACCESS_KEY, fe
         headers: { Authorization: `Client-ID ${accessKey}`, "Accept-Version": "v1" },
         signal: AbortSignal.timeout(10000), redirect: "error",
       });
-      if (!response.ok) throw new Error(response.status === 401 || response.status === 403
-        ? "Unsplash rejected the access key or its quota is exhausted. Check the server configuration."
-        : "Unsplash is temporarily unavailable; retrying in 30 minutes.");
+      if (!response.ok) throw Object.assign(await upstreamError("Unsplash", response), {
+        friendly: [401, 403].includes(response.status)
+          ? "Unsplash rejected the access key or its quota is exhausted. Check the server configuration."
+          : "Unsplash is temporarily unavailable; retrying in 30 minutes.",
+      });
       const data = await response.json();
       if (!Array.isArray(data)) throw new Error("Invalid Unsplash response");
       const incoming = data.slice(0, 30).flatMap((photo) => {
@@ -50,9 +53,10 @@ export function createUnsplash({ accessKey = process.env.UNSPLASH_ACCESS_KEY, fe
       const ids = new Set(incoming.map(({ id }) => id));
       items = [...items.filter(({ id }) => !ids.has(id)), ...new Map(incoming.map((photo) => [photo.id, photo])).values()].slice(-120);
       error = undefined;
+      recordDependency("unsplash", null, "photos");
     } catch (cause) {
-      error = cause.message.startsWith("Unsplash ") || cause.message.startsWith("No usable ")
-        ? cause.message : "Unsplash is unavailable; retrying in 30 minutes.";
+      recordDependency("unsplash", cause, "photos");
+      error = cause.friendly || (cause.message.startsWith("No usable ") ? cause.message : "Unsplash is unavailable; retrying in 30 minutes.");
     } finally { refreshAt = now() + interval; }
     return { ...status(), items };
   }
@@ -79,8 +83,10 @@ export function createUnsplash({ accessKey = process.env.UNSPLASH_ACCESS_KEY, fe
         await save();
         const result = await refresh(topics);
         await save();
+        recordDependency("unsplash", null, "cache");
         return result;
-      } catch {
+      } catch (cause) {
+        recordDependency("unsplash", cause, "cache");
         error = "Online photos paused: unable to safely save or read the request limit.";
         return { ...status(), items };
       }
@@ -94,13 +100,15 @@ export function createUnsplash({ accessKey = process.env.UNSPLASH_ACCESS_KEY, fe
         headers: { Authorization: `Client-ID ${accessKey}`, "Accept-Version": "v1" },
         signal: AbortSignal.timeout(10000), redirect: "error",
       });
-      if (!response.ok) throw new Error(`Unsplash returned ${response.status}`);
+      if (!response.ok) throw await upstreamError("Unsplash topics", response);
       const data = await response.json();
       if (!Array.isArray(data)) throw new Error("Invalid Unsplash response");
       const list = data.flatMap((topic) => typeof topic.slug === "string" && typeof topic.title === "string" ? [{ slug: topic.slug, title: topic.title }] : []);
+      recordDependency("unsplash", null, "topics");
       topicsList = { enabled: true, items: list };
       return topicsList;
-    } catch {
+    } catch (cause) {
+      recordDependency("unsplash", cause, "topics");
       return { enabled: true, items: [], error: "Unable to load Unsplash topics; retry later." };
     }
   } };

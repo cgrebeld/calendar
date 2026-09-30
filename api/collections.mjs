@@ -1,3 +1,4 @@
+import { upstreamError } from "./diagnostics.mjs";
 const services = { garbage: { area: "Victoria", id: 217, summary: "Garbage and organics" }, recycling: { area: "CRD", id: 247, summary: "Recycling" } };
 
 export function collectionAddress(results, address) {
@@ -21,13 +22,13 @@ export async function loadCollection(kind, address, fetcher = fetch) {
   const query = encodeURIComponent(address.replace(/,?\s*BC\s*$/i, "").trim());
   const base = "https://api.recollect.net/api";
   const lookup = await fetcher(`${base}/areas/${area}/services/${id}/address-suggest?q=${query}`, { signal: AbortSignal.timeout(10000) });
-  if (!lookup.ok) throw new Error(`${area} address lookup returned ${lookup.status}`);
+  if (!lookup.ok) throw await upstreamError(`${area} address lookup`, lookup);
   const placeId = collectionAddress(await lookup.json(), address);
   const today = new Date();
   const after = new Date(today.getTime() - 31 * 86400000).toISOString().slice(0, 10);
   const before = new Date(today.getTime() + 366 * 86400000).toISOString().slice(0, 10);
   const response = await fetcher(`${base}/places/${placeId}/services/${id}/events?after=${after}&before=${before}`, { signal: AbortSignal.timeout(10000) });
-  if (!response.ok) throw new Error(`${area} calendar returned ${response.status}`);
+  if (!response.ok) throw await upstreamError(`${area} calendar`, response);
   const dates = collectionDates(await response.json(), kind);
   if (!dates.length) throw new Error(`${area} has no ${summary.toLowerCase()} dates`);
   return dates.map((date) => ({ date, kind }));
