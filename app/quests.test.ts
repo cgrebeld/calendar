@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { weeklyQuests, weekOf, newlyCompleted } from "./quests.ts";
+import { chorePets, weeklyQuests, weekOf, newlyCompleted } from "./quests.ts";
 
 test("weekly quests assign kids, use date-only due dates, and exclude tasks due outside the week", () => {
   const now = new Date(2026, 8, 29, 12);
@@ -52,4 +52,12 @@ test("undated completed chores count toward progress even before this week or wi
   assert.equal(quest.done, 2);
   assert.equal(quest.challenges.length, 4);
   assert.equal(weeklyQuests([{ id: "done", title: "Ada: Tidy", completed: true }], new Date())[0].done, 1);
+});
+
+
+test("pet assignments match names case-insensitively and accept only available characters", () => {
+  const pets = chorePets(" Ada : OTTER, Clio:dragon,Robin:otter, Ada:dragon, :otter,Clio:missing,Unsafe:../dog,Extra:otter:bad");
+  assert.deepEqual([...pets], [["ada", "dragon"], ["clio", "dragon"], ["robin", "otter"]]);
+  assert.deepEqual([...chorePets("")], []);
+  assert.equal(chorePets("Clio:otter").get("clio"), "otter");
 });

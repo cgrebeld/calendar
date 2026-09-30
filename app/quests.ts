@@ -32,3 +32,12 @@ export function newlyCompleted(previous: Quest[], current: Quest[]) {
     old.name.toLowerCase() === quest.name.toLowerCase() && old.challenges.some(task => !task.completed && quest.challenges.some(next => next.id === task.id && next.completed))
   )).map(quest => quest.name);
 }
+
+export function chorePets(value: string) {
+  const pets = new Map<string, "dragon" | "otter">();
+  for (const entry of value.split(",")) {
+    const [name, species, extra] = entry.trim().toLowerCase().split(":").map(part => part.trim());
+    if (name && extra === undefined && (species === "dragon" || species === "otter")) pets.set(name, species);
+  }
+  return pets;
+}
