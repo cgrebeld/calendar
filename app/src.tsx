@@ -710,7 +710,12 @@ function App() {
 
   useEffect(() => {
     if (!connected) return;
-    return loadCalendar();
+    let cancel = loadCalendar();
+    const timer = window.setInterval(() => { cancel = loadCalendar(); }, 5 * 60 * 1000);
+    return () => {
+      window.clearInterval(timer);
+      cancel();
+    };
   }, [connected, anchor, mode, agendaOpen, dayKey]);
 
   const connectGoogle = () => {
