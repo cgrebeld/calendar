@@ -77,7 +77,7 @@ test("update controls are disabled in development and reject untrusted mutations
   assert.equal((await updateRequest(req("not json"), "/api/updates/install", origins, "/missing.sock")).status, 400);
   assert.equal((await updateRequest(req(), "/api/updates/check", origins, "/missing.sock")).status, 503);
 });
-import { allowedOrigin, cached, cachedWithStale, countdownEvents, familyTasks, googleItems, googleReturnUrl, loadDailyQuote, nextCstMidnight, selectTaskLists, shapeWeather } from "./server.mjs";
+import { allowedOrigin, cached, cachedWithStale, responseCache, countdownEvents, familyTasks, googleItems, googleReturnUrl, loadDailyQuote, nextCstMidnight, selectTaskLists, shapeWeather } from "./server.mjs";
 
 test("OAuth returns to the allowed application origin with a validated popup identifier", () => {
   const returnTo = allowedOrigin("https://evil.example", ["https://calendar.example"]);
@@ -124,6 +124,13 @@ test("cached reloads a value when a refresh is forced", async () => {
   assert.equal(await cached("forced-test", async () => ++calls, 100, 0), 1);
   assert.equal(await cached("forced-test", async () => ++calls, 100, 50, true), 2);
   assert.equal(await cached("forced-test", async () => ++calls, 100, 60), 2);
+});
+
+test("cached prunes expired entries so date-range keys do not accumulate", async () => {
+  await cached("old-range", async () => 1, 100, 0);
+  await cached("new-range", async () => 2, 100, 200);
+  assert.equal(responseCache.has("old-range"), false);
+  assert.equal(responseCache.has("new-range"), true);
 });
 
 test("selectTaskLists uses configured title order or every list", () => {

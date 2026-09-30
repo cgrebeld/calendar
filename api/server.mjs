@@ -32,6 +32,8 @@ export function googleReturnUrl(state) {
 }
 const tokenPath = process.env.GOOGLE_TOKEN_PATH || ".data/google-oauth.json";
 const cache = new Map();
+// Keys include client-chosen date ranges, so expired entries are pruned instead of kept as stale fallbacks.
+export const responseCache = new Map();
 let accessToken;
 let oauthState;
 export const googleScopes = "https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/tasks.readonly https://www.googleapis.com/auth/photospicker.mediaitems.readonly";
@@ -45,10 +47,11 @@ const photosRequest = createPhotos({
 });
 
 export async function cached(key, load, ttl = 300000, now = Date.now(), force = false) {
-  const hit = cache.get(key);
+  const hit = responseCache.get(key);
   if (!force && hit && hit.expires > now) return hit.value;
   const value = await load();
-  cache.set(key, { value, expires: now + ttl });
+  for (const [stale, entry] of responseCache) if (entry.expires <= now) responseCache.delete(stale);
+  responseCache.set(key, { value, expires: now + ttl });
   return value;
 }
 
@@ -365,6 +368,7 @@ export const server = createServer(async (request, response) => {
       await saveRefreshToken(token.refresh_token);
       accessToken = { value: token.access_token, expires: Date.now() + token.expires_in * 1000 };
       cache.clear();
+      responseCache.clear();
       response.writeHead(302, { location: returnTo });
       return response.end();
     }
