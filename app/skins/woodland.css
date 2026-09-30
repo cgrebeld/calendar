@@ -36,7 +36,7 @@
   --notes-surface: rgb(240 226 196 / .94);
   --bevel-hi: rgb(255 255 255 / .45);
   --bevel-lo: rgb(0 0 0 / .15);
-  --scene: url("/skins/woodland/day.png");
+  --scene: url("/skins/woodland/day.webp");
   --scene-clouds: url("/skins/woodland/day-clouds.png");
   --frame-image: url("/skins/woodland/frame.png");
   --wood-image: url("/skins/woodland/wood.png");
@@ -81,7 +81,7 @@
   --notes-surface: rgb(54 45 31 / .94);
   --bevel-hi: rgb(255 255 255 / .1);
   --bevel-lo: rgb(0 0 0 / .35);
-  --scene: url("/skins/woodland/night.png");
+  --scene: url("/skins/woodland/night.webp");
   --scene-clouds: url("/skins/woodland/night-clouds.png");
   --frame-image: url("/skins/woodland/frame-night.png");
   --wood-image: url("/skins/woodland/wood-night.png");
