@@ -32,9 +32,7 @@ FROM nginx:1.29-alpine AS web
 ARG APP_VERSION=dev
 ARG APP_REVISION=unknown
 LABEL org.opencontainers.image.source="https://github.com/cgrebeld/calendar" org.opencontainers.image.version=$APP_VERSION org.opencontainers.image.revision=$APP_REVISION io.calendar.component="web"
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 HEALTHCHECK --interval=30s --timeout=3s CMD wget -qO- http://127.0.0.1/ || exit 1
 
-FROM web AS release-web
-COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
