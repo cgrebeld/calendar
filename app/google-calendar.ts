@@ -1,6 +1,7 @@
 import { defaultScheduleRange, type ScheduleRange } from "./schedule.ts";
 
 export type CalendarEvent = {
+  id: string;
   day: number;
   calendarId?: string;
   person: string;
@@ -121,6 +122,7 @@ export function convertGoogleEvent(event: GoogleEvent, calendar: Calendar, tone:
   const actualStart = startDate.getHours() + startDate.getMinutes() / 60;
   const start = Math.max(range.startHour, Math.min(range.endHour - 0.5, actualStart));
   return {
+    id: `${calendar.id}:${event.id}`,
     day: dayDifference(startDate, today),
     calendarId: calendar.id,
     person: calendar.summary,

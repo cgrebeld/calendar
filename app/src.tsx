@@ -34,7 +34,7 @@ const backgroundOverrides: Record<ThemeName, string | undefined> = {
   dark: import.meta.env.VITE_BACKGROUND_DARK,
 };
 
-const fakeEvents: CalendarEvent[] = [
+const demoEvents: Omit<CalendarEvent, "id">[] = [
   { day: 0, person: "Alex", tone: "alex", start: 8, duration: 1, title: "Dentist", detail: "Dr. Chen · 123 Main Street" },
 
   { day: 0, person: "Sam", tone: "sam", start: 15.5, duration: 1.5, title: "Soccer practice at North field", detail: "Bring water" },
@@ -54,6 +54,7 @@ const fakeEvents: CalendarEvent[] = [
   { day: 5, person: "Alex", tone: "alex", start: 17.5, duration: 1, title: "Yoga at the community centre", detail: "Drop-in class" },
   { day: 6, person: "Family", tone: "family", start: 18.5, duration: 1, title: "Taco night", detail: "Maya is choosing the toppings" },
 ];
+const fakeEvents: CalendarEvent[] = demoEvents.map((event, index) => ({ ...event, id: `demo-${index}` }));
 
 const modes: { id: ViewMode; label: string }[] = [
   { id: "day", label: "Day" },
@@ -253,7 +254,7 @@ function App() {
   const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
   const displayEvents: CalendarEvent[] = [...calendarEvents, ...collectionDates.map(({ date, kind }): CalendarEvent => {
     const [year, month, day] = date.split("-").map(Number);
-    return { day: dayDifference(new Date(year, month - 1, day), today), person: kind === "garbage" ? "City of Victoria" : "CRD", tone: "collection", start: scheduleRange.startHour, duration: 1, title: kind === "garbage" ? "Garbage & organics" : "Recycling", detail: kind === "garbage" ? "City of Victoria collection" : "CRD blue box collection", allDay: true, collection: kind };
+    return { id: `${kind}-${date}`, day: dayDifference(new Date(year, month - 1, day), today), person: kind === "garbage" ? "City of Victoria" : "CRD", tone: "collection", start: scheduleRange.startHour, duration: 1, title: kind === "garbage" ? "Garbage & organics" : "Recycling", detail: kind === "garbage" ? "City of Victoria collection" : "CRD blue box collection", allDay: true, collection: kind };
   })];
 
   useEffect(() => {

@@ -51,7 +51,7 @@ function AgendaColumn({ calendar, now, onSelect }: { calendar: AgendaCalendar; n
   return <article className={`agenda-person ${calendar.tone}`}>
     <h3><span className="agenda-avatar" aria-hidden="true">{calendar.name.slice(0, 1).toUpperCase()}</span>{calendar.name}</h3>
     <div className="agenda-events" ref={capacityRef}>
-      {items.length ? items.map((event, index) => <button className={`agenda-event ${days.indexOf(event.day) % 2 ? "alternate-day" : ""}`} onClick={() => onSelect(event)} key={`${event.day}-${event.start}-${event.title}-${index}`}>
+      {items.length ? items.map((event) => <button className={`agenda-event ${days.indexOf(event.day) % 2 ? "alternate-day" : ""}`} onClick={() => onSelect(event)} key={event.id}>
         <span className="agenda-when">{event.day === 0 ? "Today" : event.day === 1 ? "Tomorrow" : agendaDate.format(addDays(now, event.day))} · {eventTime(event)}</span>
         <strong>{eventTitle(event)}</strong>
         {event.detail && <small>{event.detail}</small>}
@@ -104,7 +104,7 @@ export function Timeline({ dates, today, now, events, range, focus, forecast, on
         return (
           <div className={`day-column ${sameDay(date, today) ? "today" : ""} ${focus ? (sameDay(date, focus) ? "focus" : "context") : ""}`} key={date.toDateString()} onClick={dayTap(onOpenDay, date)} aria-label={`Open ${longDate.format(date)}`}>
             <div className="all-day-lane">
-              {dayEvents.filter((event) => event.allDay).map((event) => <button className={`all-day ${event.tone} ${dayDifference(date, today) < 0 ? "past" : ""}`} onClick={() => onSelect(event)} key={event.title}>{eventTitle(event)}</button>)}
+              {dayEvents.filter((event) => event.allDay).map((event) => <button className={`all-day ${event.tone} ${dayDifference(date, today) < 0 ? "past" : ""}`} onClick={() => onSelect(event)} key={event.id}>{eventTitle(event)}</button>)}
             </div>
             <div className="hours" style={{ "--schedule-hours": scheduleHours(range) } as React.CSSProperties}>
               {nowOffset !== null && <div className="now-line" style={{ top: `${nowOffset * 100}%` }} aria-hidden />}
@@ -113,7 +113,7 @@ export function Timeline({ dates, today, now, events, range, focus, forecast, on
                   className={`timed-event ${event.tone} ${isPastEvent(date, now, event.start, event.duration) ? "past" : ""}`}
                   style={{ top: `${hourOffset(range, start) * 100}%`, height: `calc(${(duration / scheduleHours(range)) * 100}% - 1px)`, left: `calc(${column / columns * 100}% + .2rem)`, width: `calc(${100 / columns}% - .4rem)`, "--title-lines": titleLines(duration, 0.75 * scheduleHours(range) / 12, 3) } as React.CSSProperties}
                   onClick={() => onSelect(event)}
-                  key={`${event.start}-${event.title}`}
+                  key={event.id}
                 >
                   <span className="event-body"><span>{eventTime(event)}</span><strong>{event.title}</strong></span>
                 </button>
@@ -166,7 +166,7 @@ export function Month({ dates, anchor, today, now, events, range, forecast, onSe
               <DayWeatherBadge date={date} day={forecast.get(dateKey(date))} compact />
               <div className="month-events placed" ref={index === 0 ? capacityRef : undefined}>
                 {ruleTop !== null && <div className="now-rule" style={{ top: `${ruleTop * 100}%` }} aria-hidden />}
-                {dayEvents.map((event, row) => <button className={`${event.tone} ${(event.allDay ? dayDifference(date, today) < 0 : isPastEvent(date, now, event.start, event.duration)) ? "past" : ""}`} style={{ top: `${tops[row] * 100}%` }} onClick={() => onSelect(event)} key={`${event.start}-${event.title}`} aria-label={`${eventTime(event)} ${event.title}`}>{eventTitle(event)}</button>)}
+                {dayEvents.map((event, row) => <button className={`${event.tone} ${(event.allDay ? dayDifference(date, today) < 0 : isPastEvent(date, now, event.start, event.duration)) ? "past" : ""}`} style={{ top: `${tops[row] * 100}%` }} onClick={() => onSelect(event)} key={event.id} aria-label={`${eventTime(event)} ${event.title}`}>{eventTitle(event)}</button>)}
               </div>
             </div>
           );
@@ -180,7 +180,7 @@ export function Month({ dates, anchor, today, now, events, range, forecast, onSe
             <DayWeatherBadge date={date} day={forecast.get(dateKey(date))} compact />
             <div className="month-events list" ref={index === 0 ? capacityRef : undefined}>
               {visible.map((event) => (
-                <React.Fragment key={`${event.start}-${event.title}`}>
+                <React.Fragment key={event.id}>
                   {event === upcoming && <div className="now-rule" aria-hidden />}
                   <button className={`${event.tone} ${(event.allDay ? dayDifference(date, today) < 0 : isPastEvent(date, now, event.start, event.duration)) ? "past" : ""}`} onClick={() => onSelect(event)} aria-label={`${eventTime(event)} ${event.title}`}>{eventTitle(event)}</button>
                 </React.Fragment>
@@ -206,12 +206,12 @@ export function TwoWeek({ dates, today, now, events, range, forecast, onSelect, 
           <article className={`mini-day ${sameDay(date, today) ? "today" : ""}`} key={date.toDateString()} onClick={dayTap(onOpenDay, date)} aria-label={`Open ${longDate.format(date)}`}>
             <header><span>{dayName.format(date)}</span><strong>{date.getDate()}</strong><DayWeatherBadge date={date} day={forecast.get(dateKey(date))} /></header>
             <div className="mini-all-day">
-              {dayEvents.filter((event) => event.allDay).map((event) => <button className={`${event.tone} ${dayDifference(date, today) < 0 ? "past" : ""}`} onClick={() => onSelect(event)} key={event.title}>{eventTitle(event)}</button>)}
+              {dayEvents.filter((event) => event.allDay).map((event) => <button className={`${event.tone} ${dayDifference(date, today) < 0 ? "past" : ""}`} onClick={() => onSelect(event)} key={event.id}>{eventTitle(event)}</button>)}
             </div>
             <div className="mini-hours" style={{ "--schedule-hours": scheduleHours(range) } as React.CSSProperties}>
               {nowOffset !== null && <div className="now-line mini" style={{ top: `${nowOffset * 100}%` }} aria-hidden />}
               {laidOut.map(({ event, start, duration }) => (
-                <button className={`${event.tone} ${isPastEvent(date, now, event.start, event.duration) ? "past" : ""}`} style={{ top: `${hourOffset(range, start) * 100}%`, height: `calc(${(duration / scheduleHours(range)) * 100}% - 1px)`, "--title-lines": titleLines(duration, 0.75 * scheduleHours(range) / 12, 2) } as React.CSSProperties} onClick={() => onSelect(event)} key={`${event.start}-${event.title}`}>
+                <button className={`${event.tone} ${isPastEvent(date, now, event.start, event.duration) ? "past" : ""}`} style={{ top: `${hourOffset(range, start) * 100}%`, height: `calc(${(duration / scheduleHours(range)) * 100}% - 1px)`, "--title-lines": titleLines(duration, 0.75 * scheduleHours(range) / 12, 2) } as React.CSSProperties} onClick={() => onSelect(event)} key={event.id}>
                   <span>{eventTime(event)}</span><strong>{event.title}</strong>
                 </button>
               ))}
