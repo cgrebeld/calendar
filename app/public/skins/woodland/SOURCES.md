@@ -13,12 +13,10 @@ Font source: https://github.com/quiple/galmuri · https://cdn.jsdelivr.net/npm/g
 
 ## Quest sprites
 
-`quest-castle.png` was generated with the built-in image generation tool using `dog-first.png` as a fidelity/style reference. The transparent PNG replaces the original 16-pixel castle SVG. AI-generated for this repo; same licence as the repo.
+`quest-chest.png` was generated with the built-in image generation tool. Four horizontal frames in a 2172×724 transparent atlas (543×724 per frame) animate the lid and inner glow. CSS preserves the frame aspect ratio and disables animation for reduced motion. AI-generated for this repo; same licence as the repo.
 
-Generation prompts:
+Generation prompt:
 
-### castle
-
-Use case: stylized-concept. Create one isolated transparent game sprite for a cozy woodland family calendar. Subject: A welcoming small fairytale woodland castle viewed from slightly above and three-quarter front, warm grey stone blocks with nuanced masonry, three slate blue turret roofs, red pennants, open arched wooden gateway, a little ivy at the base. Compact, readable silhouette. The attached black dog sprite is STYLE AND FIDELITY REFERENCE ONLY, do not include a dog. Match its detailed hand-painted pixel illustration, fine-grained texture, many subtle shaded color clusters, natural volume, crisp outer contour. Far more detail than a 16x16 or 32x32 retro sprite: roughly 300-400 pixels of meaningful subject detail, matching the dog's fidelity. Not smooth vector clip art, not chunky blocks, not photorealistic, not 3D plastic. Entire subject visible, centered, tightly filling the canvas with only a small transparent margin. One sprite only, transparent alpha background, no scene, no ground plane, no text or UI. Keep details legible when used at about 80 pixels on screen.
+Use case: stylized-concept. Create a transparent PNG animation sprite sheet for a cozy woodland family calendar game widget. Exactly FOUR equal square frames arranged in ONE horizontal row, no borders or labels. Every frame shows the SAME cute richly illustrated wooden treasure chest with rounded lid, antique golden metal bands and latch, ivy vines draped over the lid and sides, a small tufted grassy moss base. Three-quarter front view. Warm magical golden light shines from within a narrow opening under the lid. Fine hand-painted storybook detail and soft dimensional shading, polished charming game asset, not chunky pixel art. All four chests same size, camera, position, ground baseline, vines and grass; entire object visible with generous transparent margin in each frame. Frame1 lid barely ajar soft golden glow; frame2 lid lifted a tiny bit more brighter glow; frame3 lid raised slightly further with strongest warm inner glow and a few tiny golden motes; frame4 same as frame2 to smoothly loop back. Motion extremely subtle, base perfectly stationary. No characters, no castle, no lettering, no scenery beyond the grass immediately around the chest. Genuine transparent alpha background. Wide 4:1 sheet, four exactly equal cells.
 
 Current animated companions and their generation records are in `app/public/characters/` and `docs/characters/`.

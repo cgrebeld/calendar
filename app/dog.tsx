@@ -56,7 +56,7 @@ export function DogCompanion({ apiUrl, celebration }: { apiUrl: string; celebrat
   }, [apiUrl]);
   useEffect(() => {
     if (!celebration) return;
-    setCheer(`Hooray, ${celebration.names}! Every challenge conquered. You’re a woodland legend!`);
+    setCheer(`Hidy Ho, ${celebration.names}! Every challenge conquered. You’re a woodland legend!`);
     const timer = window.setTimeout(() => setCheer(undefined), 12000);
     return () => window.clearTimeout(timer);
   }, [celebration]);
