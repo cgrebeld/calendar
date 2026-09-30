@@ -375,14 +375,16 @@ test("upstream diagnostics bound and redact previews and keep stale failure stat
   const lines = [];
   t.mock.method(console, "error", (line) => lines.push(JSON.parse(line)));
   const error = await upstreamError("Google OAuth", new Response('{"error":"invalid_grant","access_token":"private-token"}' + "x".repeat(1000), { status: 400 }));
-  assert.match(error.message, /400.*invalid_grant/);
-  assert.ok(!error.message.includes("private-token"));
-  assert.ok(error.message.length < 260);
+  assert.equal(error.message, "Google OAuth returned 400");
+  assert.match(error.detail, /invalid_grant/);
+  assert.ok(!error.detail.includes("private-token"));
+  assert.ok(error.detail.length <= 200);
   await observed("diagnostic-test", async () => "good");
-  await assert.rejects(observed("diagnostic-test", async () => { throw error; }), /invalid_grant/);
+  await assert.rejects(observed("diagnostic-test", async () => { throw error; }), /returned 400/);
   assert.equal(dependencyStatus("diagnostic-test").ok, false);
   assert.ok(dependencyStatus("diagnostic-test").lastSuccess);
-  assert.match(lines[0].stack, /invalid_grant/);
+  assert.match(lines[0].error, /invalid_grant/);
+  assert.match(lines[0].stack, /returned 400/);
   await observed("diagnostic-test", async () => "recovered");
   assert.equal(dependencyStatus("diagnostic-test").ok, true);
   assert.match(dependencyStatus("diagnostic-test").lastError.message, /invalid_grant/);
@@ -408,7 +410,7 @@ test("client logs enforce origin, schema, byte and shared rate limits", async (t
   const { clientLog } = await import("./client-log.mjs");
   const lines = [];
   t.mock.method(console, "error", (line) => lines.push(JSON.parse(line)));
-  const now = Date.now() + 60000;
+  const now = 60000;
   const send = (body, headers = {}, method = "POST") => {
     const request = Readable.from([Buffer.from(body)]);
     request.method = method;
@@ -430,4 +432,36 @@ test("client logs enforce origin, schema, byte and shared rate limits", async (t
   assert.match(lines[0].stack, /at App/);
   for (let i = 0; i < 22; i++) await send(body);
   assert.equal((await send(body)).status, 429);
+});
+
+test("one successful operation cannot hide a sibling outage, and network causes survive", async (t) => {
+  const { recordDependency, dependencyStatus, safeDetail } = await import("./diagnostics.mjs");
+  const lines = [];
+  t.mock.method(console, "error", (line) => lines.push(JSON.parse(line)));
+  recordDependency("siblings-test", new Error("fetch failed", { cause: new Error("getaddrinfo EAI_AGAIN") }), "garbage");
+  recordDependency("siblings-test", null, "recycling");
+  assert.equal(dependencyStatus("siblings-test").ok, false);
+  assert.deepEqual(dependencyStatus("siblings-test").failedOperations, ["garbage"]);
+  assert.match(lines[0].cause, /EAI_AGAIN/);
+  assert.equal(safeDetail("Authorization: Bearer private-token"), "Authorization: [redacted] [redacted]");
+  recordDependency("siblings-test", null, "garbage");
+  assert.equal(dependencyStatus("siblings-test").ok, true);
+});
+
+test("diagnostic endpoints preserve liveness and return bounded client errors over HTTP", async (t) => {
+  const { server } = await import("./server.mjs");
+  t.mock.method(console, "error", () => {});
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const base = `http://127.0.0.1:${server.address().port}`;
+  try {
+    const status = await fetch(`${base}/api/status`);
+    assert.equal(status.status, 200);
+    assert.equal(status.headers.get("cache-control"), "no-store");
+    assert.ok((await status.json()).dependencies.google);
+    assert.equal((await (await fetch(`${base}/api/health`)).json()).ok, true);
+    const send = (body) => fetch(`${base}/api/client-log`, { method: "POST", headers: { origin: "http://localhost:8080", "content-type": "text/plain" }, body });
+    assert.equal((await send(JSON.stringify({ context: "test", message: "test only" }))).status, 202);
+    assert.equal((await send("x".repeat(4097))).status, 413);
+  } finally { await new Promise((resolve) => server.close(resolve)); }
 });

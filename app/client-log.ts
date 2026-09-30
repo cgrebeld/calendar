@@ -8,9 +8,12 @@ export function reportError(apiUrl: string, context: string, error: unknown) {
   const message = clean(error instanceof Error ? error.message : String(error)).slice(0, 1000);
   const stack = error instanceof Error ? clean(error.stack || "").slice(0, 2000) : undefined;
   console.warn(context, message, stack || "");
+  let body = JSON.stringify({ context: context.slice(0, 120), message, stack });
+  if (new TextEncoder().encode(body).length > 4096)
+    body = JSON.stringify({ context: context.slice(0, 120), message: message.slice(0, 700) });
   // Plain text avoids a CORS preflight when the development API uses another port.
   void fetch(`${apiUrl}/api/client-log`, { method: "POST", headers: { "content-type": "text/plain;charset=UTF-8" },
-    body: JSON.stringify({ context: context.slice(0, 120), message, stack }),
+    body,
     signal: AbortSignal.timeout(5000), keepalive: true }).catch(() => {});
 }
 

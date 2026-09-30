@@ -236,7 +236,7 @@ async function googleJson(url) {
   const response = await fetch(url, { headers: { authorization: `Bearer ${await googleToken()}` }, signal: AbortSignal.timeout(20000) });
   if (!response.ok) throw await upstreamError("Google API", response);
   return response.json();
-  }, "api");
+  }, new URL(url).hostname === "tasks.googleapis.com" ? "tasks" : "calendar");
 }
 
 export async function googleItems(url, parameters, load = googleJson) {
@@ -319,7 +319,10 @@ function json(request, response, status, body) {
 
 export async function serviceStatus() {
   let connected = false;
-  try { connected = Boolean((await savedToken()).refresh_token); }
+  try {
+    connected = Boolean((await savedToken()).refresh_token);
+    if (dependencyStatus("google").failedOperations.includes("token-file")) recordDependency("google", null, "token-file");
+  }
   catch (error) { recordDependency("google", error, "token-file"); }
   const enabled = {
     google: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
@@ -346,7 +349,10 @@ export const server = createServer(async (request, response) => {
       logFailure("request", response.diagnosticError || `HTTP ${response.statusCode}`, fields());
   });
   response.on("close", () => {
-    if (!logged && !response.writableFinished) logFailure("request", "Response stream closed before completion", fields());
+    // A rejected pipeline gets its full stack into the catch before this fallback runs.
+    setImmediate(() => {
+      if (!logged && !response.writableFinished) logFailure("request", "Response stream closed before completion", fields());
+    });
   });
   try {
     const url = new URL(request.url, `http://${request.headers.host}`);

@@ -1,4 +1,4 @@
-import { recordDependency, upstreamError, observed } from "./diagnostics.mjs";
+import { recordDependency, upstreamError, observed, logFailure } from "./diagnostics.mjs";
 const interval = 30 * 60000;
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -63,7 +63,7 @@ export function createImmich({ baseUrl = process.env.IMMICH_URL, apiKey = proces
   async function image(id) {
     // ponytail: album membership stays cached for 30 minutes; recheck each image if immediate removal matters.
     if (!enabled || !uuid.test(id) || !(await load()).items.some((item) => item.id === `immich-${id}`)) {
-      recordDependency("immich", new Error(`Immich image ${id}: ${!enabled ? "source disabled" : !uuid.test(id) ? "invalid ID" : "not in cached album"}`), "image");
+      logFailure("immich", new Error(`Immich image ${id}: ${!enabled ? "source disabled" : !uuid.test(id) ? "invalid ID" : "not in cached album"}`));
       return null;
     }
     const response = await observed("immich", () => fetcher(`${origin}/api/assets/${id}/thumbnail?size=preview`, {

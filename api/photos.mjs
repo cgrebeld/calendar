@@ -72,6 +72,7 @@ export function createPhotos({ getAccessToken, getConnection,
     try { await google(`/sessions/${encodeURIComponent(saved.session.id)}`, { method: "DELETE" }); }
     catch (error) { if (![404, 410].includes(error.status)) throw error; }
     await save({ ...saved, session: undefined });
+    recordDependency("localPhotos", null, "cleanup");
   }
   async function importPhotos(controller) {
     const generation = randomUUID();

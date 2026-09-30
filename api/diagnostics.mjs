@@ -4,12 +4,16 @@ export function safeDetail(value) {
   for (const [name, secret] of Object.entries(process.env)) {
     if (/(SECRET|TOKEN|KEY|PASSWORD)/i.test(name) && secret?.length >= 4) text = text.replaceAll(secret, "[redacted]");
   }
-  return text.replace(/https?:\/\/[^\s"<>]+/g, (url) => url.split("?")[0])
+  return text.replace(/(Bearer\s+)[^\s,"'}]+/gi, "$1[redacted]").replace(/https?:\/\/[^\s"<>]+/g, (url) => url.split("?")[0])
     .replace(/((?:access_token|refresh_token|client_secret|authorization|password|api_key)["']?\s*[:=]\s*["']?)[^\s,"'}]+/gi, "$1[redacted]");
 }
+function errorDetail(error) {
+  return safeDetail([error?.message ?? error, error?.detail, error?.cause?.message].filter(Boolean).join(": "));
+}
 export function logFailure(source, error, fields = {}) {
-  console.error(JSON.stringify({ timestamp: new Date().toISOString(), source, ...fields,
-    error: safeDetail(error?.message ?? error), stack: error?.stack && safeDetail(error.stack) }));
+  console.error(JSON.stringify({ timestamp: new Date().toISOString(), source, ...Object.fromEntries(Object.entries(fields).map(([key, value]) => [key, typeof value === "string" ? safeDetail(value) : value])),
+    error: errorDetail(error), stack: error?.stack && safeDetail(error.stack),
+    cause: error?.cause && safeDetail(error.cause.stack || error.cause.message || error.cause) }));
 }
 
 // Fixed operation names keep this household's diagnostic state bounded.
@@ -18,7 +22,7 @@ export function recordDependency(source, error, operation = "load") {
   const state = dependencies.get(source) || { lastSuccess: null, lastError: null, failures: new Set() };
   if (error) {
     state.failures.add(operation);
-    state.lastError = { timestamp: new Date().toISOString(), message: safeDetail(error.message ?? error) };
+    state.lastError = { timestamp: new Date().toISOString(), message: errorDetail(error) };
     logFailure(source, error, { operation });
   } else {
     state.failures.delete(operation);
@@ -28,14 +32,14 @@ export function recordDependency(source, error, operation = "load") {
 }
 export function dependencyStatus(source) {
   const state = dependencies.get(source);
-  return { ok: state ? state.failures.size === 0 : null, lastSuccess: state?.lastSuccess || null, lastError: state?.lastError || null };
+  return { ok: state ? state.failures.size === 0 : null, lastSuccess: state?.lastSuccess || null, lastError: state?.lastError || null, failedOperations: [...(state?.failures || [])] };
 }
 export async function observed(source, load, operation = "load") {
   try { const value = await load(); recordDependency(source, null, operation); return value; }
   catch (error) { recordDependency(source, error, operation); throw error; }
 }
 export async function upstreamError(source, response) {
-  let body = "";
+  let body = "", cause;
   // Read only a bounded preview, even if the provider returns a huge error page.
   if (response.body?.getReader) {
     const reader = response.body.getReader();
@@ -47,7 +51,7 @@ export async function upstreamError(source, response) {
         const chunk = value.slice(0, 200 - size); chunks.push(chunk); size += chunk.length;
       }
       body = Buffer.concat(chunks).toString("utf8");
-    } finally { await reader.cancel().catch(() => {}); }
+    } catch (error) { cause = error; } finally { await reader.cancel().catch(() => {}); }
   }
-  return new Error(`${source} returned ${response.status}${body ? `: ${safeDetail(body)}` : ""}`);
+  return Object.assign(new Error(`${source} returned ${response.status}`, { cause }), { detail: safeDetail(body) });
 }
