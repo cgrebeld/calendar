@@ -1,3 +1,4 @@
+import { clientLog } from "./client-log.mjs";
 import { logFailure, observed, upstreamError, recordDependency, dependencyStatus } from "./diagnostics.mjs";
 import { randomBytes, createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
@@ -341,7 +342,7 @@ export const server = createServer(async (request, response) => {
     status: response.statusCode, duration: Date.now() - started });
   let logged = false;
   response.on("finish", () => {
-    if (!logged && (response.statusCode < 200 || response.statusCode >= 300))
+    if (!logged && !(request.url?.split("?")[0] === "/api/client-log" && response.statusCode === 429) && (response.statusCode < 200 || response.statusCode >= 300))
       logFailure("request", response.diagnosticError || `HTTP ${response.statusCode}`, fields());
   });
   response.on("close", () => {
@@ -349,6 +350,11 @@ export const server = createServer(async (request, response) => {
   });
   try {
     const url = new URL(request.url, `http://${request.headers.host}`);
+    if (url.pathname === "/api/client-log") {
+      const result = await clientLog(request, appOrigins);
+      if (result.status >= 400) { response.setHeader("connection", "close"); request.resume(); }
+      return json(request, response, result.status, result.body);
+    }
     if (["/api/photos/ambient", "/api/photos/ambient/status", "/api/photos/topics"].includes(url.pathname)) {
       if (request.method !== "GET") return json(request, response, 405, { error: "Unsupported online photos operation" });
       response.setHeader("cache-control", "no-store");

@@ -1,3 +1,4 @@
+import { logFailure } from "./diagnostics.mjs";
 import { request as httpRequest } from "node:http";
 
 export async function updateRequest(request, path, origins, socketPath = process.env.UPDATER_SOCKET) {
@@ -27,12 +28,12 @@ export async function updateRequest(request, path, origins, socketPath = process
       });
       response.on("end", () => {
         try { resolve({ status: response.statusCode, body: JSON.parse(body) }); }
-        catch { resolve({ status: 502, body: { error: "Invalid updater response" } }); }
+        catch (error) { logFailure("updater", error); resolve({ status: 502, body: { error: "Invalid updater response" } }); }
       });
-      response.on("error", () => resolve({ status: 503, body: { error: "Updater unavailable" } }));
+      response.on("error", (error) => { logFailure("updater", error); resolve({ status: 503, body: { error: "Updater unavailable" } }); });
     });
     upstream.setTimeout(5000, () => upstream.destroy(new Error("Updater timeout")));
-    upstream.on("error", () => resolve({ status: 503, body: { error: "Updater unavailable" } }));
+    upstream.on("error", (error) => { logFailure("updater", error); resolve({ status: 503, body: { error: "Updater unavailable" } }); });
     upstream.end(payload);
   });
 }

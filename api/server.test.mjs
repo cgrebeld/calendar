@@ -403,3 +403,31 @@ test("status reports stale outages without fetching or confusing disabled source
   recordDependency("quote", null);
   assert.equal((await serviceStatus()).dependencies.quote.ok, true);
 });
+
+test("client logs enforce origin, schema, byte and shared rate limits", async (t) => {
+  const { clientLog } = await import("./client-log.mjs");
+  const lines = [];
+  t.mock.method(console, "error", (line) => lines.push(JSON.parse(line)));
+  const now = Date.now() + 60000;
+  const send = (body, headers = {}, method = "POST") => {
+    const request = Readable.from([Buffer.from(body)]);
+    request.method = method;
+    request.headers = { origin: "http://localhost:8080", "content-type": "text/plain;charset=UTF-8", ...headers };
+    return clientLog(request, ["http://localhost:8080"], now);
+  };
+  const body = JSON.stringify({ context: "render", message: "test crash", stack: "Error: test crash\n  at App" });
+  assert.equal((await send(body, { origin: "https://untrusted.example" })).status, 403);
+  assert.equal((await send(body, {}, "GET")).status, 405);
+  assert.equal((await send("broken")).status, 400);
+  assert.equal((await send("null")).status, 400);
+  assert.equal((await send('{"context":"x","message":42}')).status, 400);
+  assert.equal((await send("x".repeat(4097))).status, 413);
+  assert.equal((await send(body, { "content-length": "4097" })).status, 413);
+  assert.equal((await send(body)).status, 202);
+  assert.equal(lines.length, 1);
+  assert.equal(lines[0].source, "browser");
+  assert.equal(lines[0].context, "render");
+  assert.match(lines[0].stack, /at App/);
+  for (let i = 0; i < 22; i++) await send(body);
+  assert.equal((await send(body)).status, 429);
+});

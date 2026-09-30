@@ -1,3 +1,4 @@
+import { reportError } from "./client-log";
 import { useEffect, useRef, useState } from "react";
 import "./photos.css";
 import { DateTime } from "./date-time";
@@ -19,10 +20,12 @@ type PhotoStatus = {
 type Topic = { slug: string; title: string };
 type TopicsStatus = { enabled: boolean; items: Topic[]; error?: string };
 async function photosJson(apiUrl: string, action: string, method = "GET", signal?: AbortSignal): Promise<PhotoStatus> {
+  try {
   const response = await fetch(`${apiUrl}/api/photos/${action}`, { method, signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30000)]) : AbortSignal.timeout(30000), cache: "no-store" });
   const data = await response.json();
   if (!response.ok) throw Object.assign(new Error(data.error || "Photos unavailable"), { setupUrl: data.setupUrl });
   return data;
+  } catch (error) { if (!signal?.aborted) reportError(apiUrl, `photos ${action.split("?")[0]}`, error); throw error; }
 }
 function useVisible() {
   const [visible, setVisible] = useState(!document.hidden);

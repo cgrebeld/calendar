@@ -1,3 +1,4 @@
+import { reportError, installErrorReporting } from "./client-log";
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { addDays, moveAnchor, swipeDirection, viewDates, viewTitle, type ViewMode } from "./dates";
@@ -18,6 +19,8 @@ import { Countdowns } from "./countdown-list";
 import { ApplicationUpdates } from "./updates";
 import { PhotoIcon, PhotoMode, PhotoSettings } from "./photos";
 import { connectGoogle as openGoogle, googlePopupId, finishGooglePopup } from "./google-connect";
+
+installErrorReporting(import.meta.env.VITE_API_URL ?? "http://localhost:3000");
 
 const themeMode = parseThemeMode(new URLSearchParams(location.search).get("theme") ?? import.meta.env.VITE_THEME_MODE);
 function savedSkin() {
@@ -262,8 +265,8 @@ function App() {
       if (!response.ok) throw new Error(`Collection API returned ${response.status}`);
       const data = await response.json();
       setCollectionDates(data.events);
-      if (data.errors.length) console.warn("Collection schedules unavailable:", data.errors);
-    }).catch((error: Error) => console.warn("Collection schedules unavailable:", error.message));
+      if (data.errors.length) reportError(apiUrl, "collections", JSON.stringify(data.errors));
+    }).catch((error: Error) => reportError(apiUrl, "collections", error));
     void load();
     const timer = window.setInterval(load, 60 * 60 * 1000);
     return () => window.clearInterval(timer);
@@ -300,7 +303,7 @@ function App() {
   }, [idle, sleeping]);
 
   useEffect(() => {
-    fetch(`${apiUrl}/api/auth/status`, { signal: AbortSignal.timeout(10000) }).then((response) => response.json()).then(({ connected }) => setConnected(connected)).catch(() => setSyncStatus({ state: "error", message: "Calendar API offline" }));
+    fetch(`${apiUrl}/api/auth/status`, { signal: AbortSignal.timeout(10000) }).then((response) => { if (!response.ok) throw new Error(`Auth status returned ${response.status}`); return response.json(); }).then(({ connected }) => setConnected(connected)).catch((error) => { reportError(apiUrl, "auth status", error); setSyncStatus({ state: "error", message: "Calendar API offline" }); });
   }, [apiUrl]);
 
   useEffect(() => {
@@ -311,7 +314,7 @@ function App() {
     }).catch((error: Error) => {
       setWeatherNow((previous) => previous ? { ...previous, stale: true } : previous);
       if (!warned) {
-        console.warn("Weather unavailable:", error.message);
+        reportError(apiUrl, "weather", error);
         warned = true;
       }
     });
@@ -331,7 +334,7 @@ function App() {
         else setCalendarEvents(loaded as CalendarEvent[]);
         setSyncStatus({ state: "ok" });
       }
-    }).catch((error: Error) => calendarLoadId.current === loadId && setSyncStatus({ state: "error", message: error.message })).finally(() => window.clearTimeout(syncingTimer));
+    }).catch((error: Error) => { reportError(apiUrl, "calendar", error); if (calendarLoadId.current === loadId) setSyncStatus({ state: "error", message: error.message }); }).finally(() => window.clearTimeout(syncingTimer));
     return () => {
       if (calendarLoadId.current === loadId) calendarLoadId.current++;
       window.clearTimeout(syncingTimer);
@@ -362,7 +365,7 @@ function App() {
     if (!data.length) throw new Error("No matching Google Tasks lists");
     setTaskLists(data);
     setTasksError(undefined);
-  }).catch((error: Error) => setTasksError(error.message));
+  }).catch((error: Error) => { reportError(apiUrl, "tasks", error); setTasksError(error.message); });
 
   useEffect(() => {
     if (!connected) return;
@@ -494,4 +497,4 @@ function GoogleConnected({ id }: { id: string }) {
 }
 
 const popupId = googlePopupId(location.search);
-createRoot(document.getElementById("root")!).render(<React.StrictMode>{popupId ? <GoogleConnected id={popupId} /> : <App />}</React.StrictMode>);
+createRoot(document.getElementById("root")!, { onUncaughtError: (error) => reportError(import.meta.env.VITE_API_URL ?? "http://localhost:3000", "render", error) }).render(<React.StrictMode>{popupId ? <GoogleConnected id={popupId} /> : <App />}</React.StrictMode>);

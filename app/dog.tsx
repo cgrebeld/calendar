@@ -1,3 +1,4 @@
+import { reportError } from "./client-log";
 import { useEffect, useRef, useState } from "react";
 import "./dog.css";
 
@@ -31,14 +32,15 @@ export function DogCompanion({ apiUrl, celebration }: { apiUrl: string; celebrat
       nextFetch = Date.now() + 5 * 60 * 1000;
       try {
         const response = await fetch(`${apiUrl}/api/quote`, { signal: AbortSignal.timeout(10000) });
-        if (!response.ok) throw new Error("Daily quote unavailable");
+        if (!response.ok) throw new Error(`Daily quote unavailable (${response.status})`);
         const result = await response.json();
         if (typeof result.text !== "string" || typeof result.author !== "string" || !Number.isFinite(Date.parse(result.expiresAt))) throw new Error("Invalid daily quote");
         if (disposed) return;
         setQuote(result);
         if (!result.stale) nextFetch = Math.max(Date.now() + 1000, Date.parse(result.expiresAt));
-      } catch {
+      } catch (error) {
         if (disposed) return;
+        reportError(apiUrl, "quote", error);
         setQuote((previous) => previous ? { ...previous, stale: true } : previous);
       } finally {
         loading = false;

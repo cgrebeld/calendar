@@ -1,3 +1,4 @@
+import { reportError } from "./client-log";
 import { useEffect, useRef, useState } from "react";
 import { needsUpdateReload } from "./update-version";
 
@@ -35,10 +36,11 @@ export function ApplicationUpdates({ apiUrl, onAvailableChange }: { apiUrl: stri
     const load = async () => {
       try {
         const response = await fetch(`${apiUrl}/api/updates/status`, { signal: AbortSignal.timeout(8000), cache: "no-store" });
-        if (!response.ok) throw new Error("Updater unavailable; reconnecting…");
+        if (!response.ok) throw new Error(`Updater unavailable (${response.status}); reconnecting…`);
         const next = await response.json() as UpdateStatus;
         if (!stopped) { setStatus(next); setError(""); }
-      } catch {
+      } catch (error) {
+        if (!stopped) reportError(apiUrl, "updates", error);
         if (!stopped) setError("Updater unavailable; reconnecting…");
       }
     };
@@ -60,7 +62,7 @@ export function ApplicationUpdates({ apiUrl, onAvailableChange }: { apiUrl: stri
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "Update request failed");
       setStatus(body);
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Update request failed"); }
+    } catch (cause) { reportError(apiUrl, "updates", cause); setError(cause instanceof Error ? cause.message : "Update request failed"); }
     finally { setPending(false); }
   }
   useEffect(() => {
