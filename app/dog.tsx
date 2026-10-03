@@ -4,7 +4,6 @@ import "./dog.css";
 
 export function DogCompanion({ apiUrl, celebration }: { apiUrl: string; celebration?: { names: string; id: number } }) {
   const [quote, setQuote] = useState<{ text: string; author: string; expiresAt: string; stale?: boolean }>();
-  const [cheer, setCheer] = useState<string>();
   const [dogPlaying, setDogPlaying] = useState(false);
   const [speechVisible, setSpeechVisible] = useState(false);
   const speechTimer = useRef<number>(undefined);
@@ -56,12 +55,7 @@ export function DogCompanion({ apiUrl, celebration }: { apiUrl: string; celebrat
       document.removeEventListener("visibilitychange", wake);
     };
   }, [apiUrl]);
-  useEffect(() => {
-    if (!celebration) return;
-    setCheer(`Hidy Ho, ${celebration.names}! Every challenge conquered. You’re a woodland legend!`);
-    const timer = window.setTimeout(() => setCheer(undefined), 12000);
-    return () => window.clearTimeout(timer);
-  }, [celebration]);
+  const cheer = celebration && `Hidy Ho, ${celebration.names}! Every challenge conquered. You’re a woodland legend!`;
   const playDog = () => {
     if (dogPlaying || barkPending.current) return;
     setSpeechVisible(true);

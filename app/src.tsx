@@ -244,6 +244,12 @@ function App() {
     if (names.length) setCelebration({ names: names.join(" & "), id: Date.now() });
     previousQuests.current = { week: questWeek, quests };
   }, [taskLists, questWeek, connected, tasksError]);
+  useEffect(() => {
+    if (!celebration) return;
+    // Clear once played so remounting the dog (e.g. after photo mode) does not replay it.
+    const timer = window.setTimeout(() => setCelebration(undefined), 12000);
+    return () => window.clearTimeout(timer);
+  }, [celebration]);
   const dayKey = dateKey(now);
   const background = backgroundDisabled ? undefined : backgroundOverrides[theme] ?? (skin === "default" ? backgroundFor(theme, now) : undefined);
   useEffect(() => {
