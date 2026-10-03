@@ -157,12 +157,19 @@ The parent `.config` directory and its contents must belong to `kiosk` so Chromi
 can create its profile and startup log.
 
 The supplied [autostart script](kiosk-autostart) starts screen standby after 30
-minutes without input between midnight and 07:00 (the display stays on from
-07:00, and blanks at midnight if idle), resumes on input, waits for the local calendar, and
+minutes without input between 21:15 and 07:00 (the display stays on from
+07:00, and blanks at 21:15 if idle), resumes on input, waits for the local calendar, and
 relaunches Chromium three seconds after an exit. It appends launch timestamps, browser stderr, and page console output
 to `/home/kiosk/.config/chromium-startup.log`, preserving earlier launches. The browser profile persists
 in `/home/kiosk/.config/chromium`. Keep the sandbox and GPU acceleration enabled.
 The root `launch-kiosk.sh` is not this Debian Wayland launcher.
+
+To change the schedule, set `HH:MM` values in labwc's environment for kiosk and reboot
+(invalid values fall back to the defaults):
+
+```sh
+printf 'DISPLAY_OFF=22:00\nDISPLAY_ON=06:30\n' | sudo -u kiosk tee -a /home/kiosk/.config/labwc/environment
+```
 
 ### Automatic graphical login
 

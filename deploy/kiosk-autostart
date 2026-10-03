@@ -1,12 +1,18 @@
 #!/bin/sh
 log=/home/kiosk/.config/idle.log
-# Blank after 30 idle minutes, except 07:00-23:59 when the display stays on.
-swayidle -w timeout 1800 "[ \$(date +%H) -ge 7 ] && { date +'%F %T skip' >> $log; exit 0; }; date +'%F %T off' >> $log; wlopm --off '*'" resume "date +'%F %T on' >> $log; wlopm --on '*'" &
-# Wake at 07:00; at midnight, blank if the idle timeout was skipped and nobody touched since.
+# Display stays on from DISPLAY_ON to DISPLAY_OFF (HH:MM, e.g. set in ~/.config/labwc/environment).
+off=${DISPLAY_OFF:-21:15}; off=${off%:*}${off#*:}
+on=${DISPLAY_ON:-07:00}; on=${on%:*}${on#*:}
+case $off in [0-2][0-9][0-5][0-9]) ;; *) off=2115 ;; esac
+case $on in [0-2][0-9][0-5][0-9]) ;; *) on=0700 ;; esac
+if [ "$off" -lt "$on" ]; then night="[ \$t -ge $off ] && [ \$t -lt $on ]"; else night="[ \$t -ge $off ] || [ \$t -lt $on ]"; fi
+# Blank after 30 idle minutes during the off range only.
+swayidle -w timeout 1800 "t=\$(date +%H%M); $night || { date +'%F %T skip' >> $log; exit 0; }; date +'%F %T off' >> $log; wlopm --off '*'" resume "date +'%F %T on' >> $log; wlopm --on '*'" &
+# Wake at the on time; at the off time, blank if the idle timeout was skipped and nobody touched since.
 while true; do
   case "$(date +%H%M)" in
-    0700) wlopm --on "*" ;;
-    0000) tail -1 $log | grep -q skip && { date +'%F %T off' >> $log; wlopm --off "*"; } ;;
+    "$on") wlopm --on "*" ;;
+    "$off") tail -1 $log | grep -q skip && { date +'%F %T off' >> $log; wlopm --off "*"; } ;;
   esac
   sleep 30
 done &
