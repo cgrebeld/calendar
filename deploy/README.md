@@ -136,7 +136,7 @@ Install the graphical packages, then confirm the calendar application responds:
 
 ```sh
 sudo apt update
-sudo apt install labwc chromium swayidle wlopm fonts-noto-color-emoji dbus-user-session dbus-daemon curl python3
+sudo apt install labwc chromium squeekboard libglib2.0-bin swayidle wlopm fonts-noto-color-emoji dbus-user-session dbus-daemon curl python3
 curl -I --max-time 5 http://localhost:8080
 ```
 
@@ -163,6 +163,8 @@ relaunches Chromium three seconds after an exit. It appends launch timestamps, b
 to `/home/kiosk/.config/chromium-startup.log`, preserving earlier launches. The browser profile persists
 in `/home/kiosk/.config/chromium`. Keep the sandbox and GPU acceleration enabled.
 The root `launch-kiosk.sh` is not this Debian Wayland launcher.
+When `squeekboard` is installed, its on-screen keyboard opens for focused text
+fields, such as Google's email and password pages during Reconnect Google.
 
 To change the schedule, set `HH:MM` values in labwc's environment for kiosk and reboot
 (invalid values fall back to the defaults):
