@@ -213,6 +213,8 @@ function App() {
   const [openDay, setOpenDay] = useState<Date>();
   const [idle, setIdle] = useState(false);
   const [sleeping, setSleeping] = useState(false);
+  // Photo mode and sleep show no calendar, so its polling pauses and reloads on return.
+  const paused = idle || sleeping;
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [availableUpdate, setAvailableUpdate] = useState<string>();
   const [notesOpen, setNotesOpen] = useState(false);
@@ -267,6 +269,7 @@ function App() {
   })];
 
   useEffect(() => {
+    if (paused) return;
     const load = () => fetch(`${apiUrl}/api/collections`, { signal: AbortSignal.timeout(30000) }).then(async (response) => {
       if (!response.ok) throw new Error(`Collection API returned ${response.status}`);
       const data = await response.json();
@@ -276,7 +279,7 @@ function App() {
     void load();
     const timer = window.setInterval(load, 60 * 60 * 1000);
     return () => window.clearInterval(timer);
-  }, [apiUrl]);
+  }, [apiUrl, paused]);
 
   const openSettings = () => {
     setSettingsOpen(true);
@@ -348,14 +351,14 @@ function App() {
   };
 
   useEffect(() => {
-    if (!connected) return;
+    if (!connected || paused) return;
     let cancel = loadCalendar();
     const timer = window.setInterval(() => { cancel = loadCalendar(); }, 5 * 60 * 1000);
     return () => {
       window.clearInterval(timer);
       cancel();
     };
-  }, [connected, anchor, mode, agendaOpen, dayKey]);
+  }, [connected, paused, anchor, mode, agendaOpen, dayKey]);
 
   const connectGoogle = () => {
     try { openGoogle(apiUrl); }
@@ -374,11 +377,11 @@ function App() {
   }).catch((error: Error) => { reportError(apiUrl, "tasks", error); setTasksError(error.message); });
 
   useEffect(() => {
-    if (!connected) return;
+    if (!connected || paused) return;
     void loadTasks();
     const timer = window.setInterval(loadTasks, 5 * 60 * 1000);
     return () => window.clearInterval(timer);
-  }, [connected, apiUrl]);
+  }, [connected, paused, apiUrl]);
 
   const syncGoogle = () => {
     setCountdownRefresh((value) => value + 1);
