@@ -45,7 +45,7 @@ test("calendar events fetch named calendars even when hidden in Google, in the g
     if (url.pathname.endsWith("calendarList")) return { items: [
       { id: "family", summary: "Family", selected: true },
       { id: "ada", summary: "Ada", selected: true },
-      { id: "school", summary: "Ada School", selected: false },
+      { id: "school", summary: "GNS Parent Calendar", summaryOverride: "Ada School", selected: false },
     ] };
     if (!url.pathname.endsWith("/events")) return {};
     return { items: [{ id: "e", summary: url.pathname.split("/").at(-2) }] };

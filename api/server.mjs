@@ -269,11 +269,14 @@ export async function familyTasks(force = false, load = googleJson) {
   }, 300000, Date.now(), force);
 }
 
+// Google keeps a subscribed calendar's feed title in summary and the user's rename in summaryOverride.
+const shownNames = (calendars) => calendars.map((calendar) => ({ ...calendar, summary: calendar.summaryOverride || calendar.summary }));
+
 // Named calendars (a personal view) are fetched even when hidden in Google; otherwise the selected ones.
 export async function calendarEvents(timeMin, timeMax, force = false, names = [], load = googleJson) {
   return cached(`${timeMin}:${timeMax}:${names.join(",")}`, async () => {
     const list = await cached("calendar-list", () => load("https://www.googleapis.com/calendar/v3/users/me/calendarList"), 300000, Date.now(), force);
-    const items = list.items || [];
+    const items = shownNames(list.items || []);
     const calendars = names.length
       ? names.flatMap((name) => items.filter((calendar) => calendar.summary?.toLowerCase() === name))
       : items.filter((calendar) => calendar.selected || calendar.primary);
@@ -293,8 +296,8 @@ export async function agendaCalendars(timeMin, force = false, load = googleJson)
   const names = (process.env.AGENDA_CALENDARS || "").split(",").map((name) => name.trim().toLowerCase()).filter(Boolean);
   return cached(`agenda:${timeMin}:${names.join(",")}`, async () => {
     const list = await googleItems("https://www.googleapis.com/calendar/v3/users/me/calendarList", {}, load);
-    const displayed = list.filter((calendar) => calendar.selected || calendar.primary);
-    const calendars = [...displayed, ...list.filter((calendar) => !calendar.selected && !calendar.primary)].map((calendar, tone) => ({ ...calendar, tone }));
+    const displayed = shownNames(list).filter((calendar) => calendar.selected || calendar.primary);
+    const calendars = [...displayed, ...shownNames(list).filter((calendar) => !calendar.selected && !calendar.primary)].map((calendar, tone) => ({ ...calendar, tone }));
     const selected = names.length
       ? [...new Set(names)].flatMap((name) => calendars.filter((calendar) => calendar.summary.toLowerCase() === name))
       : calendars.filter((calendar) => calendar.selected || calendar.primary);
