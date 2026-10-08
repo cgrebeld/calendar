@@ -5,7 +5,7 @@ import { Readable } from "node:stream";
 import { createServer } from "node:http";
 import { once } from "node:events";
 import { mkdtemp, rm } from "node:fs/promises";
-import { agendaCalendars } from "./server.mjs";
+import { agendaCalendars, calendarEvents } from "./server.mjs";
 
 test("agenda uses configured calendar order, includes empty calendars and has no date cutoff", async () => {
   const previous = process.env.AGENDA_CALENDARS;
@@ -37,6 +37,23 @@ test("agenda uses configured calendar order, includes empty calendars and has no
     if (previous === undefined) delete process.env.AGENDA_CALENDARS;
     else process.env.AGENDA_CALENDARS = previous;
   }
+});
+
+test("calendar events fetch named calendars even when hidden in Google, in the given order", async () => {
+  const load = async (address) => {
+    const url = new URL(address);
+    if (url.pathname.endsWith("calendarList")) return { items: [
+      { id: "family", summary: "Family", selected: true },
+      { id: "ada", summary: "Ada", selected: true },
+      { id: "school", summary: "Ada School", selected: false },
+    ] };
+    if (!url.pathname.endsWith("/events")) return {};
+    return { items: [{ id: "e", summary: url.pathname.split("/").at(-2) }] };
+  };
+  const named = await calendarEvents("2026-10-07T07:00:00.000Z", "2026-10-10T07:00:00.000Z", true, ["ada", "ada school"], load);
+  assert.deepEqual(named.map(({ calendar, tone }) => [calendar.summary, tone]), [["Ada", 0], ["Ada School", 1]]);
+  const selected = await calendarEvents("2026-10-07T07:00:00.000Z", "2026-10-10T07:00:00.000Z", true, [], load);
+  assert.deepEqual(selected.map(({ calendar }) => calendar.summary), ["Family", "Ada"]);
 });
 
 test("update proxy forwards only the approved operation through its Unix socket", async () => {

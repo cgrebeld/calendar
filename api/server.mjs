@@ -269,15 +269,19 @@ export async function familyTasks(force = false, load = googleJson) {
   }, 300000, Date.now(), force);
 }
 
-async function calendarEvents(timeMin, timeMax, force = false) {
-  return cached(`${timeMin}:${timeMax}`, async () => {
-    const list = await cached("calendar-list", () => googleJson("https://www.googleapis.com/calendar/v3/users/me/calendarList"), 300000, Date.now(), force);
-    const calendars = (list.items || []).filter((calendar) => calendar.selected || calendar.primary);
+// Named calendars (a personal view) are fetched even when hidden in Google; otherwise the selected ones.
+export async function calendarEvents(timeMin, timeMax, force = false, names = [], load = googleJson) {
+  return cached(`${timeMin}:${timeMax}:${names.join(",")}`, async () => {
+    const list = await cached("calendar-list", () => load("https://www.googleapis.com/calendar/v3/users/me/calendarList"), 300000, Date.now(), force);
+    const items = list.items || [];
+    const calendars = names.length
+      ? names.flatMap((name) => items.filter((calendar) => calendar.summary?.toLowerCase() === name))
+      : items.filter((calendar) => calendar.selected || calendar.primary);
     const batches = await Promise.all(calendars.map(async (calendar, tone) => {
       const base = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendar.id)}`;
       const [events, metadata] = await Promise.all([
-        googleItems(`${base}/events`, { timeMin, timeMax, singleEvents: "true", orderBy: "startTime", maxResults: "2500", eventLabelVersion: "1" }),
-        cached(`calendar-labels:${calendar.id}`, () => googleJson(base), 300000, Date.now(), force),
+        googleItems(`${base}/events`, { timeMin, timeMax, singleEvents: "true", orderBy: "startTime", maxResults: "2500", eventLabelVersion: "1" }, load),
+        cached(`calendar-labels:${calendar.id}`, () => load(base), 300000, Date.now(), force),
       ]);
       return events.map((event) => ({ event, calendar: { id: calendar.id, summary: calendar.summary, labelProperties: metadata.labelProperties }, tone }));
     }));
@@ -441,7 +445,8 @@ export const server = createServer(async (request, response) => {
       const timeMin = new Date(url.searchParams.get("timeMin") || "");
       const timeMax = new Date(url.searchParams.get("timeMax") || "");
       if (!Number.isFinite(timeMin.getTime()) || !Number.isFinite(timeMax.getTime()) || timeMax <= timeMin || timeMax.getTime() - timeMin.getTime() > (countdowns ? 186 : 62) * 86400000) return json(request, response, 400, { error: "Invalid calendar range" });
-      const events = await calendarEvents(timeMin.toISOString(), timeMax.toISOString(), url.searchParams.get("force") === "true");
+      const names = [...new Set(url.searchParams.getAll("calendar").map((name) => name.trim().toLowerCase()).filter(Boolean))];
+      const events = await calendarEvents(timeMin.toISOString(), timeMax.toISOString(), url.searchParams.get("force") === "true", names);
       return json(request, response, 200, countdowns ? countdownEvents(events) : events);
     }
     if (request.method === "GET" && url.pathname === "/api/tasks") return json(request, response, 200, await familyTasks(url.searchParams.get("force") === "true"));
