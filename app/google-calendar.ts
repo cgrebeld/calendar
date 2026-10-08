@@ -138,8 +138,9 @@ export function convertGoogleEvent(event: GoogleEvent, calendar: Calendar, tone:
   };
 }
 
-export async function loadGoogleEvents(from: Date, to: Date, today: Date, range: ScheduleRange = defaultScheduleRange, force = false) {
+export async function loadGoogleEvents(from: Date, to: Date, today: Date, range: ScheduleRange = defaultScheduleRange, force = false, calendars: string[] = []) {
   const query = new URLSearchParams({ timeMin: from.toISOString(), timeMax: to.toISOString() });
+  for (const calendar of calendars) query.append("calendar", calendar);
   if (force) query.set("force", "true");
   const response = await fetch(`${import.meta.env.VITE_API_URL ?? "http://localhost:3000"}/api/calendar/events?${query}`, { signal: AbortSignal.timeout(30000) });
   const data = await response.json();

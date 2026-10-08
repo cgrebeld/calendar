@@ -33,6 +33,15 @@ export function newlyCompleted(previous: Quest[], current: Quest[]) {
   )).map(quest => quest.name);
 }
 
+// "Ada:Ada,Ada School;Clio:Clio" -> each person's page and the Google calendar names it shows.
+export function personalViews(value: string) {
+  return value.split(";").flatMap(entry => {
+    const [name, calendars = "", extra] = entry.split(":").map(part => part.trim());
+    const names = [...new Set(calendars.split(",").map(calendar => calendar.trim().toLowerCase()).filter(Boolean))];
+    return name && names.length && extra === undefined ? [{ name, calendars: names }] : [];
+  });
+}
+
 export function chorePets(value: string) {
   const pets = new Map<string, "dragon" | "otter">();
   for (const entry of value.split(",")) {

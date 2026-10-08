@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { chorePets, weeklyQuests, weekOf, newlyCompleted } from "./quests.ts";
+import { chorePets, personalViews, weeklyQuests, weekOf, newlyCompleted } from "./quests.ts";
 
 test("weekly quests assign kids, use date-only due dates, and exclude tasks due outside the week", () => {
   const now = new Date(2026, 8, 29, 12);
@@ -60,4 +60,12 @@ test("pet assignments match names case-insensitively and accept only available c
   assert.deepEqual([...pets], [["ada", "dragon"], ["clio", "dragon"], ["robin", "otter"]]);
   assert.deepEqual([...chorePets("")], []);
   assert.equal(chorePets("Clio:otter").get("clio"), "otter");
+});
+
+test("personal views map each person to lower-cased, de-duplicated calendar names and skip malformed entries", () => {
+  assert.deepEqual(personalViews(" Ada : Ada, Ada School ,ada ; Clio: ; :Theo ; Bad:a:b ; Clio:Clio"), [
+    { name: "Ada", calendars: ["ada", "ada school"] },
+    { name: "Clio", calendars: ["clio"] },
+  ]);
+  assert.deepEqual(personalViews(""), []);
 });

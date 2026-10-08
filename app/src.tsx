@@ -13,8 +13,8 @@ import { coldThreshold, DayModal, eventTimeSpan, eventTitle, Month, Timeline, Tw
 import { WeatherModal } from "./weather-modal";
 import { Modal } from "./modal";
 import { DogCompanion } from "./dog";
-import { ChoreQuests } from "./chore-quests";
-import { weeklyQuests, weekOf, newlyCompleted, type NoteList, type Quest } from "./quests";
+import { ChoreQuests, pets } from "./chore-quests";
+import { personalViews, weeklyQuests, weekOf, newlyCompleted, type NoteList, type Quest } from "./quests";
 import { Countdowns } from "./countdown-list";
 import { ApplicationUpdates } from "./updates";
 import { PhotoIcon, PhotoMode, PhotoSettings } from "./photos";
@@ -58,6 +58,9 @@ const demoEvents: Omit<CalendarEvent, "id">[] = [
   { day: 6, person: "Family", tone: "family", start: 18.5, duration: 1, title: "Taco night", detail: "Maya is choosing the toppings" },
 ];
 const fakeEvents: CalendarEvent[] = demoEvents.map((event, index) => ({ ...event, id: `demo-${index}` }));
+
+const people = personalViews(import.meta.env.VITE_PERSONAL_VIEWS ?? "Ada:Ada,Ada School");
+const petImage = (name: string) => `url(/characters/${pets.get(name.toLowerCase()) ?? "dragon"}.png)`;
 
 const modes: { id: ViewMode; label: string }[] = [
   { id: "day", label: "Day" },
@@ -206,7 +209,11 @@ function App() {
   useButtonSounds();
   const [skin, setSkin] = useState(initialSkin);
   useEffect(() => { document.documentElement.dataset.skin = skin; }, [skin]);
-  const [mode, setMode] = useState<ViewMode>("week");
+  const [familyMode, setMode] = useState<ViewMode>("week");
+  const [person, setPerson] = useState<string>();
+  // A personal page is the 3-day view of that person's calendars only.
+  const personCalendars = people.find((entry) => entry.name === person)?.calendars;
+  const mode = person ? "day" : familyMode;
   const [agendaOpen, setAgendaOpen] = useState(false);
   const [anchor, setAnchor] = useState(() => new Date());
   const [selected, setSelected] = useState<CalendarEvent>();
@@ -263,7 +270,7 @@ function App() {
   }, [theme, dayKey, background, skin]);
   const dates = viewDates(anchor, mode);
   const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
-  const displayEvents: CalendarEvent[] = [...calendarEvents, ...collectionDates.map(({ date, kind }): CalendarEvent => {
+  const displayEvents: CalendarEvent[] = personCalendars ? calendarEvents.filter((event) => personCalendars.includes(event.person.toLowerCase())) : [...calendarEvents, ...collectionDates.map(({ date, kind }): CalendarEvent => {
     const [year, month, day] = date.split("-").map(Number);
     return { id: `${kind}-${date}`, day: dayDifference(new Date(year, month - 1, day), today), person: kind === "garbage" ? "City of Victoria" : "CRD", tone: "collection", start: scheduleRange.startHour, duration: 1, title: kind === "garbage" ? "Garbage & organics" : "Recycling", detail: kind === "garbage" ? "City of Victoria collection" : "CRD blue box collection", allDay: true, collection: kind };
   })];
@@ -336,7 +343,7 @@ function App() {
     const loadId = ++calendarLoadId.current;
     const range = viewDates(anchor, mode);
     const syncingTimer = window.setTimeout(() => calendarLoadId.current === loadId && setSyncStatus({ state: "syncing" }), 300);
-    const load = agendaOpen ? loadGoogleAgenda(new Date(), scheduleRange, force) : loadGoogleEvents(range[0], addDays(range.at(-1)!, 1), new Date(), scheduleRange, force);
+    const load = agendaOpen ? loadGoogleAgenda(new Date(), scheduleRange, force) : loadGoogleEvents(range[0], addDays(range.at(-1)!, 1), new Date(), scheduleRange, force, personCalendars);
     load.then((loaded) => {
       if (calendarLoadId.current === loadId) {
         if (agendaOpen) setAgendaCalendars(loaded as AgendaCalendar[]);
@@ -358,7 +365,7 @@ function App() {
       window.clearInterval(timer);
       cancel();
     };
-  }, [connected, paused, anchor, mode, agendaOpen, dayKey]);
+  }, [connected, paused, anchor, mode, agendaOpen, person, dayKey]);
 
   const connectGoogle = () => {
     try { openGoogle(apiUrl); }
@@ -417,10 +424,12 @@ function App() {
   return (
     <main>
       <header>
-        <div><p className="eyebrow">Family calendar</p><h1>{agendaOpen ? "What’s next" : title}</h1></div>
+        <div><p className="eyebrow">{person && !agendaOpen ? `${person}’s page` : "Family calendar"}</p><h1>{agendaOpen ? "What’s next" : title}</h1></div>
         <div className="mode-picker" role="group" aria-label="Calendar view">
-          {modes.map((item) => <button className={!agendaOpen && mode === item.id ? "active" : ""} aria-label={item.label} title={item.label} aria-pressed={!agendaOpen && mode === item.id} onClick={() => { setAgendaOpen(false); setMode(item.id); }} key={item.id}><CalendarModeIcon mode={item.id} /></button>)}
-          <button className={agendaOpen ? "active" : ""} aria-label="Agenda" title="Agenda — What’s next" aria-pressed={agendaOpen} onClick={() => setAgendaOpen(true)}><CalendarModeIcon mode="agenda" /></button>
+          {modes.map((item) => <button className={!agendaOpen && !person && mode === item.id ? "active" : ""} aria-label={item.label} title={item.label} aria-pressed={!agendaOpen && !person && mode === item.id} onClick={() => { setAgendaOpen(false); setPerson(undefined); setMode(item.id); }} key={item.id}><CalendarModeIcon mode={item.id} /></button>)}
+          <button className={agendaOpen ? "active" : ""} aria-label="Agenda" title="Agenda — What’s next" aria-pressed={agendaOpen} onClick={() => { setPerson(undefined); setAgendaOpen(true); }}><CalendarModeIcon mode="agenda" /></button>
+          {people.length > 0 && <span className="mode-divider" aria-hidden="true" />}
+          {people.map(({ name }) => <button className={!agendaOpen && person === name ? "active" : ""} aria-label={`${name}’s page`} title={`${name}’s page`} aria-pressed={!agendaOpen && person === name} onClick={() => { setAgendaOpen(false); setPerson(name); setAnchor(new Date()); }} key={name}><span className="person-pet" style={{ backgroundImage: petImage(name) }} /></button>)}
         </div>
         <button className="weather" aria-label="Open weather details" aria-haspopup="dialog" onClick={() => setWeatherOpen(true)}>
           <DateTime now={now} />
@@ -444,7 +453,7 @@ function App() {
       </header>
 
       <div className={`workspace ${notesOpen ? "" : "notes-hidden"}`}>
-        <div className="calendar-pane" onTouchStart={startSwipe} onTouchEnd={finishSwipe} onTouchCancel={() => { swipeStart.current = undefined; }}>
+        <div className={`calendar-pane ${person && !agendaOpen ? "personal" : ""}`} style={person ? { "--person-pet": petImage(person) } as React.CSSProperties : undefined} onTouchStart={startSwipe} onTouchEnd={finishSwipe} onTouchCancel={() => { swipeStart.current = undefined; }}>
           {agendaOpen ? <WhatsNext calendars={agendaCalendars ?? (connected ? [] : agendaColumns(fakeEvents, hourOf(now)))} now={now} onSelect={setSelected} /> : mode === "month" ? <Month dates={dates} anchor={anchor} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : mode === "twoWeek" ? <TwoWeek dates={dates} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : <Timeline dates={dates} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} focus={mode === "day" ? anchor : undefined} onSelect={setSelected} onOpenDay={setOpenDay} />}
         </div>
         {notesOpen && <div className="notes-frame"><Notes onCelebrate={name => setCelebration(previous => ({ names: name, id: (previous?.id ?? 0) + 1 }))} onClose={() => setNotesOpen(false)} quests={quests} now={now} lists={taskLists} error={tasksError} reconnect={connectGoogle} apiUrl={apiUrl} connected={connected} refresh={countdownRefresh} /></div>}
