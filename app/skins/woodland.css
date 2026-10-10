@@ -217,6 +217,14 @@
 [data-skin="woodland"] [data-icon="snow"] { --icon: url("/skins/woodland/icons/snow.svg"); }
 [data-skin="woodland"] [data-icon="storm"] { --icon: url("/skins/woodland/icons/storm.svg"); }
 [data-skin="woodland"] [data-icon="cold"] { --icon: url("/skins/woodland/icons/cold.svg"); }
+[data-skin="woodland"] [data-icon="sun-night"] { --icon: url("/skins/woodland/icons/sun-night.svg"); }
+[data-skin="woodland"] [data-icon="partly-night"] { --icon: url("/skins/woodland/icons/partly-night.svg"); }
+[data-skin="woodland"] [data-icon="cloud-night"] { --icon: url("/skins/woodland/icons/cloud-night.svg"); }
+[data-skin="woodland"] [data-icon="fog-night"] { --icon: url("/skins/woodland/icons/fog-night.svg"); }
+[data-skin="woodland"] [data-icon="rain-night"] { --icon: url("/skins/woodland/icons/rain-night.svg"); }
+[data-skin="woodland"] [data-icon="snow-night"] { --icon: url("/skins/woodland/icons/snow-night.svg"); }
+[data-skin="woodland"] [data-icon="storm-night"] { --icon: url("/skins/woodland/icons/storm-night.svg"); }
+[data-skin="woodland"] [data-icon="cold-night"] { --icon: url("/skins/woodland/icons/cold-night.svg"); }
 
 [data-skin="woodland"] main { position: relative; padding-bottom: 7.5rem; }
 [data-skin="woodland"] .notes { min-height: 0; }

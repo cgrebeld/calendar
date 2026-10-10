@@ -95,7 +95,7 @@ test("pickup events come before other all-day events in crowded views", () => {
   assert.deepEqual(orderEvents([regular, pickup]), [pickup, regular]);
 });
 import { defaultScheduleRange, hourLabels, hourOf, hourOffset, parseScheduleRange, placeRows, timeMarkerOffset, titleLines } from "./schedule.ts";
-import { dateKey, fakeForecast, weatherChartScale, weatherDescription, weatherGlyph, weatherIcon, windStrength, type DayWeather } from "./weather.ts";
+import { dateKey, fakeForecast, isNight, reportTime, weatherChartScale, weatherDescription, weatherGlyph, weatherIcon, windStrength, type DayWeather } from "./weather.ts";
 import { backgroundFor, defaultThemeSchedule, parseSkin, parseThemeMode, parseThemeSchedule, resolveTheme, scheduleFromSolar } from "./theme.ts";
 
 const publishedMoonPhases: [number, MoonPhase, string][] = [
@@ -391,6 +391,16 @@ test("weatherGlyph cold override loses to precipitation", () => {
   const day = (code: number) => ({ date: "2026-09-12", code, high: -2, low: -8 });
   assert.equal(weatherGlyph(day(0)), "🥶");
   assert.equal(weatherGlyph(day(61)), "🌧️");
+});
+
+test("isNight compares report-local time with that day's sunrise and sunset", () => {
+  const report = { current: { temperature: 0, code: 0, windSpeed: 0 }, days: [{ date: "2026-09-11", code: 0, high: 1, low: 0, sunrise: "06:46", sunset: "19:31" }], units: { temperature: "°C", windSpeed: "kt" }, fetchedAt: "", timezone: "America/Chicago" };
+  assert.equal(isNight(report, "2026-09-11T06:00"), true);
+  assert.equal(isNight(report, "2026-09-11T12:00"), false);
+  assert.equal(isNight(report, "2026-09-11T19:31"), true);
+  assert.equal(isNight(report, "2026-09-12T23:00"), false);
+  assert.equal(reportTime(report, new Date("2026-09-12T02:05:00Z")), "2026-09-11T21:05");
+  assert.equal(weatherGlyph({ date: "", code: 0, high: 10, low: 5 }, 0, true), "🌙");
 });
 
 test("weatherIcon keys every code family", () => {

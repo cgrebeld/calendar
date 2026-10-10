@@ -3,7 +3,7 @@ import { writeFileSync } from "node:fs";
 
 const OUT = new URL("../public/skins/woodland/icons/", import.meta.url);
 const SIZE = 24;
-const P = {
+const DAY = {
   sunEdge: "#80501e", sunHi: "#fff0a6", sun: "#f7c85d", sunShade: "#d89236",
   cloudEdge: "#52616b", cloudHi: "#ffffff", cloud: "#f0f1e8", cloudShade: "#b9c6c7",
   stormEdge: "#303e51", stormHi: "#9aaac4", storm: "#71829d", stormShade: "#4c5d78",
@@ -11,6 +11,17 @@ const P = {
   frostEdge: "#427189", frostHi: "#ffffff", frost: "#a9d9e8",
   fogEdge: "#647681", fogHi: "#dce3dc", fog: "#aabbb9",
 };
+// Night keeps the silhouettes but cools every tone toward moonlight.
+const NIGHT = {
+  ...DAY,
+  cloudEdge: "#2c3a52", cloudHi: "#c9d3e6", cloud: "#97a6c0", cloudShade: "#6d7d9b",
+  stormEdge: "#1b2333", stormHi: "#6f7e99", storm: "#4f5d78", stormShade: "#38445c",
+  frostHi: "#e8f4ff", frost: "#8fbfdc",
+  fogEdge: "#46566a", fogHi: "#b4c0cf", fog: "#7f90a6",
+  moonEdge: "#5e5a3e", moonHi: "#fffbe0", moon: "#ece5b4", moonShade: "#c7bd82",
+  star: "#fff6c0",
+};
+let P = DAY;
 
 function canvas() {
   const px = new Map();
@@ -40,8 +51,8 @@ const cloudRows = [
   [[1, 22]], [[0, 23]], [[0, 23]], [[0, 23]], [[0, 23]],
   [[1, 22]], [[2, 21]], [[4, 19]],
 ];
-const whiteCloud = { edge: P.cloudEdge, hi: P.cloudHi, base: P.cloud, shade: P.cloudShade };
-const darkCloud = { edge: P.stormEdge, hi: P.stormHi, base: P.storm, shade: P.stormShade };
+const whiteCloud = () => ({ edge: P.cloudEdge, hi: P.cloudHi, base: P.cloud, shade: P.cloudShade });
+const darkCloud = () => ({ edge: P.stormEdge, hi: P.stormHi, base: P.storm, shade: P.stormShade });
 function cloud(c, y, tones) { silhouette(c, cloudRows, 0, y, tones); }
 
 function sun(c, cx = 12, cy = 12, small = false) {
@@ -58,6 +69,23 @@ function sun(c, cx = 12, cy = 12, small = false) {
     c.set(cx + dx, cy + dy, P.sun);
   }
   silhouette(c, rows, cx - r, cy - r + (small ? 0 : 1), { edge: P.sunEdge, hi: P.sunHi, base: P.sun, shade: P.sunShade });
+}
+
+// Crescent: a disc with an offset disc carved out of its upper right.
+function moon(c, cx, cy, r) {
+  const inside = (x, y) => (x - cx) ** 2 + (y - cy) ** 2 <= r * r && (x - cx - r * .55) ** 2 + (y - cy + r * .45) ** 2 > (r * .8) ** 2;
+  for (let y = cy - r; y <= cy + r; y++) for (let x = cx - r; x <= cx + r; x++) {
+    if (!inside(x, y)) continue;
+    const edge = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => !inside(x + dx, y + dy));
+    c.set(x, y, edge ? P.moonEdge : x - cx < -r * .45 && y - cy < 0 ? P.moonHi : y - cy > r * .45 ? P.moonShade : P.moon);
+  }
+}
+
+function stars(c, points) {
+  for (const [x, y] of points) {
+    c.set(x, y, P.star);
+    if (!c.px.has(`${x + 1},${y}`)) c.set(x + 1, y, P.star);
+  }
 }
 
 function rain(c) {
@@ -137,17 +165,28 @@ function svg(c) {
 
 const icons = {
   sun: c => sun(c),
-  partly: c => { sun(c, 8, 8, true); cloud(c, 10, whiteCloud); },
-  cloud: c => cloud(c, 6, whiteCloud),
+  partly: c => { sun(c, 8, 8, true); cloud(c, 10, whiteCloud()); },
+  cloud: c => cloud(c, 6, whiteCloud()),
   fog,
-  rain: c => { cloud(c, 1, darkCloud); rain(c); },
-  snow: c => { cloud(c, 1, darkCloud); snow(c); },
-  storm: c => { cloud(c, 1, darkCloud); storm(c); },
+  rain: c => { cloud(c, 1, darkCloud()); rain(c); },
+  snow: c => { cloud(c, 1, darkCloud()); snow(c); },
+  storm: c => { cloud(c, 1, darkCloud()); storm(c); },
   cold,
 };
+const nightIcons = {
+  ...icons,
+  sun: c => { moon(c, 11, 12, 9); stars(c, [[19, 3], [21, 10], [3, 3]]); },
+  partly: c => { moon(c, 8, 7, 6); stars(c, [[18, 2], [21, 6]]); cloud(c, 10, whiteCloud()); },
+  cloud: c => { stars(c, [[3, 2], [11, 0], [19, 3]]); cloud(c, 6, whiteCloud()); },
+  fog: c => { stars(c, [[20, 0], [1, 6]]); fog(c); },
+  cold: c => { stars(c, [[2, 2], [21, 21]]); cold(c); },
+};
 
-for (const [name, draw] of Object.entries(icons)) {
-  const c = canvas();
-  draw(c);
-  writeFileSync(new URL(`${name}.svg`, OUT), svg(c));
+for (const [palette, set, suffix] of [[DAY, icons, ""], [NIGHT, nightIcons, "-night"]]) {
+  P = palette;
+  for (const [name, draw] of Object.entries(set)) {
+    const c = canvas();
+    draw(c);
+    writeFileSync(new URL(`${name}${suffix}.svg`, OUT), svg(c));
+  }
 }

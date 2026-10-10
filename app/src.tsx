@@ -4,7 +4,7 @@ import { createRoot } from "react-dom/client";
 import { addDays, moveAnchor, swipeDirection, viewDates, viewTitle, type ViewMode } from "./dates";
 import { agendaColumns, dayDifference, loadGoogleAgenda, loadGoogleEvents, type AgendaCalendar, type CalendarEvent } from "./google-calendar";
 import { hourOf, scheduleRangeFromEnv } from "./schedule";
-import { dateKey, fakeForecast, loadWeather, weatherGlyph, weatherIcon, type DayWeather, type WeatherReport } from "./weather";
+import { dateKey, fakeForecast, isNight, loadWeather, reportTime, weatherGlyph, weatherIcon, type DayWeather, type WeatherReport } from "./weather";
 import { backgroundFor, parseSkin, parseThemeMode, parseThemeSchedule, resolveTheme, scheduleFromSolar, type ThemeMode, type ThemeName } from "./theme";
 import "./style.css";
 import { WoodlandBackground } from "./skins/woodland";
@@ -417,6 +417,7 @@ function App() {
   const title = viewTitle(dates, mode, anchor);
   const todayWeather = forecast.get(dateKey(today));
   const currentWeather = weatherNow ? { date: dayKey, code: weatherNow.current.code, high: weatherNow.current.temperature, low: weatherNow.current.temperature } : todayWeather;
+  const nightNow = isNight(weatherNow, reportTime(weatherNow, now));
   const googleStatus = connected
     ? syncStatus.state === "syncing" ? "Google Calendar connected; syncing" : syncStatus.state === "error" ? `Google Calendar connected; sync error: ${syncStatus.message}; press to retry` : "Google Calendar connected; press to sync"
     : syncStatus.state === "error" ? `Google Calendar disconnected: ${syncStatus.message}` : "Google Calendar disconnected; press to connect";
@@ -433,7 +434,7 @@ function App() {
         </div>
         <button className="weather" aria-label="Open weather details" aria-haspopup="dialog" onClick={() => setWeatherOpen(true)}>
           <DateTime now={now} />
-          <span className="weather-icon" data-icon={currentWeather ? weatherIcon(currentWeather, coldThreshold) : "sun"}>{currentWeather ? weatherGlyph(currentWeather, coldThreshold) : "☀"}</span>
+          <span className="weather-icon" data-icon={`${currentWeather ? weatherIcon(currentWeather, coldThreshold) : "sun"}${nightNow ? "-night" : ""}`}>{currentWeather ? weatherGlyph(currentWeather, coldThreshold, nightNow) : "☀"}</span>
           {weatherNow && <span className="weather-stat"><small>Feels like</small><strong>{Math.round(weatherNow.current.details?.find((detail) => detail.label === "Feels like")?.value ?? weatherNow.current.temperature)}°</strong></span>}
           <span className="weather-stat"><small>High</small><strong>{Math.round(forecast.get(dateKey(today))?.high ?? 16)}°</strong></span>
           <span className="weather-stat"><small>Wind</small><strong>{Math.round(weatherNow?.current.windSpeed ?? forecast.get(dateKey(today))?.windMax ?? 13)} <em>{weatherNow?.units.windSpeed ?? "kt"}</em></strong></span>

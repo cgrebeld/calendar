@@ -24,10 +24,22 @@ export function weatherDescription(code: number): string {
   return descriptions[code] ?? "Conditions unavailable";
 }
 
-export function upcomingHours(report: WeatherReport | undefined, now = new Date()): HourWeather[] {
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: report?.timezone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" }).formatToParts(now);
+/** `YYYY-MM-DDTHH:MM` in the report's timezone, matching the API's hour and sunrise strings. */
+export function reportTime(report: WeatherReport | undefined, now = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: report?.timezone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(now);
   const part = (type: string) => parts.find((entry) => entry.type === type)!.value;
-  const start = `${part("year")}-${part("month")}-${part("day")}T${part("hour")}:00`;
+  return `${part("year")}-${part("month")}-${part("day")}T${part("hour")}:${part("minute")}`;
+}
+
+export function isNight(report: WeatherReport | undefined, time: string): boolean {
+  const day = report?.days.find((entry) => entry.date === time.slice(0, 10));
+  if (!day?.sunrise || !day.sunset) return false;
+  const clock = time.slice(11, 16);
+  return clock < day.sunrise || clock >= day.sunset;
+}
+
+export function upcomingHours(report: WeatherReport | undefined, now = new Date()): HourWeather[] {
+  const start = `${reportTime(report, now).slice(0, 13)}:00`;
   return (report?.hours ?? []).filter((hour) => hour.time >= start && Number.isFinite(hour.temperature)).sort((a, b) => a.time.localeCompare(b.time)).slice(0, 24);
 }
 
@@ -81,8 +93,9 @@ export function weatherIcon(day: DayWeather, coldThreshold = 0): WeatherIcon {
 
 const glyphs: Record<WeatherIcon, string> = { sun: "☀️", partly: "🌤️", cloud: "☁️", fog: "🌫️", rain: "🌧️", snow: "❄️", storm: "⛈️", cold: "🥶" };
 
-export function weatherGlyph(day: DayWeather, coldThreshold = 0): string {
-  return glyphs[weatherIcon(day, coldThreshold)];
+export function weatherGlyph(day: DayWeather, coldThreshold = 0, night = false): string {
+  const icon = weatherIcon(day, coldThreshold);
+  return night && (icon === "sun" || icon === "partly") ? "🌙" : glyphs[icon];
 }
 
 export function fakeForecast(today: Date): Map<string, DayWeather> {
