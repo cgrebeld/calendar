@@ -28,7 +28,7 @@ export function ChoreQuests({ quests, now, onCelebrate }: { quests: Quest[]; now
       const complete = challenges.length > 0 && done === challenges.length;
       const hero = pets.get(name.toLowerCase()) ?? "dragon";
       return <section className={`kid-quest ${complete ? "quest-won" : ""}`} key={name} aria-label={`${name}'s weekly quest`}>
-        <header><div><h3>{name}’s Quest</h3><small>{hero === "otter" ? "Pebble the otter" : "Moss the dragon"}</small></div><b aria-label={`${done} of ${challenges.length} challenges complete`}>{done}<span>/{challenges.length}</span></b></header>
+        <header><div><h3>{name}’s Quest</h3><small>{hero === "otter" ? "Otty the otter" : "Moss the dragon"}</small></div><b aria-label={`${done} of ${challenges.length} challenges complete`}>{done}<span>/{challenges.length}</span></b></header>
         <div className="quest-landscape">
           <span className="quest-cloud" aria-hidden="true">☁</span><span className="quest-spark" aria-hidden="true">✦</span>
           <span className="quest-chest" aria-hidden="true" />
