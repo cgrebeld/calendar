@@ -1,3 +1,4 @@
+import { playBark } from "./dog-audio";
 import { reportError } from "./client-log";
 import { useEffect, useRef, useState } from "react";
 import "./dog.css";
@@ -9,18 +10,8 @@ export function DogCompanion({ apiUrl, celebration }: { apiUrl: string; celebrat
   const speechTimer = useRef<number>(undefined);
   const dogTimer = useRef<number>(undefined);
   const bark = useRef<HTMLAudioElement>(null);
-  const barkPending = useRef(false);
-  useEffect(() => {
-    const audio = bark.current;
-    return () => {
-      barkPending.current = false;
-      if (audio) {
-        audio.onended = null;
-        audio.onerror = null;
-        audio.pause();
-      }
-    };
-  }, []);
+  const stopAudio = useRef<(() => void) | undefined>(undefined);
+  useEffect(() => () => stopAudio.current?.(), []);
   useEffect(() => {
     let disposed = false, loading = false, nextFetch = 0;
     let timer: number;
@@ -57,24 +48,18 @@ export function DogCompanion({ apiUrl, celebration }: { apiUrl: string; celebrat
   }, [apiUrl]);
   const cheer = celebration && `Hidy Ho, ${celebration.names}! Every challenge conquered. You’re a woodland legend!`;
   const playDog = () => {
-    if (dogPlaying || barkPending.current) return;
+    stopAudio.current?.();
     setSpeechVisible(true);
     window.clearTimeout(speechTimer.current);
     speechTimer.current = window.setTimeout(() => setSpeechVisible(false), 10000);
     setDogPlaying(true);
-    barkPending.current = true;
-    const afterBark = () => {
-      barkPending.current = false;
-    };
-    const audio = bark.current;
-    if (audio) {
-      audio.currentTime = 0;
-      audio.onended = afterBark;
-      audio.onerror = afterBark;
-      void audio.play().catch(afterBark);
-    } else afterBark();
+    if (bark.current) stopAudio.current = playBark(bark.current, cheer || undefined);
+    window.clearTimeout(dogTimer.current);
     dogTimer.current = window.setTimeout(() => setDogPlaying(false), 4000);
   };
+  useEffect(() => {
+    if (celebration) playDog();
+  }, [celebration?.id]);
   useEffect(() => () => {
     window.clearTimeout(dogTimer.current);
     window.clearTimeout(speechTimer.current);
@@ -82,7 +67,7 @@ export function DogCompanion({ apiUrl, celebration }: { apiUrl: string; celebrat
   return <aside className={`dog-companion ${cheer ? "dog-celebrating" : ""}`} aria-label="Woodland companion">
     <audio ref={bark} src="/audio/bark.m4a" preload="auto" />
     {<div className="dog-announcement" role="status">{cheer ? <div className="dog-bubble" key={celebration?.id}><strong>★ Quest complete! ★</strong><p>{cheer}</p><span className="dog-stars" aria-hidden="true">✦ ★ ✧ ★ ✦</span></div> : speechVisible && quote ? <div className="dog-bubble"><blockquote>{quote.text}</blockquote></div> : null}</div>}
-    <button key={celebration?.id} className="companion-dog" type="button" onClick={playDog} aria-label="Play bark and show the quote of the day">
+    <button key={celebration?.id} className="companion-dog" type="button" onClick={() => { if (!dogPlaying) playDog(); }} aria-label={cheer ? "Play bark and read congratulations" : "Play bark and show the quote of the day"}>
       <img src={(dogPlaying || (cheer && !window.matchMedia("(prefers-reduced-motion: reduce)").matches)) ? "/skins/woodland/dog-loop.gif" : "/skins/woodland/dog-first.png"} alt="A cheerful dog" width="380" height="620" />
     </button>
   </aside>;
