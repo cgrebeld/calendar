@@ -5,7 +5,7 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 apt-get update
-apt-get install -y pipewire-audio pulseaudio-utils alsa-utils
+apt-get install -y pipewire-audio pulseaudio-utils alsa-utils speech-dispatcher speech-dispatcher-espeak-ng libspeechd2
 kiosk_uid=$(id -u kiosk)
 kiosk_run=(runuser -u kiosk -- env LC_ALL=C XDG_RUNTIME_DIR="/run/user/$kiosk_uid" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$kiosk_uid/bus")
 "${kiosk_run[@]}" systemctl --user daemon-reload
@@ -48,4 +48,5 @@ print(pactl('get-sink-volume', name), end='')
 print(pactl('get-sink-mute', name), end='')
 subprocess.run(['paplay', '/usr/share/sounds/alsa/Front_Center.wav'], check=True)
 PY
+"${kiosk_run[@]}" spd-say --wait 'Calendar speech is ready.'
 printf '\nHDMI audio configured. Reboot, then tap the dog to test Chromium audio.\n'

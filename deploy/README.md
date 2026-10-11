@@ -231,14 +231,29 @@ sudo bash /opt/calendar/setup-audio.sh
 ```
 
 [setup-audio.sh](setup-audio.sh) installs Debian's `pipewire-audio`,
-`pulseaudio-utils`, and `alsa-utils`; starts and enables the kiosk user's audio
+`pulseaudio-utils`, `alsa-utils`, `speech-dispatcher`,
+`speech-dispatcher-espeak-ng`, and `libspeechd2`; starts and enables the kiosk user's audio
 services; selects an available HDMI stereo profile and the single connected HDMI
-sink; makes it the default; unmutes it at 30%; and plays a test voice. WirePlumber
+sink; makes it the default; unmutes it at 30%; and plays recorded and synthesized test voices. WirePlumber
 persists the selection. The helper targets this single-monitor installation and
 stops if it cannot identify one connected HDMI sink.
 
 Unmute and raise the monitor's own volume using its buttons. After the script
-succeeds, reboot and tap the dog. Confirm the bark is audible through the monitor.
+succeeds, reboot and tap the dog. Confirm the bark is audible through the monitor,
+then trigger a quest celebration and confirm the congratulations follow it.
+Chromium needs the bundled launcher's `--enable-speech-dispatcher` flag to use
+Linux voices; recorded bark playback alone does not verify speech synthesis.
+
+For an existing kiosk, install the updated launcher and rerun audio setup once:
+
+```sh
+sudo install -o kiosk -g kiosk -m 755 /opt/calendar/kiosk-autostart /home/kiosk/.config/labwc/autostart
+sudo bash /opt/calendar/setup-audio.sh
+sudo reboot
+```
+
+Use the updated files from this checkout or a release containing this fix.
+Application updates install the host scripts but do not install Debian packages.
 
 To inspect the kiosk audio session from an administrator console:
 
