@@ -6,8 +6,10 @@ import tarfile
 import tempfile
 import time
 import unittest
+import subprocess
+from types import SimpleNamespace
 from unittest.mock import patch
-from updater import HOST_FILES, Updater, validate_manifest, version
+from updater import audio_volume, HOST_FILES, Updater, validate_manifest, version
 
 
 def manifest(number):
@@ -15,6 +17,43 @@ def manifest(number):
                 hostFilesSha256="a" * 64,
                 webImage=f"ghcr.io/cgrebeld/calendar-web@sha256:{number:064x}",
                 apiImage=f"ghcr.io/cgrebeld/calendar-api@sha256:{number:064x}")
+
+
+class AudioTest(unittest.TestCase):
+    @patch("updater.pwd.getpwnam", return_value=SimpleNamespace(pw_uid=1001))
+    @patch("updater.subprocess.check_output")
+    def test_read_and_set_kiosk_volume(self, run, user):
+        run.return_value = "Volume: 0.30 [MUTED]\n"
+        self.assertEqual(audio_volume(), {"enabled": True, "volume": 30, "muted": True})
+        self.assertEqual(run.call_args.args[0], ["runuser", "-u", "kiosk", "--", "env",
+                         "XDG_RUNTIME_DIR=/run/user/1001", "LC_ALL=C", "wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"])
+        run.reset_mock()
+        run.side_effect = ["", "", "Volume: 0.80\n"]
+        self.assertEqual(audio_volume({"volume": 80, "muted": False}),
+                         {"enabled": True, "volume": 80, "muted": False})
+        self.assertEqual([c.args[0][-3:] for c in run.call_args_list[:2]],
+                         [["set-volume", "@DEFAULT_AUDIO_SINK@", "80%"], ["set-mute", "@DEFAULT_AUDIO_SINK@", "0"]])
+        self.assertTrue(all(c.kwargs["timeout"] == 1 for c in run.call_args_list))
+
+    @patch("updater.subprocess.check_output")
+    def test_reject_invalid_volume_before_running_commands(self, run):
+        for volume in (-1, 101, True, 3.5, "80", None):
+            with self.assertRaises(ValueError):
+                audio_volume({"volume": volume, "muted": False})
+        for body in ({}, [], {"volume": 30, "muted": "false"}):
+            with self.assertRaises(ValueError):
+                audio_volume(body)
+        run.assert_not_called()
+
+    @patch("updater.pwd.getpwnam", return_value=SimpleNamespace(pw_uid=1001))
+    @patch("updater.subprocess.check_output")
+    def test_audio_failures_are_not_reported_as_success(self, run, user):
+        run.return_value = "no sink"
+        with self.assertRaises(RuntimeError):
+            audio_volume()
+        run.side_effect = subprocess.TimeoutExpired("wpctl", 1)
+        with self.assertRaises(subprocess.TimeoutExpired):
+            audio_volume()
 
 
 class UpdateTest(unittest.TestCase):

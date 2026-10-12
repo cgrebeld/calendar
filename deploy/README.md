@@ -288,6 +288,11 @@ sudo systemctl status getty@tty1 calendar-updater --no-pager
 - For silent HDMI, check monitor mute/volume, `wpctl status` in the kiosk session,
   and `cat /proc/asound/card*/eld*`. Confirm the default sink is HDMI, not analog.
 
+Settings → Volume reads and adjusts the kiosk’s default audio output (0–100%) and mute state.
+Press **Apply volume** to save a change; this controls the wall even when Settings is opened
+on a laptop. It requires the release’s host service and an active kiosk audio session.
+The audio setup script initially sets HDMI to 30%.
+
 ## Diagnosing failures
 
 Start with the status snapshot and recent API logs. On the Debian box:

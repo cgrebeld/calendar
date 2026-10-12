@@ -5,6 +5,7 @@ import hashlib
 import io
 import json
 import os
+import pwd
 from pathlib import Path
 import re
 import shutil
@@ -370,9 +371,31 @@ class Updater:
         threading.Thread(target=worker, daemon=True).start()
 
 
+def audio_volume(body=None):
+    if body is not None and (not isinstance(body, dict) or type(body.get("volume")) is not int
+                             or not 0 <= body["volume"] <= 100 or type(body.get("muted")) is not bool):
+        raise ValueError("Expected volume from 0 to 100 and a muted boolean")
+    uid = pwd.getpwnam("kiosk").pw_uid
+    command = ["runuser", "-u", "kiosk", "--", "env", f"XDG_RUNTIME_DIR=/run/user/{uid}", "LC_ALL=C", "wpctl"]
+
+    def audio(*args):
+        return subprocess.check_output(command + list(args), text=True, stderr=subprocess.PIPE, timeout=1)
+
+    if body is not None:
+        audio("set-volume", "@DEFAULT_AUDIO_SINK@", f'{body["volume"]}%')
+        audio("set-mute", "@DEFAULT_AUDIO_SINK@", "1" if body["muted"] else "0")
+    output = audio("get-volume", "@DEFAULT_AUDIO_SINK@").strip()
+    match = re.fullmatch(r"Volume: ([0-9]+(?:\.[0-9]+)?)( \[MUTED\])?", output)
+    if not match:
+        raise RuntimeError("Unexpected audio volume response")
+    return {"enabled": True, "volume": round(float(match[1]) * 100), "muted": bool(match[2])}
+
+
 def serve(updater, socket_path):
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
+            if self.path == "/volume":
+                return self.volume()
             if self.path != "/status":
                 return self.send_error(404)
             self.reply(200, updater.public())
@@ -383,10 +406,22 @@ def serve(updater, socket_path):
                 if not 0 < length <= 1024:
                     raise ValueError("Invalid request size")
                 body = json.loads(self.rfile.read(length))
+                if self.path == "/volume":
+                    if body is None:
+                        raise ValueError("Expected volume and muted")
+                    return self.volume(body)
                 updater.dispatch(self.path.removeprefix("/"), body.get("version"))
                 self.reply(202, updater.public())
             except (ValueError, AttributeError) as error:
                 self.reply(409, {"error": str(error)})
+
+        def volume(self, body=None):
+            try:
+                self.reply(200, audio_volume(body))
+            except ValueError as error:
+                self.reply(400, {"error": str(error)})
+            except (KeyError, OSError, subprocess.SubprocessError, RuntimeError):
+                self.reply(503, {"error": "Kiosk audio unavailable. Check the kiosk audio session."})
 
         def reply(self, status, body):
             data = json.dumps(body).encode()

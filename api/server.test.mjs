@@ -56,24 +56,25 @@ test("calendar events fetch named calendars even when hidden in Google, in the g
   assert.deepEqual(selected.map(({ calendar }) => calendar.summary), ["Family", "Ada"]);
 });
 
-test("update proxy forwards only the approved operation through its Unix socket", async () => {
+for (const operation of ["install", "volume"]) test(`host proxy forwards ${operation} through its Unix socket`, async () => {
+  const payload = operation === "volume" ? { volume: 80, muted: false } : { version: "1.2.3" };
   const directory = await mkdtemp("/tmp/calendar-update-");
   const socketPath = `${directory}/control.sock`;
   const host = createServer(async (request, response) => {
     let body = "";
     for await (const chunk of request) body += chunk;
-    assert.equal(request.url, "/install");
-    assert.deepEqual(JSON.parse(body), { version: "1.2.3" });
+    assert.equal(request.url, `/${operation}`);
+    assert.deepEqual(JSON.parse(body), payload);
     response.writeHead(202, { "content-type": "application/json" });
     response.end(JSON.stringify({ enabled: true, busy: true }));
   });
   try {
     host.listen(socketPath);
     await once(host, "listening");
-    const request = Object.assign(Readable.from(['{"version":"1.2.3"}']), {
+    const request = Object.assign(Readable.from([JSON.stringify(payload)]), {
       method: "POST", headers: { origin: "http://wall:8080", "content-type": "application/json" },
     });
-    assert.deepEqual(await updateRequest(request, "/api/updates/install", ["http://wall:8080"], socketPath), {
+    assert.deepEqual(await updateRequest(request, `/api/updates/${operation}`, ["http://wall:8080"], socketPath), {
       status: 202, body: { enabled: true, busy: true },
     });
   } finally {
@@ -89,6 +90,7 @@ test("update controls are disabled in development and reject untrusted mutations
   assert.deepEqual(await updateRequest(req(), "/api/updates/install", [], ""), { status: 200, body: { enabled: false } });
   const origins = ["http://wall:8080"];
   assert.equal((await updateRequest(req("{}", "http://evil.test"), "/api/updates/install", origins, "/missing.sock")).status, 403);
+  assert.equal((await updateRequest(req("{}", "http://evil.test"), "/api/updates/volume", origins, "/missing.sock")).status, 403);
   assert.equal((await updateRequest(req(), "/api/updates/delete", origins, "/missing.sock")).status, 405);
   assert.equal((await updateRequest(req("x".repeat(1025)), "/api/updates/install", origins, "/missing.sock")).status, 413);
   assert.equal((await updateRequest(req("not json"), "/api/updates/install", origins, "/missing.sock")).status, 400);

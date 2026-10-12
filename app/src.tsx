@@ -1,3 +1,4 @@
+import { VolumeSettings } from "./volume";
 import { reportError, installErrorReporting } from "./client-log";
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
@@ -493,6 +494,7 @@ function App() {
             <option value="woodland">Woodland</option>
           </select></label>
         </section>
+        {settingsOpen && <VolumeSettings apiUrl={apiUrl} />}
         <PhotoSettings apiUrl={apiUrl} open={settingsOpen} />
         <ApplicationUpdates apiUrl={apiUrl} onAvailableChange={setAvailableUpdate} />
         <div className="settings-footer"><button onClick={() => settingsDialog.current?.close()}>Close</button></div>
