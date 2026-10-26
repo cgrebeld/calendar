@@ -2,7 +2,7 @@ import { VolumeSettings } from "./volume";
 import { reportError, installErrorReporting } from "./client-log";
 import React, { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { addDays, moveAnchor, swipeDirection, viewDates, viewTitle, type ViewMode } from "./dates";
+import { addDays, moveAnchor, parseSchoolWeeks, swipeDirection, viewDates, viewTitle, type ViewMode } from "./dates";
 import { agendaColumns, dayDifference, loadGoogleAgenda, loadGoogleEvents, type AgendaCalendar, type CalendarEvent } from "./google-calendar";
 import { hourOf, scheduleRangeFromEnv } from "./schedule";
 import { dateKey, fakeForecast, isNight, loadWeather, reportTime, weatherGlyph, weatherIcon, type DayWeather, type WeatherReport } from "./weather";
@@ -61,6 +61,7 @@ const demoEvents: Omit<CalendarEvent, "id">[] = [
 const fakeEvents: CalendarEvent[] = demoEvents.map((event, index) => ({ ...event, id: `demo-${index}` }));
 
 const people = personalViews(import.meta.env.VITE_PERSONAL_VIEWS ?? "Ada:Ada,Ada School");
+const schoolWeeks = parseSchoolWeeks(import.meta.env.VITE_SCHOOL_WEEKS);
 const petImage = (name: string) => `url(/characters/${pets.get(name.toLowerCase()) ?? "dragon"}.png)`;
 
 const modes: { id: ViewMode; label: string }[] = [
@@ -456,7 +457,7 @@ function App() {
 
       <div className={`workspace ${notesOpen ? "" : "notes-hidden"}`}>
         <div className={`calendar-pane ${person && !agendaOpen ? "personal" : ""}`} style={person ? { "--person-pet": petImage(person) } as React.CSSProperties : undefined} onTouchStart={startSwipe} onTouchEnd={finishSwipe} onTouchCancel={() => { swipeStart.current = undefined; }}>
-          {agendaOpen ? <WhatsNext calendars={agendaCalendars ?? (connected ? [] : agendaColumns(fakeEvents, hourOf(now)))} now={now} onSelect={setSelected} /> : mode === "month" ? <Month dates={dates} anchor={anchor} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : mode === "twoWeek" ? <TwoWeek dates={dates} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : <Timeline dates={dates} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} focus={mode === "day" ? anchor : undefined} onSelect={setSelected} onOpenDay={setOpenDay} />}
+          {agendaOpen ? <WhatsNext calendars={agendaCalendars ?? (connected ? [] : agendaColumns(fakeEvents, hourOf(now)))} now={now} onSelect={setSelected} /> : mode === "month" ? <Month dates={dates} anchor={anchor} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : mode === "twoWeek" ? <TwoWeek dates={dates} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} onSelect={setSelected} onOpenDay={setOpenDay} /> : <Timeline dates={dates} today={today} now={now} events={displayEvents} range={scheduleRange} forecast={forecast} focus={mode === "day" ? anchor : undefined} schoolWeeks={person ? schoolWeeks : undefined} onSelect={setSelected} onOpenDay={setOpenDay} />}
         </div>
         {notesOpen && <div className="notes-frame"><Notes onCelebrate={name => setCelebration(previous => ({ names: name, id: (previous?.id ?? 0) + 1 }))} onClose={() => setNotesOpen(false)} quests={quests} now={now} lists={taskLists} error={tasksError} reconnect={connectGoogle} apiUrl={apiUrl} connected={connected} refresh={countdownRefresh} /></div>}
       </div>

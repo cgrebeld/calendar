@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { addDays } from "./dates";
+import { addDays, schoolWeekOn, type SchoolWeekAnchor } from "./dates";
 import { moonPhaseOn } from "./moon";
 import { dayDifference, layoutEventColumns, layoutEvents, orderEvents, upcomingEvents, type AgendaCalendar, type CalendarEvent } from "./google-calendar";
 import { formatHour, hourLabels, hourOf, hourOffset, placeRows, scheduleHours, timeMarkerOffset, titleLines, type ScheduleRange } from "./schedule";
@@ -81,7 +81,7 @@ function DayWeatherBadge({ date, day, compact }: { date: Date; day?: DayWeather;
   </div>;
 }
 
-export function Timeline({ dates, today, now, events, range, focus, forecast, onSelect, onOpenDay }: { dates: Date[]; today: Date; now: Date; events: CalendarEvent[]; range: ScheduleRange; focus?: Date; forecast: Map<string, DayWeather>; onSelect: (event: CalendarEvent) => void; onOpenDay: (date: Date) => void }) {
+export function Timeline({ dates, today, now, events, range, focus, forecast, schoolWeeks, onSelect, onOpenDay }: { dates: Date[]; today: Date; now: Date; events: CalendarEvent[]; range: ScheduleRange; focus?: Date; forecast: Map<string, DayWeather>; schoolWeeks?: SchoolWeekAnchor[]; onSelect: (event: CalendarEvent) => void; onOpenDay: (date: Date) => void }) {
   const nowHour = hourOf(now);
   const sideBySide = Boolean(focus) || dates.length === 1;
   const todayShown = dates.some((date) => sameDay(date, now));
@@ -92,6 +92,7 @@ export function Timeline({ dates, today, now, events, range, focus, forecast, on
       {dates.map((date) => (
         <div className={`day-heading ${sameDay(date, today) ? "today" : ""} ${focus ? (sameDay(date, focus) ? "focus" : "context") : ""}`} key={`heading-${date.toDateString()}`} onClick={dayTap(onOpenDay, date)} aria-label={`Open ${longDate.format(date)}`}>
           <span>{dayName.format(date)}</span><strong>{date.getDate()}</strong>
+          {schoolWeeks?.length ? <small className="school-week">W{schoolWeekOn(date, schoolWeeks)}</small> : null}
           <DayWeatherBadge date={date} day={forecast.get(dateKey(date))} />
         </div>
       ))}

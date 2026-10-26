@@ -51,3 +51,27 @@ export function viewTitle(dates: Date[], mode: ViewMode, anchor: Date) {
   if (dates.length === 1) return shortDate.format(dates[0]);
   return `${shortDate.format(dates[0])} – ${shortDate.format(dates.at(-1)!)}`;
 }
+
+export type SchoolWeekAnchor = { isoWeek: number; schoolWeek: number };
+
+// "43:2" -> ISO week 43 is school week 2; later weeks alternate until the next entry.
+export function parseSchoolWeeks(value = "") {
+  return value.split(",").flatMap(entry => {
+    const [isoWeek, schoolWeek] = entry.split(":").map(part => Number(part.trim()));
+    return Number.isInteger(isoWeek) && isoWeek >= 1 && isoWeek <= 53 && (schoolWeek === 1 || schoolWeek === 2) ? [{ isoWeek, schoolWeek }] : [];
+  }).sort((left, right) => left.isoWeek - right.isoWeek);
+}
+
+export function isoWeek(date: Date) {
+  const day = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  day.setUTCDate(day.getUTCDate() + 4 - (day.getUTCDay() || 7));
+  const yearStart = Date.UTC(day.getUTCFullYear(), 0, 1);
+  return Math.ceil(((day.getTime() - yearStart) / 86400000 + 1) / 7);
+}
+
+// Alternates from the latest anchor at or before this ISO week, or from the first anchor if none is earlier.
+export function schoolWeekOn(date: Date, anchors: SchoolWeekAnchor[]) {
+  const week = isoWeek(date);
+  const anchor = anchors.filter(entry => entry.isoWeek <= week).at(-1) ?? anchors[0];
+  return (week - anchor.isoWeek) % 2 === 0 ? anchor.schoolWeek : anchor.schoolWeek === 1 ? 2 : 1;
+}

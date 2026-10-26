@@ -14,7 +14,7 @@ Settings → Appearance lets you switch between Default and Woodland for the cur
 
 The agenda in both Modern and Woodland shows upcoming events in columns that fill the available screen height, with alternating day shades. Set `AGENDA_CALENDARS=ada,clio,chris,vikky` in `.env` (or `/etc/calendar/calendar.env` on the kiosk) to choose calendars and their order by case-insensitive name; other calendars, such as Holidays in Canada, are excluded. Unset uses selected calendars. Restart the API after changing this setting. The agenda fetches the next 100 events per calendar with no date cutoff and keeps empty calendars visible.
 
-Personal pages appear after the agenda button, one per person, shown by their quest pet. Each is the 3-day view (today in the middle) of only that person's Google calendars, fetched even when those calendars are hidden in Google. Set `VITE_PERSONAL_VIEWS=Ada:Ada,Ada School` (people separated by `;`, calendar names case-insensitive), then run `./restart.sh web`.
+Personal pages appear after the agenda button, one per person, shown by their quest pet. Each is the 3-day view (today in the middle) of only that person's Google calendars, fetched even when those calendars are hidden in Google. Set `VITE_PERSONAL_VIEWS=Ada:Ada,Ada School` (people separated by `;`, calendar names case-insensitive), then run `./restart.sh web`. Set `VITE_SCHOOL_WEEKS=43:2` to label each day on those pages W1 or W2: `ISO-week:school-week` anchors, with weeks alternating from the latest anchor at or before them, so add another entry to reset the cycle after a break.
 
 Family Notes includes open and completed Google Tasks. Each sync refreshes the checkmarks from Google; on-screen toggles are local and are replaced on the next sync.
 

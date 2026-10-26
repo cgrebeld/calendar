@@ -56,7 +56,7 @@ test("hourly outlook uses forecast timezone, excludes missing data and limits to
 import { countdownItems, countdownRange } from "./countdowns.ts";
 import { execFileSync } from "node:child_process";
 import { moonPhaseInstant, moonPhaseOn, type MoonPhase } from "./moon.ts";
-import { addDays, moveAnchor, swipeDirection, viewDates, viewTitle } from "./dates.ts";
+import { addDays, isoWeek, moveAnchor, parseSchoolWeeks, schoolWeekOn, swipeDirection, viewDates, viewTitle } from "./dates.ts";
 import { agendaColumns, convertGoogleEvent, layoutEventColumns, layoutEvents, orderEvents, upcomingEvents, type CalendarEvent } from "./google-calendar.ts";
 
 test("agenda columns use calendar names and keep calendars with the same color or name separate", () => {
@@ -611,4 +611,17 @@ test("photo failures identify the provider and available reason", () => {
   assert.equal(photoFailure("immich-123", "HTTP 404"), "Immich photo unavailable (HTTP 404); swipe to continue");
   assert.equal(photoFailure("unsplash-123", "timed out"), "Unsplash photo unavailable (timed out); swipe to continue");
   assert.equal(photoFailure("123", "load or decode failed"), "Local photo unavailable (load or decode failed); swipe to continue");
+});
+
+test("school weeks alternate from the ISO week anchors", () => {
+  assert.equal(isoWeek(new Date(2026, 9, 25)), 43);
+  assert.equal(isoWeek(new Date(2026, 0, 1)), 1);
+  assert.equal(isoWeek(new Date(2027, 0, 1)), 53);
+  const anchors = parseSchoolWeeks("43:2, bogus, 60:1,20:1");
+  assert.deepEqual(anchors, [{ isoWeek: 20, schoolWeek: 1 }, { isoWeek: 43, schoolWeek: 2 }]);
+  assert.equal(schoolWeekOn(new Date(2026, 9, 25), anchors), 2);
+  assert.equal(schoolWeekOn(new Date(2026, 10, 1), anchors), 1);
+  assert.equal(schoolWeekOn(new Date(2026, 10, 8), anchors), 2);
+  assert.equal(schoolWeekOn(new Date(2026, 4, 1), anchors), 1);
+  assert.deepEqual(parseSchoolWeeks(""), []);
 });

@@ -221,6 +221,8 @@ nav .dark { color: var(--on-accent); background: var(--nav-dark-bg); border: 0; 
 .day-weather .glyph { font-size: 1rem; line-height: 1; }
 .moon-icon { width: 1.1rem; height: 1.1rem; flex: none; }
 .day-heading.context .day-weather { opacity: .55; }
+.school-week { color: var(--text-muted); font-size: .8rem; font-weight: 800; }
+.day-heading.context .school-week { opacity: .55; }
 .time-labels { position: relative; margin-top: 3rem; }
 .time-labels span { position: absolute; right: .7rem; color: var(--text-faint); font-size: .72rem; transform: translateY(-50%); }
 .time-labels span:last-child { transform: translateY(-100%); }
