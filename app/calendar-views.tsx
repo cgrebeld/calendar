@@ -17,6 +17,10 @@ const dayTap = (onOpenDay: (date: Date) => void, date: Date) => (event: React.Mo
 };
 
 
+function isWeekend(date: Date) {
+  return date.getDay() === 0 || date.getDay() === 6;
+}
+
 function sameDay(left: Date, right: Date) {
   return left.toDateString() === right.toDateString();
 }
@@ -68,11 +72,12 @@ export function WhatsNext({ calendars, now, onSelect }: { calendars: AgendaCalen
   </section>;
 }
 
-function DayWeatherBadge({ date, day, compact }: { date: Date; day?: DayWeather; compact?: boolean }) {
+function DayWeatherBadge({ date, day, schoolWeek, compact }: { date: Date; day?: DayWeather; schoolWeek?: number; compact?: boolean }) {
   const phase = moonPhaseOn(date);
-  if (!day && !phase) return null;
+  if (!day && !phase && !schoolWeek) return null;
   return <div className="day-weather">
-    {day && <><span className="glyph" data-icon={weatherIcon(day, coldThreshold)}>{weatherGlyph(day, coldThreshold)}</span>{!compact && `${Math.round(day.high)}°`}</>}
+    {schoolWeek && <small className="school-week">W{schoolWeek}</small>}
+    {day &&<><span className="glyph" data-icon={weatherIcon(day, coldThreshold)}>{weatherGlyph(day, coldThreshold)}</span>{!compact && `${Math.round(day.high)}°`}</>}
     {phase && <svg className="moon-icon" viewBox="0 0 24 24" role="img" aria-label={phase === "full" ? "Full moon" : "New moon"}>
       <title>{phase === "full" ? "Full moon" : "New moon"}</title>
       <circle cx="12" cy="12" r="10" fill={phase === "full" ? "#f5e6af" : "#263044"} stroke="#9b8c6c" strokeWidth="1.5" />
@@ -92,8 +97,7 @@ export function Timeline({ dates, today, now, events, range, focus, forecast, sc
       {dates.map((date) => (
         <div className={`day-heading ${sameDay(date, today) ? "today" : ""} ${focus ? (sameDay(date, focus) ? "focus" : "context") : ""}`} key={`heading-${date.toDateString()}`} onClick={dayTap(onOpenDay, date)} aria-label={`Open ${longDate.format(date)}`}>
           <span>{dayName.format(date)}</span><strong>{date.getDate()}</strong>
-          {schoolWeeks?.length ? <small className="school-week">W{schoolWeekOn(date, schoolWeeks)}</small> : null}
-          <DayWeatherBadge date={date} day={forecast.get(dateKey(date))} />
+          <DayWeatherBadge date={date} day={forecast.get(dateKey(date))} schoolWeek={schoolWeeks?.length && !isWeekend(date) ? schoolWeekOn(date, schoolWeeks) : undefined} />
         </div>
       ))}
       <div className="time-labels">{hourLabels(range).map((hour) => <span className={hour === nearestLabel ? "now-near" : ""} style={{ top: `${hourOffset(range, hour) * 100}%` }} key={hour}>{formatHour(hour)}</span>)}</div>
