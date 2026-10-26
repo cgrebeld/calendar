@@ -61,7 +61,7 @@ const demoEvents: Omit<CalendarEvent, "id">[] = [
 const fakeEvents: CalendarEvent[] = demoEvents.map((event, index) => ({ ...event, id: `demo-${index}` }));
 
 const people = personalViews(import.meta.env.VITE_PERSONAL_VIEWS ?? "Ada:Ada,Ada School");
-const schoolWeeks = parseSchoolWeeks(import.meta.env.VITE_SCHOOL_WEEKS);
+const schoolWeeks = parseSchoolWeeks(import.meta.env.VITE_SCHOOL_WEEKS ?? "43:2");
 const petImage = (name: string) => `url(/characters/${pets.get(name.toLowerCase()) ?? "dragon"}.png)`;
 
 const modes: { id: ViewMode; label: string }[] = [
