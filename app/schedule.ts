@@ -1,3 +1,4 @@
+import { env } from "./env.ts";
 export type ScheduleRange = { startHour: number; endHour: number };
 
 export const defaultScheduleRange: ScheduleRange = { startHour: 7, endHour: 22 };
@@ -18,7 +19,7 @@ export function parseScheduleRange(start?: string, end?: string): ScheduleRange 
 }
 
 export function scheduleRangeFromEnv(): ScheduleRange {
-  return parseScheduleRange(import.meta.env.VITE_SCHEDULE_START, import.meta.env.VITE_SCHEDULE_END);
+  return parseScheduleRange(env.VITE_SCHEDULE_START, env.VITE_SCHEDULE_END);
 }
 
 export function scheduleHours(range: ScheduleRange): number {

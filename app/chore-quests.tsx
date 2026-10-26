@@ -1,8 +1,9 @@
+import { env } from "./env";
 import { useEffect, useRef, useState } from "react";
 import { chorePets, weekOf, type Quest } from "./quests";
 import "./chore-quests.css";
 
-export const pets = chorePets(import.meta.env.VITE_CHORE_PETS ?? "Ada:otter,Clio:dragon");
+export const pets = chorePets(env.VITE_CHORE_PETS ?? "Ada:otter,Clio:dragon");
 
 function QuestCharacter({ name, species, complete, progress, onCelebrate }: { name: string; species: string; complete: boolean; progress: number; onCelebrate: (name: string) => void }) {
   const [replay, setReplay] = useState(0);

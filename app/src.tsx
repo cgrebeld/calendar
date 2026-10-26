@@ -1,3 +1,4 @@
+import { env } from "./env";
 import { VolumeSettings } from "./volume";
 import { reportError, installErrorReporting } from "./client-log";
 import React, { useEffect, useRef, useState } from "react";
@@ -21,21 +22,21 @@ import { ApplicationUpdates } from "./updates";
 import { PhotoIcon, PhotoMode, PhotoSettings } from "./photos";
 import { connectGoogle as openGoogle, googlePopupId, finishGooglePopup } from "./google-connect";
 
-installErrorReporting(import.meta.env.VITE_API_URL ?? "http://localhost:3000");
+installErrorReporting(env.VITE_API_URL ?? "http://localhost:3000");
 
-const themeMode = parseThemeMode(new URLSearchParams(location.search).get("theme") ?? import.meta.env.VITE_THEME_MODE);
+const themeMode = parseThemeMode(new URLSearchParams(location.search).get("theme") ?? env.VITE_THEME_MODE);
 function savedSkin() {
   try { return localStorage.getItem("skin"); } catch { return null; }
 }
-const initialSkin = parseSkin(new URLSearchParams(location.search).get("skin") ?? savedSkin() ?? import.meta.env.VITE_SKIN);
+const initialSkin = parseSkin(new URLSearchParams(location.search).get("skin") ?? savedSkin() ?? env.VITE_SKIN);
 document.documentElement.dataset.skin = initialSkin;
-const envThemeSchedule = parseThemeSchedule(import.meta.env.VITE_THEME_LIGHT_START, import.meta.env.VITE_THEME_DARK_START);
+const envThemeSchedule = parseThemeSchedule(env.VITE_THEME_LIGHT_START, env.VITE_THEME_DARK_START);
 
 const scheduleRange = scheduleRangeFromEnv();
-const backgroundDisabled = import.meta.env.VITE_BACKGROUND === "none";
+const backgroundDisabled = env.VITE_BACKGROUND === "none";
 const backgroundOverrides: Record<ThemeName, string | undefined> = {
-  light: import.meta.env.VITE_BACKGROUND_LIGHT,
-  dark: import.meta.env.VITE_BACKGROUND_DARK,
+  light: env.VITE_BACKGROUND_LIGHT,
+  dark: env.VITE_BACKGROUND_DARK,
 };
 
 const demoEvents: Omit<CalendarEvent, "id">[] = [
@@ -60,8 +61,8 @@ const demoEvents: Omit<CalendarEvent, "id">[] = [
 ];
 const fakeEvents: CalendarEvent[] = demoEvents.map((event, index) => ({ ...event, id: `demo-${index}` }));
 
-const people = personalViews(import.meta.env.VITE_PERSONAL_VIEWS ?? "Ada:Ada,Ada School");
-const schoolWeeks = parseSchoolWeeks(import.meta.env.VITE_SCHOOL_WEEKS ?? "43:2");
+const people = personalViews(env.VITE_PERSONAL_VIEWS ?? "Ada:Ada,Ada School");
+const schoolWeeks = parseSchoolWeeks(env.VITE_SCHOOL_WEEKS ?? "43:2");
 const petImage = (name: string) => `url(/characters/${pets.get(name.toLowerCase()) ?? "dragon"}.png)`;
 
 const modes: { id: ViewMode; label: string }[] = [
@@ -271,7 +272,7 @@ function App() {
     if (nextImage) new Image().src = nextImage;
   }, [theme, dayKey, background, skin]);
   const dates = viewDates(anchor, mode);
-  const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+  const apiUrl = env.VITE_API_URL ?? "http://localhost:3000";
   const displayEvents: CalendarEvent[] = personCalendars ? calendarEvents.filter((event) => personCalendars.includes(event.person.toLowerCase())) : [...calendarEvents, ...collectionDates.map(({ date, kind }): CalendarEvent => {
     const [year, month, day] = date.split("-").map(Number);
     return { id: `${kind}-${date}`, day: dayDifference(new Date(year, month - 1, day), today), person: kind === "garbage" ? "City of Victoria" : "CRD", tone: "collection", start: scheduleRange.startHour, duration: 1, title: kind === "garbage" ? "Garbage & organics" : "Recycling", detail: kind === "garbage" ? "City of Victoria collection" : "CRD blue box collection", allDay: true, collection: kind };
@@ -519,4 +520,4 @@ function GoogleConnected({ id }: { id: string }) {
 }
 
 const popupId = googlePopupId(location.search);
-createRoot(document.getElementById("root")!, { onUncaughtError: (error) => reportError(import.meta.env.VITE_API_URL ?? "http://localhost:3000", "render", error) }).render(<React.StrictMode>{popupId ? <GoogleConnected id={popupId} /> : <App />}</React.StrictMode>);
+createRoot(document.getElementById("root")!, { onUncaughtError: (error) => reportError(env.VITE_API_URL ?? "http://localhost:3000", "render", error) }).render(<React.StrictMode>{popupId ? <GoogleConnected id={popupId} /> : <App />}</React.StrictMode>);

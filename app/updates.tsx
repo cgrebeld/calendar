@@ -1,3 +1,4 @@
+import { env } from "./env";
 import { reportError } from "./client-log";
 import { useEffect, useRef, useState } from "react";
 import { needsUpdateReload } from "./update-version";
@@ -29,7 +30,7 @@ export function ApplicationUpdates({ apiUrl, onAvailableChange }: { apiUrl: stri
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
-  const loadedVersion = useRef<string | undefined>(import.meta.env.VITE_APP_VERSION === "dev" ? undefined : import.meta.env.VITE_APP_VERSION);
+  const loadedVersion = useRef<string | undefined>(env.VITE_APP_VERSION === "dev" ? undefined : env.VITE_APP_VERSION);
   useEffect(() => {
     // Keep checking while settings are closed so the calendar can show an update.
     let stopped = false;

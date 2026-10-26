@@ -1,3 +1,4 @@
+import { env } from "./env.ts";
 import { defaultScheduleRange, type ScheduleRange } from "./schedule.ts";
 
 export type CalendarEvent = {
@@ -142,7 +143,7 @@ export async function loadGoogleEvents(from: Date, to: Date, today: Date, range:
   const query = new URLSearchParams({ timeMin: from.toISOString(), timeMax: to.toISOString() });
   for (const calendar of calendars) query.append("calendar", calendar);
   if (force) query.set("force", "true");
-  const response = await fetch(`${import.meta.env.VITE_API_URL ?? "http://localhost:3000"}/api/calendar/events?${query}`, { signal: AbortSignal.timeout(30000) });
+  const response = await fetch(`${env.VITE_API_URL ?? "http://localhost:3000"}/api/calendar/events?${query}`, { signal: AbortSignal.timeout(30000) });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || `Calendar API returned ${response.status}`);
   return (data as { event: GoogleEvent; calendar: Calendar; tone: number }[]).map(({ event, calendar, tone }) => convertGoogleEvent(event, calendar, tones[tone % tones.length], today, range));
@@ -153,7 +154,7 @@ export async function loadGoogleAgenda(today: Date, range: ScheduleRange = defau
   start.setHours(0, 0, 0, 0);
   const query = new URLSearchParams({ timeMin: start.toISOString() });
   if (force) query.set("force", "true");
-  const response = await fetch(`${import.meta.env.VITE_API_URL ?? "http://localhost:3000"}/api/calendar/agenda?${query}`, { signal: AbortSignal.timeout(30000) });
+  const response = await fetch(`${env.VITE_API_URL ?? "http://localhost:3000"}/api/calendar/agenda?${query}`, { signal: AbortSignal.timeout(30000) });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || `Calendar API returned ${response.status}`);
   return (data as (Calendar & { tone: number; events: GoogleEvent[] })[]).map((calendar) => ({

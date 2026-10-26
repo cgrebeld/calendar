@@ -36,5 +36,6 @@ ARG APP_REVISION=unknown
 LABEL org.opencontainers.image.source="https://github.com/cgrebeld/calendar" org.opencontainers.image.version=$APP_VERSION org.opencontainers.image.revision=$APP_REVISION io.calendar.component="web"
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
+COPY deploy/runtime-env.sh /docker-entrypoint.d/40-runtime-env.sh
 HEALTHCHECK --interval=30s --timeout=3s CMD wget -qO- http://127.0.0.1/ || exit 1
 

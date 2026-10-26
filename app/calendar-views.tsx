@@ -1,3 +1,4 @@
+import { env } from "./env";
 import React, { useEffect, useState } from "react";
 import { addDays, schoolWeekOn, type SchoolWeekAnchor } from "./dates";
 import { moonPhaseOn } from "./moon";
@@ -6,7 +7,7 @@ import { formatHour, hourLabels, hourOf, hourOffset, placeRows, scheduleHours, t
 import { Modal } from "./modal";
 import { dateKey, weatherGlyph, weatherIcon, type DayWeather } from "./weather";
 
-export const coldThreshold = Number(import.meta.env.VITE_WEATHER_COLD_THRESHOLD ?? 0);
+export const coldThreshold = Number(env.VITE_WEATHER_COLD_THRESHOLD ?? 0);
 export const dayName = new Intl.DateTimeFormat(undefined, { weekday: "short" });
 export const longDate = new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric" });
 const agendaDate = new Intl.DateTimeFormat(undefined, { weekday: "short", month: "short", day: "numeric" });
