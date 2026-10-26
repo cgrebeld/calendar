@@ -414,7 +414,7 @@ function App() {
   };
 
   if (sleeping) return <button autoFocus className="sleep-screen" aria-label="Wake display" onClick={() => setSleeping(false)} />;
-  if (idle) return <PhotoMode apiUrl={apiUrl} now={today} weather={weatherNow} coldThreshold={coldThreshold} onExit={() => setIdle(false)} />;
+  if (idle) return <PhotoMode apiUrl={apiUrl} now={today} weather={weatherNow} coldThreshold={coldThreshold} onExit={() => { setIdle(false); setPerson(undefined); setAgendaOpen(false); setMode("week"); setAnchor(new Date()); }} />;
 
   const title = viewTitle(dates, mode, anchor);
   const todayWeather = forecast.get(dateKey(today));
